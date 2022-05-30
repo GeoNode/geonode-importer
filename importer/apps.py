@@ -14,8 +14,7 @@ class ImporterConfig(AppConfig):
 def run_setup_hooks(*args, **kwargs):
     from django.conf.urls import include, url
     from geonode.urls import urlpatterns
-    from geonode.settings import CELERY_TASK_QUEUES, GEONODE_EXCHANGE, Queue
-   
+
     url_already_injected = any(
         [
             'importer.urls' in x.urlconf_name.__name__
