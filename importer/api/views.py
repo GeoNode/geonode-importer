@@ -30,7 +30,7 @@ from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import run_dataset_import
+from importer.views import start_dataset_import
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -78,8 +78,8 @@ class ImporterViewSet(DynamicModelViewSet):
             # get filepath
             files = storage_manager.get_retrieved_paths()
             try:
-                run_dataset_import.apply_async(
-                    (files, data.data.get("store_spatial_files"))
+                start_dataset_import.apply_async(
+                    (files, data.data.get("store_spatial_files"), request.user.username)
                 )
                 return Response(status=201)
             except Exception as e:
