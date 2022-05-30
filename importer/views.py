@@ -18,6 +18,5 @@ app = Celery('importer')
     retry_backoff_max=30,
     retry_jitter=False
 )
-def run_dataset_import(data, store_spatial_files):
-    print(data, store_spatial_files)
+def run_dataset_import(self, data, store_spatial_files, execution_id=None):
     pass
