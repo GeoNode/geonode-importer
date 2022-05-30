@@ -24,14 +24,13 @@ from dynamic_rest.viewsets import DynamicModelViewSet
 from geonode.base.api.filters import DynamicSearchFilter
 from geonode.base.api.pagination import GeoNodeApiPagination
 from geonode.base.api.permissions import IsOwnerOrReadOnly
-from geonode.settings import GEONODE_EXCHANGE
 from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
 from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import app, run_dataset_import
+from importer.views import run_dataset_import
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -67,7 +66,7 @@ class ImporterViewSet(DynamicModelViewSet):
         the new import flow is follow, else the normal upload api is used.
         It clone on the local repo the file that the user want to upload
         '''
-        _file = request.FILES.get('base_file')
+        _file = request.FILES.get('base_file') or request.data.get('base_file')
         if _file and _file.name.endswith('gpkg'):
             #go through the new import flow
             data = self.serializer_class(data=request.data)
