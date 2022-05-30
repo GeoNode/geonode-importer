@@ -19,48 +19,80 @@
 import logging
 
 from django.utils.translation import ugettext as _
-from drf_spectacular.utils import extend_schema
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
 from geonode.base.api.filters import DynamicSearchFilter
 from geonode.base.api.pagination import GeoNodeApiPagination
 from geonode.base.api.permissions import IsOwnerOrReadOnly
+from geonode.settings import GEONODE_EXCHANGE
+from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
-from geonode.upload.api.serializers import UploadSerializer
 from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
+from importer.api.exception import ImportException
+from importer.api.serializer import ImporterSerializer
+from importer.views import app
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
-from rest_framework.decorators import action
-from rest_framework.parsers import FileUploadParser
+from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
 
-class UploadGPKGViewSet(DynamicModelViewSet):
+class ImporterViewSet(DynamicModelViewSet):
     """
     API endpoint that allows uploads to be viewed or edited.
     """
-    parser_class = [FileUploadParser, ]
+    parser_class = [FileUploadParser, MultiPartParser]
 
-    authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
+    authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
     ]
     queryset = Upload.objects.all()
-    serializer_class = UploadSerializer
+    serializer_class = ImporterSerializer
     pagination_class = GeoNodeApiPagination
     http_method_names = ['get', 'post']
 
     def create(self, request, *args, **kwargs):
+        '''
+        Main function called by the new import flow.
+        It received the file via the front end
+        if is a gpkg (in future it will support all the vector file)
+        the new import flow is follow, else the normal upload api is used.
+        It clone on the local repo the file that the user want to upload
+        '''
         _file = request.FILES.get('base_file')
         if _file and _file.name.endswith('gpkg'):
             #go through the new import flow
-            return
+            data = self.serializer_class(data=request.data)
+            # data validation
+            data.is_valid(raise_exception=True)
+            # cloning data into a local folder
+            storage_manager = StorageManager(remote_files={"base_file": request.data.get('base_file')})
+            storage_manager.clone_remote_files()
+            # get filepath
+            files = storage_manager.get_retrieved_paths()
+            try:
+                app.send_task(
+                    name="importer.run_dataset_import",
+                    queue="geonode.dataset_importer",
+                    exchange=GEONODE_EXCHANGE,
+                    routing_key="geonode.dataset_importer",
+                    kwargs={"data": files, "store_spatial_files": data.data.get("store_spatial_files")}
+                )
+                return Response(status=201)
+            except Exception as e:
+                # in case of any exception, is better to delete the 
+                # cloned files to keep the storage under control
+                storage_manager.delete_retrieved_paths(force=True)
+                return ImportException(detail=e.args[0])
+
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True
         return UploadViewSet().upload(request)
