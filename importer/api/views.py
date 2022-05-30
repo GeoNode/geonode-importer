@@ -87,7 +87,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control
                 storage_manager.delete_retrieved_paths(force=True)
-                return ImportException(detail=e.args[0])
+                raise ImportException(detail=e.args[0])
 
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True
