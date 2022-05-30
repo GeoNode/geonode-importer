@@ -32,6 +32,6 @@ setup(
     package_data={"importer": ["templates/*.html", "templates/layers/*.html"]},
     include_package_data=True,
     install_requires=[
-        "django-dynamic-model @ git+https://github.com/mattiagiupponi/django-dynamic-models.git@master#egg=dynamic_models",
+        "y @ git+https://github.com/rvinzent/django-dynamic-models.git@main#egg=dynamic_models",
     ],
 )
