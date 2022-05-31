@@ -19,7 +19,7 @@ class ImportOrchestrator:
         self.enable_legacy_upload_status = enable_legacy_upload_status
 
     @property
-    def get_supported_type_list(self):
+    def supported_type(self):
         '''
         Returns the supported types for the import
         '''
@@ -29,11 +29,20 @@ class ImportOrchestrator:
         '''
         Returns the supported types for the import
         '''
-        return SUPPORTED_TYPES.get(file_type)
+        _type = SUPPORTED_TYPES.get(file_type)
+        if not _type:
+            raise ImportException(detail=f"The requested filetype is not supported: {file_type}")
+        return _type
+
+    def get_execution_object(self, exec_id):
+        req = ExecutionRequest.objects.filter(exec_id=exec_id).first()
+        if req is None:
+            raise ImportException("The selected UUID does not exists")
+        return req
 
     def perform_next_import_step(self, resource_type: str, execution_id: str) -> None:
         # Getting the execution object
-        _exec = self._get_execution_object(str(execution_id))
+        _exec = self.get_execution_object(str(execution_id))
         # retrieve the task list for the resource_type
         tasks = self.get_file_handler(resource_type).TASKS_LIST
         # getting the index
@@ -61,7 +70,6 @@ class ImportOrchestrator:
                 last_updated=datetime.utcnow()
             )            
             raise ImportException(detail=e.args[0])
-        pass
 
 
     def create_execution_request(self, user: get_user_model, func_name: str, step: str, input_params: dict, resource=None) -> str:
@@ -79,9 +87,3 @@ class ImportOrchestrator:
     
     def update_execution_request_status(self, execution_id, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
-
-    def _get_execution_object(self, exec_id):
-        req = ExecutionRequest.objects.filter(exec_id=exec_id).first()
-        if req is None:
-            raise ImportException("The selected UUID does not exists")
-        return req

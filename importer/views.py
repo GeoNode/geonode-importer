@@ -26,7 +26,7 @@ importer = ImportOrchestrator()
     retry_jitter=False
 )
 def import_orchestrator(self, files, store_spatial_files=True, user=None, execution_id=None):
-    # TODO: get filetybe by the files
+    # TODO: get filetype by the files
     handler = importer.get_file_handler('gpkg')
 
     if execution_id is None:
@@ -66,7 +66,7 @@ def import_resource(self, resource_type, execution_id):
         func_name="import_resource",
         step="importer.import_resource"
     )
-    _exec = importer._get_execution_object(execution_id)
+    _exec = importer.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
     _store_spatial_files = _exec.input_params.get("files")
@@ -77,7 +77,6 @@ def import_resource(self, resource_type, execution_id):
     # starting file validation
 
     # do something
-
 
     #at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
