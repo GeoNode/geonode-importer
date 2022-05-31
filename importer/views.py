@@ -1,18 +1,21 @@
 from celery import Celery
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from geonode.resource.models import ExecutionRequest
 from geonode.tasks.tasks import FaultTolerantTask
+
+from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 
-
 app = Celery('importer')
-
+importer = ImportOrchestrator()
 
 
 @app.task(
     bind=True,
     base=FaultTolerantTask,
-    name='importer.start_dataset_import',
-    queue='geonode.dataset_importer',
+    name='importer.import_derivator',
+    queue='importer.import_derivator',
     expires=600,
     time_limit=600,
     acks_late=False,
@@ -22,17 +25,16 @@ app = Celery('importer')
     retry_backoff_max=30,
     retry_jitter=False
 )
-def start_dataset_import(self, files, store_spatial_files, user, execution_id=None):
-    importer = ImportOrchestrator()
-
+def import_derivator(self, files, store_spatial_files=True, user=None, execution_id=None):
+    # TODO: get filetybe by the files
     handler = importer.get_file_handler('gpkg')
 
     if execution_id is None:
         execution_id = importer.create_execution_request(
             user=get_user_model().objects.get(username=user),
-            func_name="start_dataset_import",
+            func_name=next(iter(handler.TASKS_LIST)),
+            step=next(iter(handler.TASKS_LIST)),
             input_params={
-                "step": next(iter(handler.TASKS_LIST)),
                 "files": files,
                 "store_spatial_files": store_spatial_files
             }
@@ -41,13 +43,11 @@ def start_dataset_import(self, files, store_spatial_files, user, execution_id=No
     importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id)
 
 
-
-
 @app.task(
     bind=True,
     base=FaultTolerantTask,
     name='importer.import_resource',
-    queue='geonode.dataset_importer',
+    queue='importer.import_resource',
     expires=600,
     time_limit=600,
     acks_late=False,
@@ -57,5 +57,30 @@ def start_dataset_import(self, files, store_spatial_files, user, execution_id=No
     retry_backoff_max=30,
     retry_jitter=False
 )
-def import_resource(self, execution_id):
+def import_resource(self, resource_type, execution_id):
+    # Updating status to running
+    importer.update_execution_request_status(
+        execution_id=execution_id,
+        status=ExecutionRequest.STATUS_RUNNING,
+        last_updated=timezone.now(),
+        func_name="import_resource",
+        step="importer.import_resource"
+    )
+    _exec = importer._get_execution_object(execution_id)
+
+    _files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("files")
+    _user = _exec.user
+    handler = DataStoreManager(_files, resource_type)
+
+    handler.is_valid()
+    # starting file validation
+
+    # do something
+
+
+    #at the end recall the import_derivator for the next step
+    import_derivator.apply_async(
+                    (_files, _store_spatial_files, _user.username, execution_id)
+                )
     pass

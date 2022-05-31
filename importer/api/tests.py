@@ -61,7 +61,7 @@ class TestImporterViewSet(GeoNodeBaseTestSupport):
         self.assertTrue(500, response.status_code)
         self.assertEqual(expected, response.json())
 
-    @patch('importer.api.views.start_dataset_import')
+    @patch('importer.api.views.import_derivator')
     def test_gpkg_task_is_called(self, patch_upload):
         patch_upload.apply_async.side_effect = MagicMock()
 
