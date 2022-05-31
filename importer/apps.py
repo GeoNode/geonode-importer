@@ -15,16 +15,17 @@ def run_setup_hooks(*args, **kwargs):
     from django.conf.urls import include, url
     from geonode.urls import urlpatterns
     from geonode.settings import CELERY_TASK_QUEUES, GEONODE_EXCHANGE, Queue
-   
+
     url_already_injected = any(
         [
-            'importer.urls' in x.urlconf_name.__name__
+            "importer.urls" in x.urlconf_name.__name__
             for x in urlpatterns
-            if hasattr(x, 'urlconf_name') and not isinstance(x.urlconf_name, list)
+            if hasattr(x, "urlconf_name") and not isinstance(x.urlconf_name, list)
         ]
     )
 
     if not url_already_injected:
         urlpatterns.insert(
-            0, url(r"^api/v2/", include("importer.api.urls")),
+            0,
+            url(r"^api/v2/", include("importer.api.urls")),
         )

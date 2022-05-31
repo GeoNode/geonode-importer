@@ -7,7 +7,7 @@ class DataStoreManager:
         self.handler = SUPPORTED_TYPES.get(resource_type)
 
     def is_valid(self):
-        '''
+        """
         Perform basic validation steps
-        '''
+        """
         return self.handler.is_valid(self.files)

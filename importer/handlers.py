@@ -1,16 +1,17 @@
 from abc import ABC
 import os
 
+
 class AbstractHandler(ABC):
     TASKS_LIST = []
 
     def step_list(self):
         return self.TASKS_LIST
-    
+
     def is_valid(self):
-        '''
+        """
         Define basic validation steps
-        '''
+        """
         return NotImplementedError
 
 
