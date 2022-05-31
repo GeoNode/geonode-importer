@@ -14,8 +14,8 @@ importer = ImportOrchestrator()
 @app.task(
     bind=True,
     base=FaultTolerantTask,
-    name='importer.import_derivator',
-    queue='importer.import_derivator',
+    name='importer.import_orchestrator',
+    queue='importer.import_orchestrator',
     expires=600,
     time_limit=600,
     acks_late=False,
@@ -25,7 +25,7 @@ importer = ImportOrchestrator()
     retry_backoff_max=30,
     retry_jitter=False
 )
-def import_derivator(self, files, store_spatial_files=True, user=None, execution_id=None):
+def import_orchestrator(self, files, store_spatial_files=True, user=None, execution_id=None):
     # TODO: get filetybe by the files
     handler = importer.get_file_handler('gpkg')
 
@@ -79,8 +79,8 @@ def import_resource(self, resource_type, execution_id):
     # do something
 
 
-    #at the end recall the import_derivator for the next step
-    import_derivator.apply_async(
+    #at the end recall the import_orchestrator for the next step
+    import_orchestrator.apply_async(
                     (_files, _store_spatial_files, _user.username, execution_id)
                 )
     pass
