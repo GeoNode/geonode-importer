@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from geonode.resource.models import ExecutionRequest
 from importer.api.exception import ImportException
 from importer.handlers import GPKGFileHandler
+from importer.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +55,8 @@ class ImportOrchestrator:
                 return
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
-            from importer.views import app as celery_app
             # calling the next step for the resource
-            celery_app.tasks.get(next_step).apply_async((resource_type, str(execution_id),))
+            app.tasks.get(next_step).apply_async((resource_type, str(execution_id),))
 
         except StopIteration:
             # means that the expected list of steps is completed
@@ -64,9 +64,9 @@ class ImportOrchestrator:
             return
         except Exception as e:
             self.update_execution_request_status(
-                execution_id=execution_id.exec_id,
+                execution_id=str(execution_id),
                 status=ExecutionRequest.STATUS_FAILED,
-                finished=True,
+                finished=datetime.utcnow(),
                 last_updated=datetime.utcnow()
             )            
             raise ImportException(detail=e.args[0])

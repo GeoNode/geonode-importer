@@ -1,13 +1,11 @@
-from celery import Celery
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.resource.models import ExecutionRequest
 from geonode.tasks.tasks import FaultTolerantTask
-
+from importer.celery_app import app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 
-app = Celery('importer')
 importer = ImportOrchestrator()
 
 

@@ -113,3 +113,60 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertEqual(count+1, ExecutionRequest.objects.count())
         self.assertDictEqual(input_files, exec_obj.input_params)
         self.assertEqual(exec_obj.STATUS_READY, exec_obj.status)
+
+    @patch("importer.orchestrator.app.tasks.get")
+    def test_perform_next_import_step(self, mock_celery):
+        # setup test
+        handler = self.importer.get_file_handler('gpkg')
+        _id = self.importer.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name=next(iter(handler.TASKS_LIST)),
+            step="start_import", # adding the first step for the GPKG file
+            input_params={
+                "files": {"base_file": "/tmp/file.txt"},
+                "store_spatial_files": True
+            }
+        )
+        # test under tests
+        self.importer.perform_next_import_step('gpkg', _id)
+        mock_celery.assert_called_once()
+        mock_celery.assert_called_with("importer.import_resource")
+
+    @patch("importer.orchestrator.app.tasks.get")
+    def test_perform_last_import_step(self, mock_celery):
+        # setup test
+        handler = self.importer.get_file_handler('gpkg')
+        _id = self.importer.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name=next(iter(handler.TASKS_LIST)),
+            step="importer.create_gn_resource", # adding the first step for the GPKG file
+            input_params={
+                "files": {"base_file": "/tmp/file.txt"},
+                "store_spatial_files": True
+            }
+        )
+        # test under tests
+        self.importer.perform_next_import_step('gpkg', _id)
+        mock_celery.assert_not_called()
+
+    @patch("importer.orchestrator.app.tasks.get")
+    def test_perform_with_error_set_invalid_status(self, mock_celery):
+        mock_celery.side_effect = Exception("test exception")
+        # setup test
+        handler = self.importer.get_file_handler('gpkg')
+        _id = self.importer.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name=next(iter(handler.TASKS_LIST)),
+            step="start_import", # adding the first step for the GPKG file
+            input_params={
+                "files": {"base_file": "/tmp/file.txt"},
+                "store_spatial_files": True
+            }
+        )
+        # test under tests
+        with self.assertRaises(Exception):
+            self.importer.perform_next_import_step('gpkg', _id)
+        
+        _excec = ExecutionRequest.objects.filter(exec_id=_id).first()
+        self.assertIsNotNone(_excec)
+        self.assertEqual(ExecutionRequest.STATUS_FAILED, _excec.status)
