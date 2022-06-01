@@ -2,9 +2,12 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.resource.models import ExecutionRequest
 from geonode.tasks.tasks import FaultTolerantTask
+from importer.api.exception import InvalidInputFileException
 from importer.celery_app import app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
+from geonode.upload.files import ALLOWED_EXTENSIONS
+from geonode.geoserver.helpers import get_spatial_files_dataset_type
 
 importer = ImportOrchestrator()
 
@@ -68,12 +71,16 @@ def import_resource(self, resource_type, execution_id):
     _files = _exec.input_params.get("files")
     _store_spatial_files = _exec.input_params.get("files")
     _user = _exec.user
-    handler = DataStoreManager(_files, resource_type)
 
-    handler.is_valid()
+    _datastore = DataStoreManager(_files, resource_type)
+
     # starting file validation
+    if not _datastore.input_is_valid():
+        importer.set_as_failed(execution_id=execution_id)
+        raise InvalidInputFileException()
 
     # do something
+    _datastore.start_import(execution_id)
 
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(

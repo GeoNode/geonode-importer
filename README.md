@@ -22,6 +22,8 @@ DYNAMIC_MODELS = {
    "USE_APP_LABEL": "importer"
 }
 
+DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
+
 ```
 
 Run migrations:

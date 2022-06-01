@@ -1,9 +1,9 @@
-from datetime import datetime
+from django.utils import timezone
 import logging
 from django.contrib.auth import get_user_model
 from geonode.resource.models import ExecutionRequest
 from importer.api.exception import ImportException
-from importer.handlers import GPKGFileHandler
+from importer.handlers.vector import GPKGFileHandler
 from importer.celery_app import app
 from geonode.upload.models import Upload
 from geonode.base.enumerations import STATE_RUNNING
@@ -72,13 +72,16 @@ class ImportOrchestrator:
             logger.info("The whole list of tasks has been processed")
             return
         except Exception as e:
-            self.update_execution_request_status(
+            self.set_as_failed(execution_id)
+            raise ImportException(detail=e.args[0])
+
+    def set_as_failed(self, execution_id):
+        self.update_execution_request_status(
                 execution_id=str(execution_id),
                 status=ExecutionRequest.STATUS_FAILED,
-                finished=datetime.utcnow(),
-                last_updated=datetime.utcnow(),
+                finished=timezone.now(),
+                last_updated=timezone.utcnow(),
             )
-            raise ImportException(detail=e.args[0])
 
     def create_execution_request(
         self,

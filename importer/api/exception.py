@@ -8,3 +8,10 @@ class ImportException(APIException):
     default_detail = 'Exception during resource upload'
     default_code = 'importer_exception'
     category = 'importer'
+
+
+class InvalidInputFileException(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = 'The provided files are invalid'
+    default_code = 'importer_exception'
+    category = 'importer'
