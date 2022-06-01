@@ -15,9 +15,10 @@ class DataPublisher():
         )
         self.workspace = get_geoserver_cascading_workspace(create=False)
 
-    def _extract_resource_name_from_file(self, files):
-        layers = ogr.Open(files.get("base_file"))
-        return [_l.GetName() for _l in layers]
+    def _extract_resource_name_from_file(self, files, resource_type):
+        if resource_type == 'gpkg':
+            layers = ogr.Open(files.get("base_file"))
+            return [_l.GetName() for _l in layers]
 
 
     def publish_resources(self, resources: List[str]):

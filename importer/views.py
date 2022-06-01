@@ -101,7 +101,7 @@ def import_resource(self, resource_type, execution_id):
     retry_backoff_max=30,
     retry_jitter=False,
 )
-def publish_resource(self, _, execution_id):
+def publish_resource(self, resource_type, execution_id):
     # Updating status to running
     importer.update_execution_request_status(
         execution_id=execution_id,
@@ -118,7 +118,7 @@ def publish_resource(self, _, execution_id):
 
     _publisher = DataPublisher()
 
-    resources = _publisher._extract_resource_name_from_file(_files)
+    resources = _publisher._extract_resource_name_from_file(_files, resource_type)
 
     _publisher.publish_resources(resources)
 
