@@ -8,6 +8,10 @@ from osgeo import ogr
 
 
 class GPKGFileHandler(AbstractHandler):
+    '''
+    Handler to import GPK files into GeoNode data db
+    It must provide the task_lists required to comple the upload
+    '''
     TASKS_LIST = (
         "start_import",
         "importer.import_resource",
@@ -22,6 +26,11 @@ class GPKGFileHandler(AbstractHandler):
         return all([os.path.exists(x) for x in files.values()])
 
     def import_resource(self, files):
+        '''
+        Main function to import the resource.
+        Internally will cal the steps required to import the 
+        data inside the geonode_data database
+        '''
         layers = ogr.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
         #for layer in layers:
@@ -30,6 +39,10 @@ class GPKGFileHandler(AbstractHandler):
         return stdout
 
     def _setup_dynamic_model(self, layer):
+        '''
+        Extract from the geopackage the layers name and their schema
+        after the extraction define the dynamic model instances
+        '''
         # TODO: finish the creation, is raising issues due the NONE value of the table
         model_schema, _ = ModelSchema.objects.get_or_create(name=layer.GetName(), db_name="datastore")
         # define standard field mapping from ogr to django
@@ -37,6 +50,9 @@ class GPKGFileHandler(AbstractHandler):
         return dynamic_model.as_model()
 
     def create_model_instance(self, layer, model_schema):
+        '''
+        Define the dynamic model instances
+        '''
         layer_schema = [{"name": x.name.lower(), "class_name": self._get_type(x)} for x in layer.schema]
         # define the geometry type
         layer_schema += [
@@ -57,6 +73,9 @@ class GPKGFileHandler(AbstractHandler):
 
 
     def _run_ogr2ogr_import(self, files):
+        '''
+        Perform the ogr2ogr command to import he gpkg inside geonode_data
+        '''
         ogr_exe = "/usr/bin/ogr2ogr"
         _uri = settings.GEODATABASE_URL.replace("postgis://", "")
         db_user, db_password = _uri.split('@')[0].split(":")
@@ -79,6 +98,8 @@ class GPKGFileHandler(AbstractHandler):
             raise Exception(stderr)
         return stdout
 
-
     def _get_type(self, _type):
+        '''
+        Used to get the standard field type in the dynamic_model_field definition
+        '''
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))

@@ -18,7 +18,7 @@
 #########################################################################
 class DatastoreRouter:
     """
-    Router for save the feature of interest in the datastore db
+    Router for redirect the resources into the datastore db
     """
 
     foi_model = {

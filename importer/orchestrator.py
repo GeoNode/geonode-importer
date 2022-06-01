@@ -18,6 +18,15 @@ SUPPORTED_TYPES = {
 
 
 class ImportOrchestrator:
+    ''''
+    Main import object. Is responsible to handle all the execution steps
+    Using the ExecutionRequest object, will extrapolate the information and
+    it call the next step of the import pipeline
+    Params: 
+    
+    enable_legacy_upload_status default=True: if true, will save the upload progress
+        also in the legacy upload system
+    '''
     def __init__(self, enable_legacy_upload_status=True) -> None:
         self.enable_legacy_upload_status = enable_legacy_upload_status
 
@@ -40,12 +49,22 @@ class ImportOrchestrator:
         return _type
 
     def get_execution_object(self, exec_id):
+        '''
+        Returns the ExecutionRequest object with the detail about the 
+        current execution
+        '''
         req = ExecutionRequest.objects.filter(exec_id=exec_id).first()
         if req is None:
             raise ImportException("The selected UUID does not exists")
         return req
 
     def perform_next_import_step(self, resource_type: str, execution_id: str) -> None:
+        '''
+        It takes the executionRequest detail to extract which was the last step
+        and take from the task_lists provided by the ResourceType handler
+        which will be the following step. if empty a None is returned, otherwise
+        in async the next step is called
+        '''
         # Getting the execution object
         _exec = self.get_execution_object(str(execution_id))
         # retrieve the task list for the resource_type
@@ -76,6 +95,9 @@ class ImportOrchestrator:
             raise ImportException(detail=e.args[0])
 
     def set_as_failed(self, execution_id):
+        '''
+        Utility method to set the ExecutionRequest object to fail
+        '''
         self.update_execution_request_status(
                 execution_id=str(execution_id),
                 status=ExecutionRequest.STATUS_FAILED,

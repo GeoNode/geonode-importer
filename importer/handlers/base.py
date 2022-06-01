@@ -18,6 +18,14 @@ GEOM_TYPE_MAPPING = {
 
 
 class AbstractHandler(ABC):
+    '''
+    Base abstract handler object
+    define the required method needed to define an upload handler
+    it must be:
+    - provide the tasks list to complete the import
+    - validation function
+    - method to import the resource
+    '''
     TASKS_LIST = []
 
     def step_list(self):
