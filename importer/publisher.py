@@ -16,12 +16,21 @@ class DataPublisher():
         self.workspace = get_geoserver_cascading_workspace(create=False)
 
     def _extract_resource_name_from_file(self, files, resource_type):
+        '''
+        Will try to extract the layers name from the original file
+        this is needed since we have to publish the resources
+        on geoserver by name
+        '''
         if resource_type == 'gpkg':
             layers = ogr.Open(files.get("base_file"))
             return [_l.GetName() for _l in layers]
 
 
     def publish_resources(self, resources: List[str]):
+        '''
+        Given a list of strings (which rappresent the table on geoserver)
+        Will publish the resorces on geoserver
+        '''
         self.integrity_checks()
         for table_name in resources:
             try:
@@ -38,6 +47,9 @@ class DataPublisher():
                 raise e
     
     def integrity_checks(self):
+        '''
+        Evaluate if the store exists. if not an excepion is raserd
+        '''
         self.store = self.cat.get_store(
             name=os.getenv("GEONODE_GEODATABASE", "geonode_data"),
             workspace=self.workspace

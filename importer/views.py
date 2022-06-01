@@ -57,6 +57,13 @@ def import_orchestrator(
     retry_jitter=False,
 )
 def import_resource(self, resource_type, execution_id):
+    '''
+    Task to import the resources in geoserver
+    after updating the execution status will perform a small data_validation
+    implemented inside the filetype handler.
+    If is the resource is valid, the start_import method of the handler
+    is called to proceed with the import
+    '''    
     # Updating status to running
     importer.update_execution_request_status(
         execution_id=execution_id,
@@ -102,6 +109,14 @@ def import_resource(self, resource_type, execution_id):
     retry_jitter=False,
 )
 def publish_resource(self, resource_type, execution_id):
+    '''
+    Task to publish the resources on geoserver
+    It will take the layers name from the source file
+    The layers name rappresent the table names that were saved
+    in geoserver in the previous step.
+    At the end of the execution the main import_orchestrator is called
+    to proceed to the next step if available
+    '''
     # Updating status to running
     importer.update_execution_request_status(
         execution_id=execution_id,
