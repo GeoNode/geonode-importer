@@ -81,7 +81,7 @@ def import_resource(self, resource_type, execution_id):
     _datastore.start_import(execution_id)
 
     # at the end recall the import_orchestrator for the next step
-    import_orchestrator.apply_async(
-        (_files, _store_spatial_files, _user.username, execution_id)
-    )
+    #import_orchestrator.apply_async(
+    #    (_files, _store_spatial_files, _user.username, execution_id)
+    #)
     pass

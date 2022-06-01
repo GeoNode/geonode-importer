@@ -23,16 +23,20 @@ class GPKGFileHandler(AbstractHandler):
 
     def import_resource(self, files):
         layers = ogr.Open(files.get("base_file"))
-        for layer in layers:
-            self._setup_dynamic_model(layer)
+        # for the moment we skip the dyanamic model creation
+        #for layer in layers:
+        #    self._setup_dynamic_model(layer)
         stdout = self._run_ogr2ogr_import(files)
         return stdout
 
     def _setup_dynamic_model(self, layer):
         # TODO: finish the creation, is raising issues due the NONE value of the table
-        model_schema, _ = ModelSchema.objects.get_or_create(name=layer.GetName())
-        _kwargs = {"max_length": 255, "null": True}
+        model_schema, _ = ModelSchema.objects.get_or_create(name=layer.GetName(), db_name="datastore")
         # define standard field mapping from ogr to django
+        dynamic_model = self.create_model_instance(layer, model_schema)
+        return dynamic_model.as_model()
+
+    def create_model_instance(self, layer, model_schema):
         layer_schema = [{"name": x.name.lower(), "class_name": self._get_type(x)} for x in layer.schema]
         # define the geometry type
         layer_schema += [
@@ -41,7 +45,7 @@ class GPKGFileHandler(AbstractHandler):
                 "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
             }
         ]
-        model_schema.refresh_from_db()
+
         for field in layer_schema:
             FieldSchema.objects.create(
                 name=field['name'],
@@ -49,8 +53,8 @@ class GPKGFileHandler(AbstractHandler):
                 model_schema=model_schema,
                 #kwargs=_kwargs
             )
-            model_schema.refresh_from_db()
         return model_schema.as_model()
+
 
     def _run_ogr2ogr_import(self, files):
         ogr_exe = "/usr/bin/ogr2ogr"
@@ -66,7 +70,6 @@ class GPKGFileHandler(AbstractHandler):
         options += files.get("base_file") + " "
         options += '-lco DIM=2 '
         options += '-overwrite '
-        options += '-lco GEOMETRY_NAME=geom '
 
         commands = [ogr_exe] + options.split(" ")
         

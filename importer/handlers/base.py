@@ -29,7 +29,7 @@ class AbstractHandler(ABC):
         """
         return NotImplementedError
 
-    def start_import(self):
+    def import_resource(self):
         '''
         Define the step to perform the import of the data
         into the datastore db
