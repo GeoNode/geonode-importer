@@ -6,8 +6,6 @@ from importer.api.exception import InvalidInputFileException
 from importer.celery_app import app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
-from geonode.upload.files import ALLOWED_EXTENSIONS
-from geonode.geoserver.helpers import get_spatial_files_dataset_type
 
 importer = ImportOrchestrator()
 

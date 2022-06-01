@@ -1,6 +1,9 @@
+from django.conf import settings
 from importer.handlers.base import GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING, AbstractHandler
 from dynamic_models.models import ModelSchema, FieldSchema
 import os
+import shapely.ops
+from subprocess import Popen, PIPE
 from osgeo import ogr
 
 
@@ -18,12 +21,12 @@ class GPKGFileHandler(AbstractHandler):
         """        
         return all([os.path.exists(x) for x in files.values()])
 
-    def start_import(self, files):
+    def import_resource(self, files):
         layers = ogr.Open(files.get("base_file"))
-        #for layer in layers:
-        #    self._setup_dynamic_model(layer)
-        self._run_ogr2ogr_import()
-        pass
+        for layer in layers:
+            self._setup_dynamic_model(layer)
+        stdout = self._run_ogr2ogr_import(files)
+        return stdout
 
     def _setup_dynamic_model(self, layer):
         # TODO: finish the creation, is raising issues due the NONE value of the table
@@ -48,6 +51,31 @@ class GPKGFileHandler(AbstractHandler):
             )
             model_schema.refresh_from_db()
         return model_schema.as_model()
+
+    def _run_ogr2ogr_import(self, files):
+        ogr_exe = "/usr/bin/ogr2ogr"
+        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
+        db_user, db_password = _uri.split('@')[0].split(":")
+        db_host, db_port = _uri.split('@')[1].split('/')[0].split(":")
+        db_name = _uri.split('@')[1].split("/")[1]
+        
+        options = '-progress '
+        options += '--config PG_USE_COPY YES '
+        options += '-f PostgreSQL PG:" dbname=\'%s\' host=%s port=%s user=\'%s\' password=\'%s\' " ' \
+                   % (db_name, db_host, db_port, db_user, db_password)
+        options += files.get("base_file") + " "
+        options += '-lco DIM=2 '
+        options += '-overwrite '
+        options += '-lco GEOMETRY_NAME=geom '
+
+        commands = [ogr_exe] + options.split(" ")
+        
+        process = Popen(' '.join(commands), stdout=PIPE, stderr=PIPE, shell=True)
+        stdout, stderr = process.communicate()
+        if stderr is not None and stderr != b'':
+            raise Exception(stderr)
+        return stdout
+
 
     def _get_type(self, _type):
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))

@@ -13,4 +13,4 @@ class DataStoreManager:
         return self.handler.is_valid(self.files)
 
     def start_import(self, execution_id):
-        return self.handler.start_import(self.files)
+        return self.handler.import_resource(self.files)
