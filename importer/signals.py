@@ -1,12 +1,14 @@
-from geonode.layers.models import Dataset
+from geonode.base.models import ResourceBase
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.geoserver.signals import geoserver_delete
 import logging
-from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
 
 
+@receiver(post_delete, sender=ResourceBase)
 def delete_dynamic_model(instance, sender, **kwargs):
     '''
     Delete the dynamic relation and the publishde geoserver layer
@@ -19,6 +21,3 @@ def delete_dynamic_model(instance, sender, **kwargs):
         # Removing Field Schema
     except Exception as e:
         logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
-
-
-models.signals.post_delete.connect(delete_dynamic_model, sender=Dataset)
