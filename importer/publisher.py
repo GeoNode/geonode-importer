@@ -18,7 +18,7 @@ class DataPublisher():
         )
         self.workspace = get_geoserver_cascading_workspace(create=False)
 
-    def _extract_resource_name_from_file(self, files, resource_type):
+    def _extract_resource_name_from_file(self, files: dict, resource_type: str):
         '''
         Will try to extract the layers name from the original file
         this is needed since we have to publish the resources
@@ -27,6 +27,7 @@ class DataPublisher():
         if resource_type == 'gpkg':
             layers = ogr.Open(files.get("base_file"))
             return [_l.GetName() for _l in layers]
+        return files.values() if isinstance(files, dict) else files
 
 
     def publish_resources(self, resources: List[str]):
