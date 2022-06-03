@@ -2,7 +2,6 @@ from django.conf import settings
 from importer.handlers.base import GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING, AbstractHandler
 from dynamic_models.models import ModelSchema, FieldSchema
 import os
-import shapely.ops
 from subprocess import Popen, PIPE
 from osgeo import ogr
 
@@ -33,8 +32,8 @@ class GPKGFileHandler(AbstractHandler):
         '''
         layers = ogr.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
-        #for layer in layers:
-        #    self._setup_dynamic_model(layer)
+        for layer in layers:
+            self._setup_dynamic_model(layer)
         stdout = self._run_ogr2ogr_import(files)
         return stdout
 
@@ -44,15 +43,52 @@ class GPKGFileHandler(AbstractHandler):
         after the extraction define the dynamic model instances
         '''
         # TODO: finish the creation, is raising issues due the NONE value of the table
-        model_schema, _ = ModelSchema.objects.get_or_create(name=layer.GetName(), db_name="datastore")
+        foi_schema = ModelSchema.objects.create(name=layer.GetName(), db_name="datastore")
         # define standard field mapping from ogr to django
-        dynamic_model = self.create_model_instance(layer, model_schema)
-        return dynamic_model.as_model()
+        dynamic_model = self.create_dynamic_model_instance(layer=layer, dynamic_model_schema=foi_schema)
+        return dynamic_model
+    
+    def create_dynamic_model_instance(self, layer, dynamic_model_schema):
+        fields = [
+            {"name": "name", "class_name": "django.db.models.CharField", "null": False},
+            {"name": "identifier", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "codespace", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "feature_type", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "feature_id", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "sampled_feature", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "geometry", "class_name": "django.contrib.gis.db.models.PolygonField", "null": False},
+            {"name": "srs_name", "class_name": "django.db.models.CharField", "null": True},
+            {"name": "description", "class_name": "django.db.models.TextField", "null": True},
+            {"name": "shape_blob", "class_name": "django.db.models.TextField", "null": False},
+            {"name": "resource_id", "class_name": "django.db.models.IntegerField", "null": False},
+        ]
+        layer_schema = [
+            {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
+            for x in layer.schema
+        ]
+        layer_schema += [
+            {
+                "name": layer.GetGeometryColumn(),
+                "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
+            }
+        ]
 
+        for field in layer_schema:
+            _kwargs = {"null": field.get('null', True)}
+            if field['class_name'].endswith('CharField'):
+                _kwargs = {**_kwargs, **{"max_length": 255}}
+            FieldSchema.objects.create(
+                name=field['name'],
+                class_name=field['class_name'],
+                model_schema=dynamic_model_schema,
+                kwargs=_kwargs
+            )
+
+        return dynamic_model_schema.as_model()
+    
+    '''
     def create_model_instance(self, layer, model_schema):
-        '''
         Define the dynamic model instances
-        '''
         layer_schema = [{"name": x.name.lower(), "class_name": self._get_type(x)} for x in layer.schema]
         # define the geometry type
         layer_schema += [
@@ -70,7 +106,7 @@ class GPKGFileHandler(AbstractHandler):
                 #kwargs=_kwargs
             )
         return model_schema.as_model()
-
+    '''
 
     def _run_ogr2ogr_import(self, files):
         '''

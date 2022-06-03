@@ -7,6 +7,9 @@ from osgeo import ogr
 
 
 class DataPublisher():
+    '''
+    Given a list of resources, will publish them on GeoServer
+    '''
     def __init__(self) -> None:
         self.cat = Catalog(
             service_url=f"{settings.GEOSERVER_LOCATION}rest",

@@ -10,10 +10,12 @@ STANDARD_TYPE_MAPPING = {
 }
 
 GEOM_TYPE_MAPPING = {
-    "Multi Line String": "django.contrib.gis.db.models.MultiLineStringField",
-    "Point": "django.contrib.gis.db.models.PointField",
-    "Polygon": "django.contrib.gis.db.models.PolygonField",
-    "Multi Point": "django.contrib.gis.db.models.MultiPointField"
+    "Line String": "django.contrib.gis.db.models.fields.LineStringField",
+    "Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
+    "Point": "django.contrib.gis.db.models.fields.PointField",
+    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
+    "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
 }
 
 

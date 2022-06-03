@@ -22,7 +22,7 @@ class DatastoreRouter:
     """
 
     foi_model = {
-        'app_label': ['importer', 'dynamic_models'],
+        'app_label': ['geonode_importer', 'dynamic_models'],
     }
 
     def db_for_read(self, model, **hints):
