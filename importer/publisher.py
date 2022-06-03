@@ -29,7 +29,7 @@ class DataPublisher():
             return [
                 {
                     "name": _l.GetName(),
-                    "crs" : f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('GEOGCS')}"
+                    "crs" : f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS')}"
                 } 
                 for _l in layers
             ]
@@ -42,17 +42,17 @@ class DataPublisher():
         Will publish the resorces on geoserver
         '''
         self.integrity_checks()
-        for table_name in resources:
+        for _resource in resources:
             try:
                 self.cat.publish_featuretype(
-                    name=table_name,
+                    name=_resource.get("name"),
                     store=self.store, 
-                    native_crs="EPSG:4326",
-                    srs="EPSG:4326",
-                    jdbc_virtual_table=table_name
+                    native_crs=_resource.get("crs"),
+                    srs=_resource.get("crs"),
+                    jdbc_virtual_table=_resource.get("name")
                 )
             except Exception as e:
-                if f"Resource named '{table_name}' already exists in store:" in str(e):
+                if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
                     continue
                 raise e
         return True, self.workspace.name, self.store.name

@@ -78,7 +78,7 @@ def import_resource(self, resource_type, execution_id):
     _exec = importer.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
-    _store_spatial_files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("_store_spatial_files")
     _user = _exec.user
 
     _datastore = DataStoreManager(_files, resource_type)
@@ -131,14 +131,14 @@ def publish_resource(self, resource_type, execution_id):
     _exec = importer.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
-    _store_spatial_files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("_store_spatial_files")
     _user = _exec.user
 
     _publisher = DataPublisher()
 
     _metadata = _publisher._extract_resource_name_from_file(_files, resource_type)
-    resources = [res['name'] for res in _metadata]
-    _, workspace, store = _publisher.publish_resources(resources)
+
+    _, workspace, store = _publisher.publish_resources(_metadata)
 
     importer.update_execution_request_status(
         execution_id=execution_id,
@@ -182,14 +182,16 @@ def create_gn_resource(self, resource_type, execution_id):
     _exec = importer.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
-    _store_spatial_files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("_store_spatial_files")
+    metadata_uploaded = _files.get("xml_file", "") or False
+    sld_uploaded = _files.get("sld_uploaded", "") or False
     _user = _exec.user
     
     _publisher = DataPublisher()
     resources = _publisher._extract_resource_name_from_file(_files, resource_type)
 
     for resource in resources:
-        resource_manager.create(
+        saved_dataset = resource_manager.create(
             None,
             resource_type=Dataset,
             defaults=dict(
@@ -200,9 +202,24 @@ def create_gn_resource(self, resource_type, execution_id):
                 alternate=resource.get("name"),
                 title=resource.get("name"),
                 owner=_user,
+                files=_files,
                 srid=resource.get("crs"),
             )
         )
+        resource_manager.update(None,
+            instance=saved_dataset,
+            xml_file=_files.get("xml_file", ""),
+            metadata_uploaded=metadata_uploaded
+        )
+        resource_manager.exec(
+            'set_style',
+            None,
+            instance=saved_dataset,
+            sld_uploaded=sld_uploaded,
+            sld_file=_files.get("sld_file", "")
+        )
+        resource_manager.set_thumbnail(None, instance=saved_dataset)
+
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id)

@@ -43,7 +43,9 @@ class GPKGFileHandler(AbstractHandler):
         after the extraction define the dynamic model instances
         '''
         # TODO: finish the creation, is raising issues due the NONE value of the table
-        foi_schema = ModelSchema.objects.create(name=layer.GetName(), db_name="datastore")
+        foi_schema, created = ModelSchema.objects.get_or_create(name=layer.GetName(), db_name="datastore")
+        if not created:
+            return foi_schema.as_model()
         # define standard field mapping from ogr to django
         dynamic_model = self.create_dynamic_model_instance(layer=layer, dynamic_model_schema=foi_schema)
         return dynamic_model
