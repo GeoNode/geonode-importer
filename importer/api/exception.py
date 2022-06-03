@@ -15,3 +15,10 @@ class InvalidInputFileException(APIException):
     default_detail = 'The provided files are invalid'
     default_code = 'importer_exception'
     category = 'importer'
+
+
+class PublishResourceException(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Error during the resource publishing"
+    default_code = "publishing_exception"
+    category = "importer"

@@ -30,7 +30,7 @@ from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import import_orchestrator
+from importer.views import import_orchestrator, importer
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -78,10 +78,17 @@ class ImporterViewSet(DynamicModelViewSet):
             # get filepath
             files = storage_manager.get_retrieved_paths()
             try:
-                import_orchestrator.apply_async(
-                    (files, data.data.get("store_spatial_files"), request.user.username)
+                execution_id = importer.create_execution_request(
+                    user=request.user,
+                    func_name="start_import",
+                    step="start_import",
+                    input_params={"files": files, "store_spatial_files": data.data.get("store_spatial_files")},
                 )
-                return Response(status=201)
+
+                import_orchestrator.apply_async(
+                    (files, data.data.get("store_spatial_files"), request.user.username, str(execution_id))
+                )
+                return Response(data={"execution_id": execution_id}, status=201)
             except Exception as e:
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control

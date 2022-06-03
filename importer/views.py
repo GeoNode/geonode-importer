@@ -1,15 +1,15 @@
-import os
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.resource.models import ExecutionRequest
 from geonode.tasks.tasks import FaultTolerantTask
-from importer.api.exception import InvalidInputFileException
+from importer.api.exception import InvalidInputFileException, PublishResourceException
 from importer.celery_app import app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 from importer.publisher import DataPublisher
 from geonode.resource.manager import resource_manager
 from geonode.layers.models import Dataset
+from geonode.storage.manager import storage_manager
 
 importer = ImportOrchestrator()
 
@@ -26,7 +26,7 @@ importer = ImportOrchestrator()
     retry_kwargs={"max_retries": 3},
     retry_backoff=3,
     retry_backoff_max=30,
-    retry_jitter=False,
+    retry_jitter=False
 )
 def import_orchestrator(
     self, files, store_spatial_files=True, user=None, execution_id=None
@@ -57,7 +57,7 @@ def import_orchestrator(
     retry_kwargs={"max_retries": 3},
     retry_backoff=3,
     retry_backoff_max=30,
-    retry_jitter=False,
+    retry_jitter=False
 )
 def import_resource(self, resource_type, execution_id):
     '''
@@ -109,7 +109,7 @@ def import_resource(self, resource_type, execution_id):
     retry_kwargs={"max_retries": 3},
     retry_backoff=3,
     retry_backoff_max=30,
-    retry_jitter=False,
+    retry_jitter=False
 )
 def publish_resource(self, resource_type, execution_id):
     '''
@@ -134,11 +134,12 @@ def publish_resource(self, resource_type, execution_id):
     _store_spatial_files = _exec.input_params.get("_store_spatial_files")
     _user = _exec.user
 
-    _publisher = DataPublisher()
-
-    _metadata = _publisher._extract_resource_name_from_file(_files, resource_type)
-
-    _, workspace, store = _publisher.publish_resources(_metadata)
+    try:
+        _publisher = DataPublisher()
+        _metadata = _publisher._extract_resource_name_from_file(_files, resource_type)
+        _, workspace, store = _publisher.publish_resources(_metadata)
+    except Exception as e:
+        raise PublishResourceException(detail=e.args[0])
 
     importer.update_execution_request_status(
         execution_id=execution_id,
@@ -165,7 +166,7 @@ def publish_resource(self, resource_type, execution_id):
     retry_kwargs={"max_retries": 3},
     retry_backoff=3,
     retry_backoff_max=30,
-    retry_jitter=False,
+    retry_jitter=False
 )
 def create_gn_resource(self, resource_type, execution_id):
     '''
@@ -220,6 +221,8 @@ def create_gn_resource(self, resource_type, execution_id):
         )
         resource_manager.set_thumbnail(None, instance=saved_dataset)
 
+    if not _store_spatial_files:
+        storage_manager.delete(_files.values())
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id)
