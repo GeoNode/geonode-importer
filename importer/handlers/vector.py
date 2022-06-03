@@ -49,19 +49,6 @@ class GPKGFileHandler(AbstractHandler):
         return dynamic_model
     
     def create_dynamic_model_instance(self, layer, dynamic_model_schema):
-        fields = [
-            {"name": "name", "class_name": "django.db.models.CharField", "null": False},
-            {"name": "identifier", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "codespace", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "feature_type", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "feature_id", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "sampled_feature", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "geometry", "class_name": "django.contrib.gis.db.models.PolygonField", "null": False},
-            {"name": "srs_name", "class_name": "django.db.models.CharField", "null": True},
-            {"name": "description", "class_name": "django.db.models.TextField", "null": True},
-            {"name": "shape_blob", "class_name": "django.db.models.TextField", "null": False},
-            {"name": "resource_id", "class_name": "django.db.models.IntegerField", "null": False},
-        ]
         layer_schema = [
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema

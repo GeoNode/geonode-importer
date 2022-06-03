@@ -19,7 +19,9 @@ CELERY_TASK_QUEUES += (
 INSTALLED_APPS += ('importer', 'dynamic_models',)
 
 DYNAMIC_MODELS = {
-   "USE_APP_LABEL": "importer"
+   "USE_APP_LABEL": "geonode_importer",
+    "DYNAMIC_MANAGED_MODELS": False # the library will not create the tables but just the model schema
+    "USE_DYNAMIC_TABLE_PREFIX": False # if false will not append the prefix in the table name
 }
 
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
