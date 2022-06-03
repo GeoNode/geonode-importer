@@ -136,8 +136,8 @@ def publish_resource(self, resource_type, execution_id):
 
     _publisher = DataPublisher()
 
-    resources = _publisher._extract_resource_name_from_file(_files, resource_type)
-
+    _metadata = _publisher._extract_resource_name_from_file(_files, resource_type)
+    resources = [res['name'] for res in _metadata]
     _, workspace, store = _publisher.publish_resources(resources)
 
     importer.update_execution_request_status(
@@ -193,14 +193,14 @@ def create_gn_resource(self, resource_type, execution_id):
             None,
             resource_type=Dataset,
             defaults=dict(
-                name=resource,
+                name=resource.get("name"),
                 workspace=_exec.input_params.get("workspace", "geonode"),
                 store=_exec.input_params.get("store", "geonode_data"),
                 subtype='vector',
-                alternate=resource,
-                title=resource,
+                alternate=resource.get("name"),
+                title=resource.get("name"),
                 owner=_user,
-                srid='EPSG:4326',
+                srid=resource.get("crs"),
             )
         )
     # at the end recall the import_orchestrator for the next step

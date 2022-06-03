@@ -26,7 +26,13 @@ class DataPublisher():
         '''
         if resource_type == 'gpkg':
             layers = ogr.Open(files.get("base_file"))
-            return [_l.GetName() for _l in layers]
+            return [
+                {
+                    "name": _l.GetName(),
+                    "crs" : f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('GEOGCS')}"
+                } 
+                for _l in layers
+            ]
         return files.values() if isinstance(files, dict) else files
 
 
