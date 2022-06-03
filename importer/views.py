@@ -1,3 +1,4 @@
+import os
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.resource.models import ExecutionRequest
@@ -7,6 +8,8 @@ from importer.celery_app import app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 from importer.publisher import DataPublisher
+from geonode.resource.manager import resource_manager
+from geonode.layers.models import Dataset
 
 importer = ImportOrchestrator()
 
@@ -135,8 +138,71 @@ def publish_resource(self, resource_type, execution_id):
 
     resources = _publisher._extract_resource_name_from_file(_files, resource_type)
 
-    _publisher.publish_resources(resources)
+    _, workspace, store = _publisher.publish_resources(resources)
 
+    importer.update_execution_request_status(
+        execution_id=execution_id,
+        status=ExecutionRequest.STATUS_RUNNING,
+        last_updated=timezone.now(),
+        input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
+    )
+
+    # at the end recall the import_orchestrator for the next step
+    import_orchestrator.apply_async(
+        (_files, _store_spatial_files, _user.username, execution_id)
+    )
+
+
+@app.task(
+    bind=True,
+    base=FaultTolerantTask,
+    name="importer.create_gn_resource",
+    queue="importer.create_gn_resource",
+    expires=600,
+    time_limit=600,
+    acks_late=False,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=3,
+    retry_backoff_max=30,
+    retry_jitter=False,
+)
+def create_gn_resource(self, resource_type, execution_id):
+    '''
+    Create the GeoNode resource and the relatives information associated
+    '''
+    # Updating status to running
+    importer.update_execution_request_status(
+        execution_id=execution_id,
+        status=ExecutionRequest.STATUS_RUNNING,
+        last_updated=timezone.now(),
+        func_name="create_gn_resource",
+        step="importer.create_gn_resource",
+    )
+    _exec = importer.get_execution_object(execution_id)
+
+    _files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("files")
+    _user = _exec.user
+    
+    _publisher = DataPublisher()
+    resources = _publisher._extract_resource_name_from_file(_files, resource_type)
+
+    for resource in resources:
+        resource_manager.create(
+            None,
+            resource_type=Dataset,
+            defaults=dict(
+                name=resource,
+                workspace=_exec.input_params.get("workspace", "geonode"),
+                store=_exec.input_params.get("store", "geonode_data"),
+                subtype='vector',
+                alternate=resource,
+                title=resource,
+                owner=_user,
+                srid='EPSG:4326',
+            )
+        )
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id)

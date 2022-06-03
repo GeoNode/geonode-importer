@@ -75,6 +75,8 @@ class ImportOrchestrator:
             # finding in the task_list the last step done
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
+                # The list of task is empty, it means that the process is finished
+                self.set_as_completed(execution_id)
                 return
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
@@ -89,6 +91,7 @@ class ImportOrchestrator:
         except StopIteration:
             # means that the expected list of steps is completed
             logger.info("The whole list of tasks has been processed")
+            self.set_as_completed(execution_id)
             return
         except Exception as e:
             self.set_as_failed(execution_id)
@@ -102,7 +105,18 @@ class ImportOrchestrator:
                 execution_id=str(execution_id),
                 status=ExecutionRequest.STATUS_FAILED,
                 finished=timezone.now(),
-                last_updated=timezone.utcnow(),
+                last_updated=timezone.now(),
+            )
+
+    def set_as_completed(self, execution_id):
+        '''
+        Utility method to set the ExecutionRequest object to fail
+        '''
+        self.update_execution_request_status(
+                execution_id=str(execution_id),
+                status=ExecutionRequest.STATUS_FINISHED,
+                finished=timezone.now(),
+                last_updated=timezone.now(),
             )
 
     def create_execution_request(

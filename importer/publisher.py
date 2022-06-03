@@ -49,6 +49,7 @@ class DataPublisher():
                 if f"Resource named '{table_name}' already exists in store:" in str(e):
                     continue
                 raise e
+        return True, self.workspace.name, self.store.name
     
     def integrity_checks(self):
         '''
