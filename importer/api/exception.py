@@ -22,3 +22,10 @@ class PublishResourceException(APIException):
     default_detail = "Error during the resource publishing"
     default_code = "publishing_exception"
     category = "importer"
+
+
+class ResourceCreationException(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Error during the creation of the geonode resource"
+    default_code = "gn_resource_exception"
+    category = "importer"

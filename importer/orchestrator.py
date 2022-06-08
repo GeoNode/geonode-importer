@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from geonode.resource.models import ExecutionRequest
 from importer.api.exception import ImportException
 from importer.handlers.vector import GPKGFileHandler
-from importer.celery_app import app
+from importer.celery_app import importer_app
 from geonode.upload.models import Upload
 from geonode.base.enumerations import STATE_RUNNING
 
@@ -65,12 +65,14 @@ class ImportOrchestrator:
         which will be the following step. if empty a None is returned, otherwise
         in async the next step is called
         '''
-        # Getting the execution object
-        _exec = self.get_execution_object(str(execution_id))
-        # retrieve the task list for the resource_type
-        tasks = self.get_file_handler(resource_type).TASKS_LIST
-        # getting the index
         try:
+
+            # Getting the execution object
+            _exec = self.get_execution_object(str(execution_id))
+
+            # retrieve the task list for the resource_type
+            tasks = self.get_file_handler(resource_type).TASKS_LIST
+            # getting the index
             _index = tasks.index(_exec.step) + 1
             # finding in the task_list the last step done
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
@@ -81,7 +83,7 @@ class ImportOrchestrator:
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
             # calling the next step for the resource
-            app.tasks.get(next_step).apply_async(
+            importer_app.tasks.get(next_step).apply_async(
                 (
                     resource_type,
                     str(execution_id),
@@ -94,10 +96,10 @@ class ImportOrchestrator:
             self.set_as_completed(execution_id)
             return
         except Exception as e:
-            self.set_as_failed(execution_id)
-            raise ImportException(detail=e.args[0])
+            self.set_as_failed(execution_id, reason=e.args[0])
+            raise e
 
-    def set_as_failed(self, execution_id):
+    def set_as_failed(self, execution_id, reason=None):
         '''
         Utility method to set the ExecutionRequest object to fail
         '''
@@ -106,6 +108,7 @@ class ImportOrchestrator:
                 status=ExecutionRequest.STATUS_FAILED,
                 finished=timezone.now(),
                 last_updated=timezone.now(),
+                log=reason
             )
 
     def set_as_completed(self, execution_id):
