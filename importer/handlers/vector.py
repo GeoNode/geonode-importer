@@ -4,6 +4,8 @@ from dynamic_models.models import ModelSchema, FieldSchema
 import os
 from subprocess import Popen, PIPE
 from osgeo import ogr
+from geonode.resource.models import ExecutionRequest
+from django.utils import timezone
 
 
 class GPKGFileHandler(AbstractHandler):
@@ -24,7 +26,7 @@ class GPKGFileHandler(AbstractHandler):
         """        
         return all([os.path.exists(x) for x in files.values()])
 
-    def import_resource(self, files):
+    def import_resource(self, files: dict, execution_id: str) -> str:
         '''
         Main function to import the resource.
         Internally will cal the steps required to import the 
@@ -32,8 +34,20 @@ class GPKGFileHandler(AbstractHandler):
         '''
         layers = ogr.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
+
         for layer in layers:
+            self._update_execution_request(
+                execution_id=execution_id,
+                last_updated=timezone.now(),
+                log=f"setting up dynamic model for layer: {layer.GetName()}"
+            )
             self._setup_dynamic_model(layer)
+
+        self._update_execution_request(
+            execution_id=execution_id,
+            last_updated=timezone.now(),
+            log=f"importing layer"
+        )
         stdout = self._run_ogr2ogr_import(files)
         return stdout
 
@@ -79,28 +93,11 @@ class GPKGFileHandler(AbstractHandler):
             )
 
         return dynamic_model_schema.as_model()
-    
-    '''
-    def create_model_instance(self, layer, model_schema):
-        Define the dynamic model instances
-        layer_schema = [{"name": x.name.lower(), "class_name": self._get_type(x)} for x in layer.schema]
-        # define the geometry type
-        layer_schema += [
-            {
-                "name": layer.GetGeometryColumn(),
-                "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
-            }
-        ]
 
-        for field in layer_schema:
-            FieldSchema.objects.create(
-                name=field['name'],
-                class_name=field['class_name'],
-                model_schema=model_schema,
-                #kwargs=_kwargs
-            )
-        return model_schema.as_model()
-    '''
+    def _update_execution_request(self, execution_id, **kwargs):
+        ExecutionRequest.objects.filter(exec_id=execution_id).update(
+            status=ExecutionRequest.STATUS_RUNNING, **kwargs
+        )
 
     def _run_ogr2ogr_import(self, files):
         '''

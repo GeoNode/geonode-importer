@@ -14,6 +14,8 @@ from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 from importer.publisher import DataPublisher
+import pathlib
+
 
 importer = ImportOrchestrator()
 logger = logging.getLogger(__name__)
@@ -26,11 +28,19 @@ class ErrorBaseClassForTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
-        # kwargs (Dict) - Original keyword arguments for the task that failed.
-        importer.set_as_failed(
-            execution_id=args[1], reason=str(exc.detail)
-        )
+        # kwargs (Dict) - Original keyword arguments for the task that failed.ù
         logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
+        importer.set_as_failed(
+            execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc)
+        )
+        # To keep the upload folder under control
+        # if a workflow fail, we delete the uploaded files
+        exc_obj = importer.get_execution_object(args[1])
+        _files_list = exc_obj.input_params.get("files", [])
+        if _files_list:
+            for _file in _files_list.values():
+                logging.info(f"deleting file: {_file}")
+                storage_manager.delete(_file)
 
 
 @importer_app.task(
@@ -43,8 +53,9 @@ def import_orchestrator(
     files, store_spatial_files=True, user=None, execution_id=None
 ):
     try:
-    # TODO: get filetype by the files
-        handler = importer.get_file_handler("gpkg")
+
+        file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
+        handler = importer.get_file_handler(file_ext)
 
         if execution_id is None:
             logger.info("Execution ID is None, creating....")
@@ -190,8 +201,10 @@ def create_gn_resource(resource_type, execution_id):
         for resource in resources:
             # update the last_updated value to evaluate that the task is still running
             importer.update_execution_request_status(
+                status=ExecutionRequest.STATUS_RUNNING,
                 execution_id=execution_id,
-                last_updated=timezone.now()
+                last_updated=timezone.now(),
+                log=f"creating dataset for resource: {resource.get('name')}"
             )        
             saved_dataset = resource_manager.create(
                 None,

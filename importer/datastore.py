@@ -20,4 +20,4 @@ class DataStoreManager:
         '''
         call the resource handler object to perform the import phase
         '''
-        return self.handler.import_resource(self.files)
+        return self.handler.import_resource(self.files, execution_id)
