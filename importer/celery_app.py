@@ -1,5 +1,3 @@
-from celery import Celery, Task
-from celery.worker.request import Request
-
+from celery import Celery
 
 importer_app = Celery("importer")

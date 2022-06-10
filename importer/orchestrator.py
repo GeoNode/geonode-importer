@@ -1,3 +1,4 @@
+from uuid import UUID
 from django.utils import timezone
 import logging
 from django.contrib.auth import get_user_model
@@ -129,7 +130,7 @@ class ImportOrchestrator:
         step: str,
         input_params: dict,
         resource=None,
-    ) -> str:
+    ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
         """

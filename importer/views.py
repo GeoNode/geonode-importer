@@ -8,7 +8,7 @@ from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
 from geonode.storage.manager import storage_manager
 
-from importer.api.exception import (InvalidInputFileException,
+from importer.api.exception import (StartImportException, InvalidInputFileException,
                                     PublishResourceException, ResourceCreationException)
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
@@ -19,7 +19,7 @@ importer = ImportOrchestrator()
 logger = logging.getLogger(__name__)
 
 
-class MyBaseClassForTask(Task):
+class ErrorBaseClassForTask(Task):
 
     max_retries = 3
 
@@ -30,11 +30,11 @@ class MyBaseClassForTask(Task):
         importer.set_as_failed(
             execution_id=args[1], reason=str(exc.detail)
         )
-        print('{0!r} failed: {1!r}'.format(task_id, exc))
+        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
 
 
 @importer_app.task(
-    base=MyBaseClassForTask,
+    base=ErrorBaseClassForTask,
     name="importer.import_orchestrator",
     queue="importer.import_orchestrator",
     max_retries=1
@@ -42,22 +42,26 @@ class MyBaseClassForTask(Task):
 def import_orchestrator(
     files, store_spatial_files=True, user=None, execution_id=None
 ):
+    try:
     # TODO: get filetype by the files
-    handler = importer.get_file_handler("gpkg")
+        handler = importer.get_file_handler("gpkg")
 
-    if execution_id is None:
-        execution_id = importer.create_execution_request(
-            user=get_user_model().objects.get(username=user),
-            func_name=next(iter(handler.TASKS_LIST)),
-            step=next(iter(handler.TASKS_LIST)),
-            input_params={"files": files, "store_spatial_files": store_spatial_files},
-        )
+        if execution_id is None:
+            logger.info("Execution ID is None, creating....")
+            execution_id = importer.create_execution_request(
+                user=get_user_model().objects.get(username=user),
+                func_name=next(iter(handler.TASKS_LIST)),
+                step=next(iter(handler.TASKS_LIST)),
+                input_params={"files": files, "store_spatial_files": store_spatial_files},
+            )
 
-    importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id)
+        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id)
+    except Exception as e:
+        raise StartImportException(e.args[0])
 
 
 @importer_app.task(
-    base=MyBaseClassForTask,    
+    base=ErrorBaseClassForTask,    
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=1
@@ -103,7 +107,7 @@ def import_resource(resource_type, execution_id):
 
 
 @importer_app.task(
-    base=MyBaseClassForTask,    
+    base=ErrorBaseClassForTask,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1
@@ -154,7 +158,7 @@ def publish_resource(resource_type, execution_id):
 
 
 @importer_app.task(
-    base=MyBaseClassForTask,
+    base=ErrorBaseClassForTask,
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1
