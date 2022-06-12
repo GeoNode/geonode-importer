@@ -31,7 +31,7 @@ class ErrorBaseClassForTask(Task):
         # kwargs (Dict) - Original keyword arguments for the task that failed.ù
         logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
         importer.set_as_failed(
-            execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc)
+            execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
         # To keep the upload folder under control
         # if a workflow fail, we delete the uploaded files
