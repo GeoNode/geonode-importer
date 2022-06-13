@@ -14,6 +14,7 @@ def delete_dynamic_model(instance, sender, **kwargs):
     Delete the dynamic relation and the publishde geoserver layer
     '''
     try:
+        geoserver_delete(instance.alternate)
         name = instance.alternate.split(":")[1]
         ModelSchema.objects.filter(name=name).delete()
         FieldSchema.objects.filter(name=name).delete()

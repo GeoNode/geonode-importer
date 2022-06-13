@@ -85,6 +85,8 @@ class ImporterViewSet(DynamicModelViewSet):
                     input_params={"files": files, "store_spatial_files": data.data.get("store_spatial_files")},
                 )
 
+                # interactive
+
                 import_orchestrator.apply_async(
                     (files, data.data.get("store_spatial_files"), request.user.username, str(execution_id))
                 )

@@ -21,14 +21,14 @@ importer = ImportOrchestrator()
 logger = logging.getLogger(__name__)
 
 
-class ErrorBaseClassForTask(Task):
+class ErrorBaseTaskClass(Task):
 
     max_retries = 3
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
-        # kwargs (Dict) - Original keyword arguments for the task that failed.ù
+        # kwargs (Dict) - Original keyword arguments for the task that failed.
         logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
         importer.set_as_failed(
             execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc)
@@ -44,16 +44,15 @@ class ErrorBaseClassForTask(Task):
 
 
 @importer_app.task(
-    base=ErrorBaseClassForTask,
+    base=ErrorBaseTaskClass,
     name="importer.import_orchestrator",
     queue="importer.import_orchestrator",
     max_retries=1
 )
 def import_orchestrator(
-    files, store_spatial_files=True, user=None, execution_id=None
+    files, store_spatial_files=True, user=None, execution_id=None, rollback=False
 ):
     try:
-
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
         handler = importer.get_file_handler(file_ext)
 
@@ -72,10 +71,10 @@ def import_orchestrator(
 
 
 @importer_app.task(
-    base=ErrorBaseClassForTask,    
+    base=ErrorBaseTaskClass,    
     name="importer.import_resource",
     queue="importer.import_resource",
-    max_retries=1
+    max_retries=2
 )
 def import_resource(resource_type, execution_id):
     '''
@@ -118,7 +117,7 @@ def import_resource(resource_type, execution_id):
 
 
 @importer_app.task(
-    base=ErrorBaseClassForTask,    
+    base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1
@@ -169,7 +168,7 @@ def publish_resource(resource_type, execution_id):
 
 
 @importer_app.task(
-    base=ErrorBaseClassForTask,
+    base=ErrorBaseTaskClass,
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1
@@ -198,13 +197,14 @@ def create_gn_resource(resource_type, execution_id):
         
         _publisher = DataPublisher()
         resources = _publisher._extract_resource_name_from_file(_files, resource_type)
-        for resource in resources:
+        nr_of_resources = len(resources)
+        for index, resource in enumerate(resources, start=1):
             # update the last_updated value to evaluate that the task is still running
             importer.update_execution_request_status(
                 status=ExecutionRequest.STATUS_RUNNING,
                 execution_id=execution_id,
                 last_updated=timezone.now(),
-                log=f"creating dataset for resource: {resource.get('name')}"
+                log=f"Creating GN dataset for resource: {resource.get('name')}: total progress: {(100*index)/nr_of_resources}"
             )        
             saved_dataset = resource_manager.create(
                 None,

@@ -6,6 +6,9 @@ from subprocess import Popen, PIPE
 from osgeo import ogr
 from geonode.resource.models import ExecutionRequest
 from django.utils import timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class GPKGFileHandler(AbstractHandler):
@@ -34,12 +37,13 @@ class GPKGFileHandler(AbstractHandler):
         '''
         layers = ogr.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
-
-        for layer in layers:
+        layer_count = len(layers)
+        logger.info(f"Total number of layers available: {layer_count}")
+        for index, layer in enumerate(layers, start=1):
             self._update_execution_request(
                 execution_id=execution_id,
                 last_updated=timezone.now(),
-                log=f"setting up dynamic model for layer: {layer.GetName()}"
+                log=f"setting up dynamic model for layer: {layer.GetName()} complited: {(100*index)/layer_count}%"
             )
             self._setup_dynamic_model(layer)
 
@@ -80,18 +84,24 @@ class GPKGFileHandler(AbstractHandler):
                 "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
             }
         ]
-
+        field_objects = []
         for field in layer_schema:
+            if field['class_name'] is None:
+                logger.error(f"Field named {field['name']} cannot be importer, the field is not recognized")
+                continue
             _kwargs = {"null": field.get('null', True)}
             if field['class_name'].endswith('CharField'):
                 _kwargs = {**_kwargs, **{"max_length": 255}}
-            FieldSchema.objects.create(
+            field_objects.append(FieldSchema(
                 name=field['name'],
                 class_name=field['class_name'],
                 model_schema=dynamic_model_schema,
                 kwargs=_kwargs
-            )
+            ))
 
+        FieldSchema.objects.bulk_create(field_objects)
+
+        del field_objects
         return dynamic_model_schema.as_model()
 
     def _update_execution_request(self, execution_id, **kwargs):
@@ -115,7 +125,6 @@ class GPKGFileHandler(AbstractHandler):
                    % (db_name, db_host, db_port, db_user, db_password)
         options += files.get("base_file") + " "
         options += '-lco DIM=2 '
-        options += '-overwrite '
 
         commands = [ogr_exe] + options.split(" ")
         
