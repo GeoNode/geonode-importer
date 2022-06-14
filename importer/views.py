@@ -50,7 +50,7 @@ class ErrorBaseTaskClass(Task):
     max_retries=1
 )
 def import_orchestrator(
-    files, store_spatial_files=True, user=None, execution_id=None, rollback=False
+    files, store_spatial_files=True, user=None, execution_id=None
 ):
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
