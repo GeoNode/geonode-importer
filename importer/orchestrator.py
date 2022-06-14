@@ -1,13 +1,17 @@
-from uuid import UUID
-from django.utils import timezone
 import logging
+import os
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
+                                       STATE_RUNNING)
 from geonode.resource.models import ExecutionRequest
-from importer.api.exception import ImportException
-from importer.handlers.vector import GPKGFileHandler
-from importer.celery_app import importer_app
 from geonode.upload.models import Upload
-from geonode.base.enumerations import STATE_RUNNING
+
+from importer.api.exception import ImportException
+from importer.celery_app import importer_app
+from importer.handlers.vector import GPKGFileHandler
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +113,8 @@ class ImportOrchestrator:
                 status=ExecutionRequest.STATUS_FAILED,
                 finished=timezone.now(),
                 last_updated=timezone.now(),
-                log=reason
+                log=reason,
+                legacy_status=STATE_INVALID
             )
 
     def set_as_completed(self, execution_id):
@@ -121,6 +126,7 @@ class ImportOrchestrator:
                 status=ExecutionRequest.STATUS_FINISHED,
                 finished=timezone.now(),
                 last_updated=timezone.now(),
+                legacy_status=STATE_PROCESSED
             )
 
     def create_execution_request(
@@ -130,6 +136,7 @@ class ImportOrchestrator:
         step: str,
         input_params: dict,
         resource=None,
+        legacy_upload_name=""
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
@@ -142,7 +149,9 @@ class ImportOrchestrator:
             input_params=input_params,
         )
         if self.enable_legacy_upload_status:
+            # getting the package name from the base_filename
             Upload.objects.create(
+                name=legacy_upload_name or os.path.basename(input_params.get("files", {}).get("base_file")),
                 state=STATE_RUNNING,
                 metadata={
                     **{
@@ -155,11 +164,15 @@ class ImportOrchestrator:
             )
         return execution.exec_id
 
-    def update_execution_request_status(self, execution_id, status, **kwargs):
+    def update_execution_request_status(self, execution_id, status, legacy_status=STATE_RUNNING, **kwargs):
+        '''
+        Update the execution request status and also the legacy upload status if the
+        feature toggle is enabled
+        '''
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=status, **kwargs
         )
         if self.enable_legacy_upload_status:
             Upload.objects.filter(metadata__contains=execution_id).update(
-                state=status, metadata={**kwargs, **{"exec_id": execution_id}}
+                state=legacy_status, complete=True, metadata={**kwargs, **{"exec_id": execution_id}}
             )

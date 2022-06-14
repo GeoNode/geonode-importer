@@ -17,6 +17,7 @@
 #
 #########################################################################
 import logging
+import os
 
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
@@ -83,6 +84,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     func_name="start_import",
                     step="start_import",
                     input_params={"files": files, "store_spatial_files": data.data.get("store_spatial_files")},
+                    legacy_upload_name=os.path.basename(files.get("base_file"))
                 )
 
                 # interactive
