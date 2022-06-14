@@ -1,6 +1,4 @@
 import logging
-
-from celery import Task
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.layers.models import Dataset
@@ -11,6 +9,7 @@ from geonode.storage.manager import storage_manager
 from importer.api.exception import (StartImportException, InvalidInputFileException,
                                     PublishResourceException, ResourceCreationException)
 from importer.celery_app import importer_app
+from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
 from importer.orchestrator import ImportOrchestrator
 from importer.publisher import DataPublisher
@@ -19,28 +18,6 @@ import pathlib
 
 importer = ImportOrchestrator()
 logger = logging.getLogger(__name__)
-
-
-class ErrorBaseTaskClass(Task):
-
-    max_retries = 3
-
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        # exc (Exception) - The exception raised by the task.
-        # args (Tuple) - Original arguments for the task that failed.
-        # kwargs (Dict) - Original keyword arguments for the task that failed.
-        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
-        importer.set_as_failed(
-            execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
-        )
-        # To keep the upload folder under control
-        # if a workflow fail, we delete the uploaded files
-        exc_obj = importer.get_execution_object(args[1])
-        _files_list = exc_obj.input_params.get("files", [])
-        if _files_list:
-            for _file in _files_list.values():
-                logging.info(f"deleting file: {_file}")
-                storage_manager.delete(_file)
 
 
 @importer_app.task(
@@ -106,9 +83,14 @@ def import_resource(resource_type, execution_id):
             raise Exception("dataset is invalid")
 
         # do something
-        _datastore.start_import(execution_id)
+        res = _datastore.start_import(execution_id)
+        # res will contian the result of the async execution
 
         # at the end recall the import_orchestrator for the next step
+        #TODO improve this part on the group of task validation
+        res[0].join()
+        res[1].join()
+
         import_orchestrator.apply_async(
             (_files, _store_spatial_files, _user.username, execution_id)
         )
