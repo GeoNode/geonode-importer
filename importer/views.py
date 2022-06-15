@@ -75,8 +75,6 @@ def import_resource(self, resource_type, execution_id):
         _exec = importer.get_execution_object(execution_id)
 
         _files = _exec.input_params.get("files")
-        _store_spatial_files = _exec.input_params.get("store_spatial_files")
-        _user = _exec.user
 
         _datastore = DataStoreManager(_files, resource_type)
 
@@ -85,14 +83,11 @@ def import_resource(self, resource_type, execution_id):
             raise Exception("dataset is invalid")
 
         # do something
-        res = _datastore.start_import(execution_id)
+        _datastore.start_import(execution_id)
         # res will contian the result of the async execution
 
         # at the end recall the import_orchestrator for the next step
 
-        import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id, res)
-        )
     except Exception as e:
         raise InvalidInputFileException(detail=e.args[0])
 

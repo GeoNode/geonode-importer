@@ -9,7 +9,7 @@ from geonode.resource.models import ExecutionRequest
 from importer.handlers.base import (GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING,
                                     AbstractHandler)
 from osgeo import ogr
-from celery import group
+from celery import chain, chord, group
 
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
@@ -43,32 +43,21 @@ class GPKGFileHandler(AbstractHandler):
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
-        ogr_layers= []
-        layer_results = []
         for index, layer in enumerate(layers, start=1):
-            self._update_execution_request(
-                execution_id=execution_id,
-                last_updated=timezone.now(),
-                log=f"setting up dynamic model for layer: {layer.GetName()} complited: {(100*index)/layer_count}%"
-            )
-            _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id)
+            # should_be_imported check if the user+layername already exists or not
+            if should_be_imported(layer, _exec.user):
+                self._update_execution_request(
+                    execution_id=execution_id,
+                    last_updated=timezone.now(),
+                    log=f"setting up dynamic model for layer: {layer.GetName()} complited: {(100*index)/layer_count}%"
+                )
+                # setup dynamic model and retrieve the group job needed for tun the async workflow
+                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id)
 
-            layer_results.append(layer_res.id)
-            
-            #generatring alternates for the ogr2ogr ingestion
-            ogr_layers.append(
-                [files,
-                layer.GetName(),
-                layer.GetName() if not use_uuid else f"{layer.GetName()}_{execution_id}"]
-            )
-
-        self._update_execution_request(
-            execution_id=execution_id,
-            last_updated=timezone.now(),
-            log=f"importing layer"
-        )
-        ogr_res = self._run_ogr2ogr_import(ogr_layers)
-        return layer_results + [ogr_res.id]
+                alternate = layer.GetName() if not use_uuid else f"{layer.GetName()}_{execution_id}"
+                ogr_res = gpkg_ogr2ogr.s(files, layer.GetName(), alternate)
+                workflow = chord([layer_res, ogr_res], body=execution_id)(gpkg_next_step.s().set(link_error=['gpkg_failure_step']))
+        return workflow.id
 
     def _setup_dynamic_model(self, layer, execution_id):
         '''
@@ -108,26 +97,13 @@ class GPKGFileHandler(AbstractHandler):
         ]
 
         list_chunked = [layer_schema[i:i + 50] for i in range(0, len(layer_schema), 50)]
-
         job = group(gpkg_handler.s(schema, dynamic_model_schema.id) for schema in list_chunked)
-        res = job.apply_async()
-        res.ready()
-        res.save()
-        return dynamic_model_schema.as_model(), res
+        return dynamic_model_schema.as_model(), job
 
     def _update_execution_request(self, execution_id, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
-
-    def _run_ogr2ogr_import(self, ogr_layers):
-        
-        job = group(gpkg_ogr2ogr.s(*schema) for schema in ogr_layers)
-        res = job.apply_async()
-        res.save()
-
-        return res
-
 
     def _get_type(self, _type):
         '''
@@ -195,6 +171,23 @@ def gpkg_ogr2ogr(self, files, original_name, alternate):
     return stdout.decode()
 
 
-@importer_app.task(bind=True)
-def proceed_to_next_step(self, celery_ids):
+@importer_app.task(
+    bind=True,
+    name="importer.gpkg_next_step",
+    queue="importer.gpkg_next_step"
+)
+def gpkg_next_step(self, execution_id):
+
     print("helloworld")
+    print(execution_id)
+
+
+@importer_app.task(
+    bind=True,
+    name="importer.gpkg_failure_step",
+    queue="importer.gpkg_failure_step"
+)
+def gpkg_failure_step(self, execution_id):
+
+    print("helloworld")
+    print(execution_id)
