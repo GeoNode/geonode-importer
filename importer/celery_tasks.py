@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 class ErrorBaseTaskClass(Task):
 
     max_retries = 3
+    track_started=True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         # exc (Exception) - The exception raised by the task.

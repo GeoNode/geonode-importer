@@ -63,7 +63,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req
 
-    def perform_next_import_step(self, resource_type: str, execution_id: str) -> None:
+    def perform_next_import_step(self, resource_type: str, execution_id: str, celery_group_ids: list = []) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -88,6 +88,9 @@ class ImportOrchestrator:
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
             # calling the next step for the resource
+            # reschedule with delay if the groupid is not finished yet
+            logger.error(f"STARTING NEXT STEP {next_step}")
+
             importer_app.tasks.get(next_step).apply_async(
                 (
                     resource_type,

@@ -21,13 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,
     name="importer.import_orchestrator",
     queue="importer.import_orchestrator",
     max_retries=1
 )
 def import_orchestrator(
-    files, store_spatial_files=True, user=None, execution_id=None
+    self, files, store_spatial_files=True, user=None, execution_id=None, celery_id=[]
 ):
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
@@ -42,18 +43,19 @@ def import_orchestrator(
                 input_params={"files": files, "store_spatial_files": store_spatial_files},
             )
 
-        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id)
+        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id, celery_group_ids=celery_id)
     except Exception as e:
         raise StartImportException(e.args[0])
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,    
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=2
 )
-def import_resource(resource_type, execution_id):
+def import_resource(self, resource_type, execution_id):
     '''
     Task to import the resources in geoserver
     after updating the execution status will perform a small data_validation
@@ -87,24 +89,22 @@ def import_resource(resource_type, execution_id):
         # res will contian the result of the async execution
 
         # at the end recall the import_orchestrator for the next step
-        #TODO improve this part on the group of task validation
-        res[0].join()
-        res[1].join()
 
         import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id)
+            (_files, _store_spatial_files, _user.username, execution_id, res)
         )
     except Exception as e:
         raise InvalidInputFileException(detail=e.args[0])
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1
 )
-def publish_resource(resource_type, execution_id):
+def publish_resource(self, resource_type, execution_id):
     '''
     Task to publish the resources on geoserver
     It will take the layers name from the source file
@@ -150,13 +150,13 @@ def publish_resource(resource_type, execution_id):
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1
-
 )
-def create_gn_resource(resource_type, execution_id):
+def create_gn_resource(self, resource_type, execution_id):
     '''
     Create the GeoNode resource and the relatives information associated
     '''
