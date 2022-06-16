@@ -9,7 +9,9 @@ from geonode.resource.models import ExecutionRequest
 from importer.handlers.base import (GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING,
                                     AbstractHandler)
 from osgeo import ogr
-from celery import chain, chord, group
+from celery import chord, group
+
+from importer.handlers.utils import should_be_imported
 
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
@@ -33,7 +35,7 @@ class GPKGFileHandler(AbstractHandler):
         """        
         return all([os.path.exists(x) for x in files.values()])
 
-    def import_resource(self, files: dict, execution_id: str) -> str:
+    def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
         Main function to import the resource.
         Internally will cal the steps required to import the 
@@ -43,21 +45,27 @@ class GPKGFileHandler(AbstractHandler):
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
+        _exec = self._get_execution_request_object(execution_id)
         for index, layer in enumerate(layers, start=1):
             # should_be_imported check if the user+layername already exists or not
-            if should_be_imported(layer, _exec.user):
+            layer_name = layer.GetName()
+            if should_be_imported(layer_name, _exec.user):
                 self._update_execution_request(
                     execution_id=execution_id,
                     last_updated=timezone.now(),
-                    log=f"setting up dynamic model for layer: {layer.GetName()} complited: {(100*index)/layer_count}%"
+                    log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
                 # setup dynamic model and retrieve the group job needed for tun the async workflow
                 _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id)
 
-                alternate = layer.GetName() if not use_uuid else f"{layer.GetName()}_{execution_id}"
+                alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id}"
                 ogr_res = gpkg_ogr2ogr.s(files, layer.GetName(), alternate)
-                workflow = chord([layer_res, ogr_res], body=execution_id)(gpkg_next_step.s().set(link_error=['gpkg_failure_step']))
-        return workflow.id
+                workflow = chord(
+                    [layer_res, ogr_res],
+                    body=execution_id
+                )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate).set(link_error=['gpkg_failure_step']))
+
+        return
 
     def _setup_dynamic_model(self, layer, execution_id):
         '''
@@ -104,6 +112,9 @@ class GPKGFileHandler(AbstractHandler):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
+
+    def _get_execution_request_object(self, execution_id):
+        return ExecutionRequest.objects.filter(exec_id=execution_id).first()
 
     def _get_type(self, _type):
         '''
@@ -176,10 +187,18 @@ def gpkg_ogr2ogr(self, files, original_name, alternate):
     name="importer.gpkg_next_step",
     queue="importer.gpkg_next_step"
 )
-def gpkg_next_step(self, execution_id):
+def gpkg_next_step(self, _, execution_id, actual_step, layer_name, alternate):
+    from importer.views import import_orchestrator, importer
 
-    print("helloworld")
-    print(execution_id)
+    _exec = importer.get_execution_object(execution_id)
+
+    _files = _exec.input_params.get("files")
+    _store_spatial_files = _exec.input_params.get("store_spatial_files")
+    _user = _exec.user
+    # at the end recall the import_orchestrator for the next step
+    import_orchestrator.apply_async(
+        (_files, _store_spatial_files, _user.username, execution_id, actual_step)
+    )
 
 
 @importer_app.task(

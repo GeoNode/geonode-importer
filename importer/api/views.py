@@ -83,14 +83,22 @@ class ImporterViewSet(DynamicModelViewSet):
                     user=request.user,
                     func_name="start_import",
                     step="start_import",
-                    input_params={"files": files, "store_spatial_files": data.data.get("store_spatial_files")},
+                    input_params={
+                        "files": files,
+                        "store_spatial_files": data.data.get("store_spatial_files"),
+                        "skip_existing_layer": request.data.get('skip_existsing_layer', True),
+                        "override_existing_layer": request.data.get('override_existing_layer', False)
+                    },
                     legacy_upload_name=os.path.basename(files.get("base_file"))
                 )
 
-                # interactive
-
                 import_orchestrator.apply_async(
-                    (files, data.data.get("store_spatial_files"), request.user.username, str(execution_id))
+                    (
+                        files,
+                        data.data.get("store_spatial_files"),
+                        request.user.username,
+                        str(execution_id),
+                    )
                 )
                 return Response(data={"execution_id": execution_id}, status=201)
             except Exception as e:

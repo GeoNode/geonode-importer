@@ -63,7 +63,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req
 
-    def perform_next_import_step(self, resource_type: str, execution_id: str, celery_group_ids: list = []) -> None:
+    def perform_next_import_step(self, resource_type: str, execution_id: str, step: str = None) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -71,14 +71,13 @@ class ImportOrchestrator:
         in async the next step is called
         '''
         try:
-
-            # Getting the execution object
-            _exec = self.get_execution_object(str(execution_id))
+            if step is None:
+                step = self.get_execution_object(str(execution_id)).step
 
             # retrieve the task list for the resource_type
             tasks = self.get_file_handler(resource_type).TASKS_LIST
             # getting the index
-            _index = tasks.index(_exec.step) + 1
+            _index = tasks.index(step) + 1
             # finding in the task_list the last step done
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
@@ -179,3 +178,5 @@ class ImportOrchestrator:
             Upload.objects.filter(metadata__contains=execution_id).update(
                 state=legacy_status, complete=True, metadata={**kwargs, **{"exec_id": execution_id}}
             )
+
+importer = ImportOrchestrator()

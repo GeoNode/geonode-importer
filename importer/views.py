@@ -11,12 +11,11 @@ from importer.api.exception import (StartImportException, InvalidInputFileExcept
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
-from importer.orchestrator import ImportOrchestrator
+from importer.orchestrator import importer
 from importer.publisher import DataPublisher
 import pathlib
 
 
-importer = ImportOrchestrator()
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
     max_retries=1
 )
 def import_orchestrator(
-    self, files, store_spatial_files=True, user=None, execution_id=None, celery_id=[]
+    self, files, store_spatial_files=True, user=None, execution_id=None, celery_id=[], step='start_import'
 ):
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
@@ -40,10 +39,13 @@ def import_orchestrator(
                 user=get_user_model().objects.get(username=user),
                 func_name=next(iter(handler.TASKS_LIST)),
                 step=next(iter(handler.TASKS_LIST)),
-                input_params={"files": files, "store_spatial_files": store_spatial_files},
+                input_params={
+                    "files": files,
+                    "store_spatial_files": store_spatial_files
+                },
             )
 
-        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id, celery_group_ids=celery_id)
+        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id, step=step)
     except Exception as e:
         raise StartImportException(e.args[0])
 
@@ -82,11 +84,9 @@ def import_resource(self, resource_type, execution_id):
         if not _datastore.input_is_valid():
             raise Exception("dataset is invalid")
 
-        # do something
         _datastore.start_import(execution_id)
-        # res will contian the result of the async execution
 
-        # at the end recall the import_orchestrator for the next step
+        return
 
     except Exception as e:
         raise InvalidInputFileException(detail=e.args[0])
