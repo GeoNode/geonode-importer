@@ -6,6 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
+from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import (GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING,
                                     AbstractHandler)
 from osgeo import ogr
@@ -62,7 +63,7 @@ class GPKGFileHandler(AbstractHandler):
                     log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
                 # setup dynamic model and retrieve the group job needed for tun the async workflow
-                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id)
+                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id, should_be_overrided)
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
@@ -76,7 +77,7 @@ class GPKGFileHandler(AbstractHandler):
 
         return
 
-    def _setup_dynamic_model(self, layer, execution_id):
+    def _setup_dynamic_model(self, layer, execution_id, should_be_overrided):
         '''
         Extract from the geopackage the layers name and their schema
         after the extraction define the dynamic model instances
@@ -89,7 +90,7 @@ class GPKGFileHandler(AbstractHandler):
             is_managed=False,
             use_applable_as_table_prefix=False
         )
-        if not created:
+        if not created and not should_be_overrided:
             use_uuid = True
             foi_schema, created = ModelSchema.objects.get_or_create(
                 name=f"{layer.GetName()}_{execution_id.replace('-', '_')}",
@@ -98,23 +99,24 @@ class GPKGFileHandler(AbstractHandler):
                 use_applable_as_table_prefix=False
             )
         # define standard field mapping from ogr to django
-        dynamic_model, res = self.create_dynamic_model_fields(layer=layer, dynamic_model_schema=foi_schema)
+        dynamic_model, res = self.create_dynamic_model_fields(layer=layer, dynamic_model_schema=foi_schema, overwrite=should_be_overrided)
         return dynamic_model, use_uuid, res
 
-    def create_dynamic_model_fields(self, layer, dynamic_model_schema):
+    def create_dynamic_model_fields(self, layer, dynamic_model_schema, overwrite):
         layer_schema = [
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        layer_schema += [
-            {
-                "name": layer.GetGeometryColumn(),
-                "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
-            }
-        ]
+        if layer.GetGeometryColumn():
+            layer_schema += [
+                {
+                    "name": layer.GetGeometryColumn(),
+                    "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
+                }
+            ]
 
         list_chunked = [layer_schema[i:i + 50] for i in range(0, len(layer_schema), 50)]
-        job = group(gpkg_handler.s(schema, dynamic_model_schema.id) for schema in list_chunked)
+        job = group(gpkg_handler.s(schema, dynamic_model_schema.id, overwrite) for schema in list_chunked)
         return dynamic_model_schema.as_model(), job
 
     def _update_execution_request(self, execution_id, **kwargs):
@@ -139,25 +141,48 @@ class GPKGFileHandler(AbstractHandler):
     acks_late=False,
     ignore_result=False
 )
-def gpkg_handler(fields, dynamic_model_schema_id):
+def gpkg_handler(fields, dynamic_model_schema_id, overwrite):
+    def _create_field(dynamic_model_schema, field, _kwargs):
+        return FieldSchema(
+                    name=field['name'],
+                    class_name=field['class_name'],
+                    model_schema=dynamic_model_schema,
+                    kwargs=_kwargs
+                )
     '''
     Create the single dynamic model field for each layer. Is made by a batch of 50 field
     '''
     dynamic_model_schema = ModelSchema.objects.get(id=dynamic_model_schema_id)
+    row_to_insert = []
     for field in fields:
+        # setup kwargs for the class provided
         if field['class_name'] is None:
             logger.error(f"Field named {field['name']} cannot be importer, the field is not recognized")
             return
         _kwargs = {"null": field.get('null', True)}
         if field['class_name'].endswith('CharField'):
             _kwargs = {**_kwargs, **{"max_length": 255}}
-        
-        FieldSchema.objects.create(
-            name=field['name'],
-            class_name=field['class_name'],
-            model_schema=dynamic_model_schema,
-            kwargs=_kwargs
-        )
+    
+        # if is a new creation we generate the field model from scratch
+        if not overwrite:
+            row_to_insert.append(_create_field(dynamic_model_schema, field, _kwargs))
+        else:
+            # otherwise if is an overwrite, we update the existing one and create the one that does not exists
+            _field_exists = FieldSchema.objects.filter(name=field['name'], model_schema=dynamic_model_schema)
+            if _field_exists.exists():
+                _field_exists.update(
+                    class_name=field['class_name'],
+                    model_schema=dynamic_model_schema,
+                    kwargs=_kwargs
+                )
+            else:    
+                row_to_insert.append(_create_field(dynamic_model_schema, field, _kwargs))
+    
+    if row_to_insert:
+        FieldSchema.objects.bulk_create(row_to_insert, 50)
+
+    del row_to_insert
+
 
 @importer_app.task(
     name="importer.gpkg_ogr2ogr",
@@ -198,6 +223,7 @@ def gpkg_ogr2ogr(files, original_name, alternate, override_layer=False):
 
 
 @importer_app.task(
+    base=ErrorBaseTaskClass,
     name="importer.gpkg_next_step",
     queue="importer.gpkg_next_step"
 )
@@ -205,9 +231,9 @@ def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
     '''
     If the ingestion of the resource is successfuly, the next step for the layer is called
     '''
-    from importer.views import import_orchestrator, importer
+    from importer.views import import_orchestrator, orchestrator
 
-    _exec = importer.get_execution_object(execution_id)
+    _exec = orchestrator.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
     _store_spatial_files = _exec.input_params.get("store_spatial_files")
@@ -216,15 +242,3 @@ def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
-
-
-@importer_app.task(
-    name="importer.gpkg_failure_step",
-    queue="importer.gpkg_failure_step"
-)
-def gpkg_failure_step(execution_id):
-    '''
-    in case of failure do something
-    '''
-    print("helloworld")
-    print(execution_id)

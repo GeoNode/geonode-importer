@@ -31,7 +31,7 @@ from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import import_orchestrator, importer
+from importer.views import import_orchestrator, orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -83,7 +83,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 skip_existsing_layer = request.data.get('skip_existsing_layer', "True")
                 override_existing_layer = request.data.get('override_existing_layer', "False")
                 store_spatial_file = data.data.get("store_spatial_files", "True")
-                execution_id = importer.create_execution_request(
+                execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name="start_import",
                     step="start_import",

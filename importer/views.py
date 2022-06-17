@@ -16,7 +16,7 @@ from importer.api.exception import (InvalidInputFileException,
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
-from importer.orchestrator import importer
+from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 
 logger = logging.getLogger(__name__)
@@ -34,11 +34,11 @@ def import_orchestrator(
 ):
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
-        handler = importer.get_file_handler(file_ext)
+        handler = orchestrator.get_file_handler(file_ext)
 
         if execution_id is None:
             logger.info("Execution ID is None, creating....")
-            execution_id = importer.create_execution_request(
+            execution_id = orchestrator.create_execution_request(
                 user=get_user_model().objects.get(username=user),
                 func_name=next(iter(handler.TASKS_LIST)),
                 step=next(iter(handler.TASKS_LIST)),
@@ -48,7 +48,7 @@ def import_orchestrator(
                 },
             )
 
-        importer.perform_next_import_step(
+        orchestrator.perform_next_import_step(
             resource_type="gpkg",
             execution_id=execution_id,
             step=step,
@@ -76,14 +76,14 @@ def import_resource(self, resource_type, execution_id):
     '''    
     # Updating status to running
     try:
-        importer.update_execution_request_status(
+        orchestrator.update_execution_request_status(
             execution_id=execution_id,
             status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="import_resource",
             step="importer.import_resource",
         )
-        _exec = importer.get_execution_object(execution_id)
+        _exec = orchestrator.get_execution_object(execution_id)
 
         _files = _exec.input_params.get("files")
 
@@ -105,7 +105,8 @@ def import_resource(self, resource_type, execution_id):
     base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
-    max_retries=1
+    max_retries=1,
+    rate_limit=3
 )
 def publish_resource(
     resource_type: str,
@@ -125,29 +126,32 @@ def publish_resource(
     # Updating status to running
 
     try:
-        importer.update_execution_request_status(
+        orchestrator.update_execution_request_status(
             execution_id=execution_id,
             status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="publish_resource",
             step="importer.publish_resource",
         )
-        _exec = importer.get_execution_object(execution_id)
+        _exec = orchestrator.get_execution_object(execution_id)
 
         _files = _exec.input_params.get("files")
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
+        _overwrite = _exec.input_params.get("override_existing_layer")
         _user = _exec.user
 
         _publisher = DataPublisher()
         _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
-        _, workspace, store = _publisher.publish_resources(_metadata)
+        if _metadata and _metadata[0].get("crs"):
+            # we should not publish resource without a crs
+            _, workspace, store = _publisher.publish_resources(_metadata)
 
-        importer.update_execution_request_status(
-            execution_id=execution_id,
-            status=ExecutionRequest.STATUS_RUNNING,
-            last_updated=timezone.now(),
-            input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
-        )
+            orchestrator.update_execution_request_status(
+                execution_id=execution_id,
+                status=ExecutionRequest.STATUS_RUNNING,
+                last_updated=timezone.now(),
+                input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
+            )
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
@@ -159,80 +163,79 @@ def publish_resource(
 
 
 @importer_app.task(
-    bind=True,
     base=ErrorBaseTaskClass,
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
-    max_retries=1
+    max_retries=1,
+    rate_limit=3
 )
-def create_gn_resource(self, resource_type, execution_id):
+def create_gn_resource(
+    resource_type: str,
+    execution_id: str,
+    step_name: str,
+    layer_name: Optional[str] = None,
+    alternate: Optional[str] = None
+):
     '''
     Create the GeoNode resource and the relatives information associated
     '''
     # Updating status to running
     try:
-        importer.update_execution_request_status(
+        orchestrator.update_execution_request_status(
             execution_id=execution_id,
             status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="create_gn_resource",
             step="importer.create_gn_resource",
         )
-        _exec = importer.get_execution_object(execution_id)
+        _exec = orchestrator.get_execution_object(execution_id)
 
         _files = _exec.input_params.get("files")
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
         metadata_uploaded = _files.get("xml_file", "") or False
         sld_uploaded = _files.get("sld_uploaded", "") or False
         _user = _exec.user
-        
-        _publisher = DataPublisher()
-        resources = _publisher.extract_resource_name_and_crs(_files, resource_type)
-        nr_of_resources = len(resources)
-        for index, resource in enumerate(resources, start=1):
-            # update the last_updated value to evaluate that the task is still running
-            importer.update_execution_request_status(
-                status=ExecutionRequest.STATUS_RUNNING,
-                execution_id=execution_id,
-                last_updated=timezone.now(),
-                log=f"Creating GN dataset for resource: {resource.get('name')}: total progress: {(100*index)/nr_of_resources}"
-            )        
-            saved_dataset = resource_manager.create(
-                None,
-                resource_type=Dataset,
-                defaults=dict(
-                    name=resource.get("name"),
-                    workspace=_exec.input_params.get("workspace", "geonode"),
-                    store=_exec.input_params.get("store", "geonode_data"),
-                    subtype='vector',
-                    alternate=resource.get("name"),
-                    title=resource.get("name"),
-                    owner=_user,
-                    files=_files,
-                    srid=resource.get("crs"),
-                )
-            )
-            if metadata_uploaded:
-                resource_manager.update(None,
-                    instance=saved_dataset,
-                    xml_file=_files.get("xml_file", ""),
-                    metadata_uploaded=metadata_uploaded
-                )
-            if sld_uploaded:
-                resource_manager.exec(
-                    'set_style',
-                    None,
-                    instance=saved_dataset,
-                    sld_uploaded=sld_uploaded,
-                    sld_file=_files.get("sld_file", "")
-                )
-            resource_manager.set_thumbnail(None, instance=saved_dataset)
 
-        if not _store_spatial_files:
-            storage_manager.delete(_files.values())
+        orchestrator.update_execution_request_status(
+            status=ExecutionRequest.STATUS_RUNNING,
+            execution_id=execution_id,
+            last_updated=timezone.now(),
+            log=f"Creating GN dataset for resource: {layer_name}:"
+        )        
+        saved_dataset = resource_manager.create(
+            None,
+            resource_type=Dataset,
+            defaults=dict(
+                name=layer_name,
+                workspace=_exec.input_params.get("workspace", "geonode"),
+                store=_exec.input_params.get("store", "geonode_data"),
+                subtype='vector',
+                alternate=alternate,
+                title=layer_name,
+                owner=_user,
+                files=_files,
+            )
+        )
+        if metadata_uploaded:
+            resource_manager.update(None,
+                instance=saved_dataset,
+                xml_file=_files.get("xml_file", ""),
+                metadata_uploaded=metadata_uploaded
+            )
+        if sld_uploaded:
+            resource_manager.exec(
+                'set_style',
+                None,
+                instance=saved_dataset,
+                sld_uploaded=sld_uploaded,
+                sld_file=_files.get("sld_file", "")
+            )
+        resource_manager.set_thumbnail(None, instance=saved_dataset)
+
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id)
+            (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
+
     except Exception as e:
         raise ResourceCreationException(detail=e.args[0])

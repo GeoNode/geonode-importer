@@ -13,9 +13,9 @@ class ErrorBaseTaskClass(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        from importer.views import importer
+        from importer.views import orchestrator
 
         logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
-        importer.set_as_failed(
+        orchestrator.set_as_failed(
             execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
