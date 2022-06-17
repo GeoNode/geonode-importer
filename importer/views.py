@@ -1,4 +1,7 @@
 import logging
+import pathlib
+from typing import Optional
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.layers.models import Dataset
@@ -6,15 +9,15 @@ from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
 from geonode.storage.manager import storage_manager
 
-from importer.api.exception import (StartImportException, InvalidInputFileException,
-                                    PublishResourceException, ResourceCreationException)
+from importer.api.exception import (InvalidInputFileException,
+                                    PublishResourceException,
+                                    ResourceCreationException,
+                                    StartImportException)
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
 from importer.orchestrator import importer
 from importer.publisher import DataPublisher
-import pathlib
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ logger = logging.getLogger(__name__)
     max_retries=1
 )
 def import_orchestrator(
-    self, files, store_spatial_files=True, user=None, execution_id=None, celery_id=[], step='start_import'
+    self, files, store_spatial_files=True, user=None, execution_id=None, step='start_import', layer_name=None, alternate=None
 ):
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
@@ -45,7 +48,13 @@ def import_orchestrator(
                 },
             )
 
-        importer.perform_next_import_step(resource_type="gpkg", execution_id=execution_id, step=step)
+        importer.perform_next_import_step(
+            resource_type="gpkg",
+            execution_id=execution_id,
+            step=step,
+            layer_name=layer_name,
+            alternate=alternate
+        )
     except Exception as e:
         raise StartImportException(e.args[0])
 
@@ -93,13 +102,18 @@ def import_resource(self, resource_type, execution_id):
 
 
 @importer_app.task(
-    bind=True,
     base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1
 )
-def publish_resource(self, resource_type, execution_id):
+def publish_resource(
+    resource_type: str,
+    execution_id: str,
+    step_name: str,
+    layer_name: Optional[str] = None,
+    alternate: Optional[str] = None
+):
     '''
     Task to publish the resources on geoserver
     It will take the layers name from the source file
@@ -125,7 +139,7 @@ def publish_resource(self, resource_type, execution_id):
         _user = _exec.user
 
         _publisher = DataPublisher()
-        _metadata = _publisher._extract_resource_name_from_file(_files, resource_type)
+        _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
         _, workspace, store = _publisher.publish_resources(_metadata)
 
         importer.update_execution_request_status(
@@ -137,7 +151,7 @@ def publish_resource(self, resource_type, execution_id):
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id)
+            (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
 
     except Exception as e:
@@ -173,7 +187,7 @@ def create_gn_resource(self, resource_type, execution_id):
         _user = _exec.user
         
         _publisher = DataPublisher()
-        resources = _publisher._extract_resource_name_from_file(_files, resource_type)
+        resources = _publisher.extract_resource_name_and_crs(_files, resource_type)
         nr_of_resources = len(resources)
         for index, resource in enumerate(resources, start=1):
             # update the last_updated value to evaluate that the task is still running

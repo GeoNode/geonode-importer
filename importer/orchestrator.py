@@ -63,7 +63,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req
 
-    def perform_next_import_step(self, resource_type: str, execution_id: str, step: str = None) -> None:
+    def perform_next_import_step(self, resource_type: str, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -88,14 +88,26 @@ class ImportOrchestrator:
             next_step = next(iter(remaining_tasks))
             # calling the next step for the resource
             # reschedule with delay if the groupid is not finished yet
+
+            task_params = (resource_type, str(execution_id))
             logger.error(f"STARTING NEXT STEP {next_step}")
 
-            importer_app.tasks.get(next_step).apply_async(
-                (
-                    resource_type,
-                    str(execution_id),
-                )
-            )
+            if layer_name and alternate:
+                logger.error(f"STARTING NEXT STEP {next_step} for resource: {layer_name}, alternate {alternate}")
+
+                '''
+                If layer name and alternate are provided, are sent as an argument
+                for the next task step
+                '''
+                task_params = (
+                        resource_type,
+                        str(execution_id),
+                        next_step,
+                        layer_name,
+                        alternate
+                    )
+
+            importer_app.tasks.get(next_step).apply_async(task_params)
 
         except StopIteration:
             # means that the expected list of steps is completed

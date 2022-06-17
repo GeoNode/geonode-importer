@@ -47,9 +47,15 @@ class GPKGFileHandler(AbstractHandler):
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
         for index, layer in enumerate(layers, start=1):
-            # should_be_imported check if the user+layername already exists or not
             layer_name = layer.GetName()
-            if should_be_imported(layer_name, _exec.user):
+            should_be_overrided = _exec.input_params.get("override_existing_layer")
+            # should_be_imported check if the user+layername already exists or not
+            if should_be_imported(
+                layer_name, _exec.user,
+                skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
+                override_existing_layer=should_be_overrided
+            ):
+                #update the execution request object
                 self._update_execution_request(
                     execution_id=execution_id,
                     last_updated=timezone.now(),
@@ -57,9 +63,12 @@ class GPKGFileHandler(AbstractHandler):
                 )
                 # setup dynamic model and retrieve the group job needed for tun the async workflow
                 _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id)
+                # evaluate if a new alternate is created by the previous flow
+                alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
+                # create the async task for create the resource into geonode_data with ogr2ogr
+                ogr_res = gpkg_ogr2ogr.s(files, layer.GetName(), alternate, should_be_overrided)
 
-                alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id}"
-                ogr_res = gpkg_ogr2ogr.s(files, layer.GetName(), alternate)
+                # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
                     [layer_res, ogr_res],
                     body=execution_id
@@ -83,7 +92,7 @@ class GPKGFileHandler(AbstractHandler):
         if not created:
             use_uuid = True
             foi_schema, created = ModelSchema.objects.get_or_create(
-                name=f"{layer.GetName()}_{execution_id}",
+                name=f"{layer.GetName()}_{execution_id.replace('-', '_')}",
                 db_name="datastore",
                 is_managed=False,
                 use_applable_as_table_prefix=False
@@ -124,14 +133,16 @@ class GPKGFileHandler(AbstractHandler):
 
 
 @importer_app.task(
-    bind=True,
     name="importer.gpkg_handler",
     queue="importer.gpkg_handler",
     max_retries=1,
     acks_late=False,
     ignore_result=False
 )
-def gpkg_handler(self, fields, dynamic_model_schema_id):
+def gpkg_handler(fields, dynamic_model_schema_id):
+    '''
+    Create the single dynamic model field for each layer. Is made by a batch of 50 field
+    '''
     dynamic_model_schema = ModelSchema.objects.get(id=dynamic_model_schema_id)
     for field in fields:
         if field['class_name'] is None:
@@ -149,17 +160,18 @@ def gpkg_handler(self, fields, dynamic_model_schema_id):
         )
 
 @importer_app.task(
-    bind=True,
     name="importer.gpkg_ogr2ogr",
     queue="importer.gpkg_ogr2ogr",
     max_retries=1,
     acks_late=False,
     ignore_result=False
 )
-def gpkg_ogr2ogr(self, files, original_name, alternate):
+def gpkg_ogr2ogr(files, original_name, alternate, override_layer=False):
     '''
     Perform the ogr2ogr command to import he gpkg inside geonode_data
+    If the layer should be overwritten, the option is appended dynamically
     '''
+
     ogr_exe = "/usr/bin/ogr2ogr"
     _uri = settings.GEODATABASE_URL.replace("postgis://", "")
     db_user, db_password = _uri.split('@')[0].split(":")
@@ -173,6 +185,9 @@ def gpkg_ogr2ogr(self, files, original_name, alternate):
     options += '-lco DIM=2 '
     options += f"-nln {alternate} {original_name}"
 
+    if override_layer:
+        options += " -overwrite"
+
     commands = [ogr_exe] + options.split(" ")
     
     process = Popen(' '.join(commands), stdout=PIPE, stderr=PIPE, shell=True)
@@ -183,11 +198,13 @@ def gpkg_ogr2ogr(self, files, original_name, alternate):
 
 
 @importer_app.task(
-    bind=True,
     name="importer.gpkg_next_step",
     queue="importer.gpkg_next_step"
 )
-def gpkg_next_step(self, _, execution_id, actual_step, layer_name, alternate):
+def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
+    '''
+    If the ingestion of the resource is successfuly, the next step for the layer is called
+    '''
     from importer.views import import_orchestrator, importer
 
     _exec = importer.get_execution_object(execution_id)
@@ -197,16 +214,17 @@ def gpkg_next_step(self, _, execution_id, actual_step, layer_name, alternate):
     _user = _exec.user
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, _store_spatial_files, _user.username, execution_id, actual_step)
+        (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
 
 
 @importer_app.task(
-    bind=True,
     name="importer.gpkg_failure_step",
     queue="importer.gpkg_failure_step"
 )
-def gpkg_failure_step(self, execution_id):
-
+def gpkg_failure_step(execution_id):
+    '''
+    in case of failure do something
+    '''
     print("helloworld")
     print(execution_id)

@@ -38,6 +38,7 @@ from rest_framework.authentication import (BasicAuthentication,
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+import ast
 
 logger = logging.getLogger(__name__)
 
@@ -79,15 +80,30 @@ class ImporterViewSet(DynamicModelViewSet):
             # get filepath
             files = storage_manager.get_retrieved_paths()
             try:
+                skip_existsing_layer = request.data.get('skip_existsing_layer', "True")
+                override_existing_layer = request.data.get('override_existing_layer', "False")
+                store_spatial_file = data.data.get("store_spatial_files", "True")
                 execution_id = importer.create_execution_request(
                     user=request.user,
                     func_name="start_import",
                     step="start_import",
                     input_params={
                         "files": files,
-                        "store_spatial_files": data.data.get("store_spatial_files"),
-                        "skip_existing_layer": request.data.get('skip_existsing_layer', True),
-                        "override_existing_layer": request.data.get('override_existing_layer', False)
+                        "store_spatial_files": (
+                            ast.literal_eval(store_spatial_file)
+                            if isinstance(store_spatial_file, str)
+                            else store_spatial_file
+                        ),
+                        "skip_existing_layer": (
+                            ast.literal_eval(skip_existsing_layer)
+                            if isinstance(skip_existsing_layer, str)
+                            else skip_existsing_layer
+                        ),
+                        "override_existing_layer": (
+                            ast.literal_eval(override_existing_layer)
+                            if isinstance(override_existing_layer, str)
+                            else override_existing_layer
+                        )
                     },
                     legacy_upload_name=os.path.basename(files.get("base_file"))
                 )
