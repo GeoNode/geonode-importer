@@ -10,7 +10,7 @@ from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import (GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING,
                                     AbstractHandler)
 from osgeo import ogr
-from celery import chord, group
+from celery import Task, chord, group
 
 from importer.handlers.utils import should_be_imported
 
@@ -134,7 +134,29 @@ class GPKGFileHandler(AbstractHandler):
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
 
 
+class VectorBaseErrorTask(Task):
+
+    max_retries = 1
+    track_started=True
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        # exc (Exception) - The exception raised by the task.
+        # args (Tuple) - Original arguments for the task that failed.
+        # kwargs (Dict) - Original keyword arguments for the task that failed.
+        from importer.views import orchestrator
+        from geonode.base.enumerations import STATE_INVALID
+        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
+
+        orchestrator.update_execution_request_status(
+            execution_id=args[1],
+            status=ExecutionRequest.STATUS_FAILED,
+            legacy_status=STATE_INVALID,
+            log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+        )
+
+
 @importer_app.task(
+    base=VectorBaseErrorTask,
     name="importer.gpkg_handler",
     queue="importer.gpkg_handler",
     max_retries=1,
@@ -185,6 +207,7 @@ def gpkg_handler(fields, dynamic_model_schema_id, overwrite):
 
 
 @importer_app.task(
+    base=VectorBaseErrorTask,
     name="importer.gpkg_ogr2ogr",
     queue="importer.gpkg_ogr2ogr",
     max_retries=1,

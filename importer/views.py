@@ -200,13 +200,13 @@ def create_gn_resource(
             status=ExecutionRequest.STATUS_RUNNING,
             execution_id=execution_id,
             last_updated=timezone.now(),
-            log=f"Creating GN dataset for resource: {layer_name}:"
+            log=f"Creating GN dataset for resource: {alternate}:"
         )        
         saved_dataset = resource_manager.create(
             None,
             resource_type=Dataset,
             defaults=dict(
-                name=layer_name,
+                name=alternate,
                 workspace=_exec.input_params.get("workspace", "geonode"),
                 store=_exec.input_params.get("store", "geonode_data"),
                 subtype='vector',

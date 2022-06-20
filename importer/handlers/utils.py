@@ -19,7 +19,7 @@ def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
     ).exists()
     if not exists:
         return True
-    if exists and kwargs.get("skip_existing_layer", True):
+    if exists and kwargs.get("skip_existing_layer", False):
         return False
     elif exists and kwargs.get("override_layer", False):
         return True

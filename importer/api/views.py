@@ -80,7 +80,7 @@ class ImporterViewSet(DynamicModelViewSet):
             # get filepath
             files = storage_manager.get_retrieved_paths()
             try:
-                skip_existsing_layer = request.data.get('skip_existsing_layer', "True")
+                skip_existsing_layer = request.data.get('skip_existsing_layer', "False")
                 override_existing_layer = request.data.get('override_existing_layer', "False")
                 store_spatial_file = data.data.get("store_spatial_files", "True")
                 execution_id = orchestrator.create_execution_request(
