@@ -54,7 +54,7 @@ class DataPublisher():
             try:
                 self.cat.publish_featuretype(
                     name=_resource.get("name"),
-                    store=self.store, 
+                    store=self.store,
                     native_crs=_resource.get("crs"),
                     srs=_resource.get("crs"),
                     jdbc_virtual_table=_resource.get("name")
