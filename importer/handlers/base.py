@@ -1,24 +1,6 @@
 from abc import ABC
 
 
-STANDARD_TYPE_MAPPING = {
-    "Integer64": "django.db.models.IntegerField",
-    "Integer": "django.db.models.IntegerField",
-    "DateTime": "django.db.models.DateTimeField",
-    "Real": "django.db.models.FloatField",
-    "String": "django.db.models.CharField"
-}
-
-GEOM_TYPE_MAPPING = {
-    "Line String": "django.contrib.gis.db.models.fields.LineStringField",
-    "Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
-    "Point": "django.contrib.gis.db.models.fields.PointField",
-    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
-    "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
-    "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
-}
-
-
 class AbstractHandler(ABC):
     '''
     Base abstract handler object
@@ -37,6 +19,12 @@ class AbstractHandler(ABC):
         """
         Define basic validation steps
         """
+        return NotImplementedError
+    
+    def create_error_log(self, *args):
+        '''
+        This function will handle the creation of the log error for each message
+        '''
         return NotImplementedError
 
     def import_resource(self):

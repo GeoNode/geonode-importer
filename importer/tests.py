@@ -4,7 +4,7 @@ from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import ImportException
 from importer.handlers.base import AbstractHandler
-from importer.handlers.vector import GPKGFileHandler
+from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import SUPPORTED_TYPES, ImportOrchestrator
 from geonode.upload.models import Upload
 

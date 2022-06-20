@@ -11,7 +11,7 @@ from geonode.upload.models import Upload
 
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from importer.handlers.vector import GPKGFileHandler
+from importer.handlers.gpkg.handler import GPKGFileHandler
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +58,10 @@ class ImportOrchestrator:
         Returns the ExecutionRequest object with the detail about the 
         current execution
         '''
-        req = ExecutionRequest.objects.filter(exec_id=exec_id).first()
-        if req is None:
+        req = ExecutionRequest.objects.filter(exec_id=exec_id)
+        if not req.exists():
             raise ImportException("The selected UUID does not exists")
-        return req
+        return req.first()
 
     def perform_next_import_step(self, resource_type: str, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None) -> None:
         '''
@@ -89,7 +89,7 @@ class ImportOrchestrator:
             # calling the next step for the resource
             # reschedule with delay if the groupid is not finished yet
 
-            task_params = (resource_type, str(execution_id))
+            task_params = (str(execution_id), resource_type)
             logger.error(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
@@ -100,8 +100,8 @@ class ImportOrchestrator:
                 for the next task step
                 '''
                 task_params = (
-                        resource_type,
                         str(execution_id),
+                        resource_type,
                         next_step,
                         layer_name,
                         alternate

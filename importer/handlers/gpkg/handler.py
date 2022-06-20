@@ -2,17 +2,19 @@ import logging
 import os
 from subprocess import PIPE, Popen
 
+from celery import chord, group
 from django.conf import settings
 from django.utils import timezone
+from dynamic_models.exceptions import InvalidFieldNameError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
 from importer.celery_tasks import ErrorBaseTaskClass
-from importer.handlers.base import (GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING,
-                                    AbstractHandler)
-from osgeo import ogr
-from celery import Task, chord, group
-
+from importer.handlers.base import AbstractHandler
+from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
+from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
+                                          STANDARD_TYPE_MAPPING)
 from importer.handlers.utils import should_be_imported
+from osgeo import ogr
 
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
@@ -28,6 +30,7 @@ class GPKGFileHandler(AbstractHandler):
         "importer.import_resource",
         "importer.publish_resource",
         "importer.create_gn_resource",
+        # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
     )
 
     def is_valid(self, files):
@@ -35,6 +38,11 @@ class GPKGFileHandler(AbstractHandler):
         Define basic validation steps
         """        
         return all([os.path.exists(x) for x in files.values()])
+
+    def create_error_log(self, task_name, *args):
+        return {
+            "field": f"Task: {task_name} raised an error during actions for layer: {args[-1]}"
+        }
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
@@ -67,7 +75,7 @@ class GPKGFileHandler(AbstractHandler):
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
-                ogr_res = gpkg_ogr2ogr.s(files, layer.GetName(), alternate, should_be_overrided)
+                ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName(), should_be_overrided, alternate)
 
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
@@ -84,6 +92,7 @@ class GPKGFileHandler(AbstractHandler):
         '''
         use_uuid = False
         # TODO: finish the creation, is raising issues due the NONE value of the table
+        layer_name = layer.GetName()
         foi_schema, created = ModelSchema.objects.get_or_create(
             name=layer.GetName(),
             db_name="datastore",
@@ -92,6 +101,7 @@ class GPKGFileHandler(AbstractHandler):
         )
         if not created and not should_be_overrided:
             use_uuid = True
+            layer_name = f"{layer.GetName()}_{execution_id.replace('-', '_')}"
             foi_schema, created = ModelSchema.objects.get_or_create(
                 name=f"{layer.GetName()}_{execution_id.replace('-', '_')}",
                 db_name="datastore",
@@ -99,10 +109,16 @@ class GPKGFileHandler(AbstractHandler):
                 use_applable_as_table_prefix=False
             )
         # define standard field mapping from ogr to django
-        dynamic_model, res = self.create_dynamic_model_fields(layer=layer, dynamic_model_schema=foi_schema, overwrite=should_be_overrided)
+        dynamic_model, res = self.create_dynamic_model_fields(
+            layer=layer,
+            dynamic_model_schema=foi_schema,
+            overwrite=should_be_overrided,
+            execution_id=execution_id,
+            layer_name=layer_name
+        )
         return dynamic_model, use_uuid, res
 
-    def create_dynamic_model_fields(self, layer, dynamic_model_schema, overwrite):
+    def create_dynamic_model_fields(self, layer, dynamic_model_schema, overwrite, execution_id, layer_name):
         layer_schema = [
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
@@ -115,8 +131,8 @@ class GPKGFileHandler(AbstractHandler):
                 }
             ]
 
-        list_chunked = [layer_schema[i:i + 50] for i in range(0, len(layer_schema), 50)]
-        job = group(gpkg_handler.s(schema, dynamic_model_schema.id, overwrite) for schema in list_chunked)
+        list_chunked = [layer_schema[i:i + 30] for i in range(0, len(layer_schema), 30)]
+        job = group(gpkg_handler.s(execution_id, schema, dynamic_model_schema.id, overwrite, layer_name) for schema in list_chunked)
         return dynamic_model_schema.as_model(), job
 
     def _update_execution_request(self, execution_id, **kwargs):
@@ -134,36 +150,15 @@ class GPKGFileHandler(AbstractHandler):
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
 
 
-class VectorBaseErrorTask(Task):
-
-    max_retries = 1
-    track_started=True
-
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        # exc (Exception) - The exception raised by the task.
-        # args (Tuple) - Original arguments for the task that failed.
-        # kwargs (Dict) - Original keyword arguments for the task that failed.
-        from importer.views import orchestrator
-        from geonode.base.enumerations import STATE_INVALID
-        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
-
-        orchestrator.update_execution_request_status(
-            execution_id=args[1],
-            status=ExecutionRequest.STATUS_FAILED,
-            legacy_status=STATE_INVALID,
-            log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
-        )
-
-
 @importer_app.task(
-    base=VectorBaseErrorTask,
+    base=SingleMessageErrorHandler,
     name="importer.gpkg_handler",
     queue="importer.gpkg_handler",
     max_retries=1,
     acks_late=False,
     ignore_result=False
 )
-def gpkg_handler(fields, dynamic_model_schema_id, overwrite):
+def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer_name):
     def _create_field(dynamic_model_schema, field, _kwargs):
         return FieldSchema(
                     name=field['name'],
@@ -178,9 +173,10 @@ def gpkg_handler(fields, dynamic_model_schema_id, overwrite):
     row_to_insert = []
     for field in fields:
         # setup kwargs for the class provided
-        if field['class_name'] is None:
-            logger.error(f"Field named {field['name']} cannot be importer, the field is not recognized")
-            return
+        if field['class_name'] is None or field['name'] is None:
+            logger.error(f"Error during the field creation. The field or class_name is None {field}")
+            raise InvalidFieldNameError(f"Error during the field creation. The field or class_name is None {field}")
+
         _kwargs = {"null": field.get('null', True)}
         if field['class_name'].endswith('CharField'):
             _kwargs = {**_kwargs, **{"max_length": 255}}
@@ -207,14 +203,14 @@ def gpkg_handler(fields, dynamic_model_schema_id, overwrite):
 
 
 @importer_app.task(
-    base=VectorBaseErrorTask,
+    base=SingleMessageErrorHandler,
     name="importer.gpkg_ogr2ogr",
     queue="importer.gpkg_ogr2ogr",
     max_retries=1,
     acks_late=False,
     ignore_result=False
 )
-def gpkg_ogr2ogr(files, original_name, alternate, override_layer=False):
+def gpkg_ogr2ogr(execution_id, files, original_name, override_layer=False, alternate):
     '''
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically

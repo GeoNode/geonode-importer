@@ -66,7 +66,7 @@ def import_orchestrator(
     queue="importer.import_resource",
     max_retries=2
 )
-def import_resource(self, resource_type, execution_id):
+def import_resource(self, execution_id, /, resource_type):
     '''
     Task to import the resources in geoserver
     after updating the execution status will perform a small data_validation
@@ -109,8 +109,9 @@ def import_resource(self, resource_type, execution_id):
     rate_limit=3
 )
 def publish_resource(
-    resource_type: str,
     execution_id: str,
+    /,
+    resource_type: str,
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None
@@ -134,12 +135,13 @@ def publish_resource(
             step="importer.publish_resource",
         )
         _exec = orchestrator.get_execution_object(execution_id)
-
         _files = _exec.input_params.get("files")
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
         _overwrite = _exec.input_params.get("override_existing_layer")
         _user = _exec.user
-
+        if _overwrite:
+            # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
+            return
         _publisher = DataPublisher()
         _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
         if _metadata and _metadata[0].get("crs"):
@@ -170,8 +172,9 @@ def publish_resource(
     rate_limit=3
 )
 def create_gn_resource(
-    resource_type: str,
     execution_id: str,
+    /,
+    resource_type: str,
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None
