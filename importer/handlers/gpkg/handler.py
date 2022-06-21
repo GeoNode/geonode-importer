@@ -54,14 +54,14 @@ class GPKGFileHandler(AbstractHandler):
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
         for index, layer in enumerate(layers, start=1):
-            layer_name = layer.GetName()
+            layer_name = layer.GetName().lower()
             should_be_overrided = _exec.input_params.get("override_existing_layer")
             # should_be_imported check if the user+layername already exists or not
             if should_be_imported(
                 layer_name, _exec.user,
                 skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
                 override_existing_layer=should_be_overrided
-            ):
+            ) and layer.GetGeometryColumn() is not None:
                 #update the execution request object
                 self._update_execution_request(
                     execution_id=execution_id,
@@ -73,7 +73,7 @@ class GPKGFileHandler(AbstractHandler):
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
-                ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName(), should_be_overrided, alternate)
+                ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
 
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
@@ -90,18 +90,18 @@ class GPKGFileHandler(AbstractHandler):
         '''
         use_uuid = False
         # TODO: finish the creation, is raising issues due the NONE value of the table
-        layer_name = layer.GetName()
+        layer_name = layer.GetName().lower()
         foi_schema, created = ModelSchema.objects.get_or_create(
-            name=layer.GetName(),
+            name=layer.GetName().lower(),
             db_name="datastore",
             managed=False,
             db_table_name=layer_name
         )
         if not created and not should_be_overrided:
             use_uuid = True
-            layer_name = f"{layer.GetName()}_{execution_id.replace('-', '_')}"
+            layer_name = f"{layer.GetName().lower()}_{execution_id.replace('-', '_')}"
             foi_schema, created = ModelSchema.objects.get_or_create(
-                name=f"{layer.GetName()}_{execution_id.replace('-', '_')}",
+                name=f"{layer.GetName().lower()}_{execution_id.replace('-', '_')}",
                 db_name="datastore",
                 managed=False,
                 db_table_name=layer_name

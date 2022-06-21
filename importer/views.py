@@ -7,7 +7,6 @@ from django.utils import timezone
 from geonode.layers.models import Dataset
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from geonode.storage.manager import storage_manager
 
 from importer.api.exception import (InvalidInputFileException,
                                     PublishResourceException,
@@ -18,6 +17,8 @@ from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
+from geonode.base.models import ResourceBase
+
 
 logger = logging.getLogger(__name__)
 
@@ -139,21 +140,20 @@ def publish_resource(
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
         _overwrite = _exec.input_params.get("override_existing_layer")
         _user = _exec.user
-        if _overwrite:
+        if not _overwrite:
             # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
-            return
-        _publisher = DataPublisher()
-        _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
-        if _metadata and _metadata[0].get("crs"):
-            # we should not publish resource without a crs
-            _, workspace, store = _publisher.publish_resources(_metadata)
+            _publisher = DataPublisher()
+            _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
+            if _metadata and _metadata[0].get("crs"):
+                # we should not publish resource without a crs
+                _, workspace, store = _publisher.publish_resources(_metadata)
 
-            orchestrator.update_execution_request_status(
-                execution_id=execution_id,
-                status=ExecutionRequest.STATUS_RUNNING,
-                last_updated=timezone.now(),
-                input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
-            )
+                orchestrator.update_execution_request_status(
+                    execution_id=execution_id,
+                    status=ExecutionRequest.STATUS_RUNNING,
+                    last_updated=timezone.now(),
+                    input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
+                )
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
@@ -169,7 +169,7 @@ def publish_resource(
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1,
-    rate_limit=3
+    rate_limit=10
 )
 def create_gn_resource(
     execution_id: str,
@@ -195,8 +195,9 @@ def create_gn_resource(
 
         _files = _exec.input_params.get("files")
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
+
         metadata_uploaded = _files.get("xml_file", "") or False
-        sld_uploaded = _files.get("sld_uploaded", "") or False
+        sld_uploaded = _files.get("sld_file", "") or False
         _user = _exec.user
 
         orchestrator.update_execution_request_status(
@@ -204,36 +205,49 @@ def create_gn_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             log=f"Creating GN dataset for resource: {alternate}:"
-        )        
-        saved_dataset = resource_manager.create(
-            None,
-            resource_type=Dataset,
-            defaults=dict(
-                name=alternate,
-                workspace=_exec.input_params.get("workspace", "geonode"),
-                store=_exec.input_params.get("store", "geonode_data"),
-                subtype='vector',
-                alternate=alternate,
-                title=layer_name,
-                owner=_user,
-                files=_files,
-            )
         )
-        if metadata_uploaded:
+    
+        saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
+        if saved_dataset.exists():
+            saved_dataset = saved_dataset.first()
+        else:
+            if not saved_dataset.exists() and _exec.input_params.get("override_existing_layer", False):
+                logger.warning(f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created")
+            saved_dataset = resource_manager.create(
+                None,
+                resource_type=Dataset,
+                defaults=dict(
+                    name=alternate,
+                    workspace=_exec.input_params.get("workspace", "geonode"),
+                    store=_exec.input_params.get("store", "geonode_data"),
+                    subtype='vector',
+                    alternate=alternate,
+                    dirty_state=True,
+                    title=layer_name,
+                    owner=_user,
+                    files=_files,
+                )
+            )
+
+        if metadata_uploaded and resource_type != 'gpkg':
             resource_manager.update(None,
                 instance=saved_dataset,
                 xml_file=_files.get("xml_file", ""),
-                metadata_uploaded=metadata_uploaded
+                metadata_uploaded=metadata_uploaded,
+                vals={"dirty_state": True}
             )
-        if sld_uploaded:
+        if sld_uploaded and resource_type != 'gpkg':
             resource_manager.exec(
                 'set_style',
                 None,
                 instance=saved_dataset,
                 sld_uploaded=sld_uploaded,
-                sld_file=_files.get("sld_file", "")
+                sld_file=_files.get("sld_file", ""),
+                vals={"dirty_state": True}
             )
         resource_manager.set_thumbnail(None, instance=saved_dataset)
+
+        ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(

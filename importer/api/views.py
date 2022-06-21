@@ -75,14 +75,15 @@ class ImporterViewSet(DynamicModelViewSet):
             # data validation
             data.is_valid(raise_exception=True)
             # cloning data into a local folder
-            storage_manager = StorageManager(remote_files={"base_file": request.data.get('base_file')})
+            _data = data.data.copy()
+            skip_existsing_layer = _data.pop('skip_existsing_layer', "False")
+            override_existing_layer = _data.pop('override_existing_layer', "False")
+            store_spatial_file = _data.pop("store_spatial_files", "True")
+            storage_manager = StorageManager(remote_files={**_data, **{"base_file": request.data.get('base_file')}})
             storage_manager.clone_remote_files()
             # get filepath
             files = storage_manager.get_retrieved_paths()
             try:
-                skip_existsing_layer = request.data.get('skip_existsing_layer', "False")
-                override_existing_layer = request.data.get('override_existing_layer', "False")
-                store_spatial_file = data.data.get("store_spatial_files", "True")
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name="start_import",
