@@ -15,7 +15,7 @@ class ErrorBaseTaskClass(Task):
         # kwargs (Dict) - Original keyword arguments for the task that failed.
         from importer.views import orchestrator
 
-        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
+        logger.error(f"Task FAILED with ID: {args[0]}, reason: {exc}")
         orchestrator.set_as_failed(
-            execution_id=args[1], reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+            execution_id=args[0], reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )

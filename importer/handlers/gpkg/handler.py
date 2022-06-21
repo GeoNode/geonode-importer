@@ -5,7 +5,7 @@ from subprocess import PIPE, Popen
 from celery import chord, group
 from django.conf import settings
 from django.utils import timezone
-from dynamic_models.exceptions import InvalidFieldNameError
+from dynamic_models.exceptions import InvalidFieldNameError, DynamicModelError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
 from importer.celery_tasks import ErrorBaseTaskClass
@@ -40,9 +40,7 @@ class GPKGFileHandler(AbstractHandler):
         return all([os.path.exists(x) for x in files.values()])
 
     def create_error_log(self, task_name, *args):
-        return {
-            "field": f"Task: {task_name} raised an error during actions for layer: {args[-1]}"
-        }
+        return f"Task: {task_name} raised an error during actions for layer: {args[-1]}"
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
@@ -79,9 +77,9 @@ class GPKGFileHandler(AbstractHandler):
 
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
-                    [layer_res, ogr_res],
+                    [layer_res.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback'])],
                     body=execution_id
-                )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate).set(link_error=['gpkg_failure_step']))
+                )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate))
 
         return
 
@@ -96,8 +94,8 @@ class GPKGFileHandler(AbstractHandler):
         foi_schema, created = ModelSchema.objects.get_or_create(
             name=layer.GetName(),
             db_name="datastore",
-            is_managed=False,
-            use_applable_as_table_prefix=False
+            managed=False,
+            db_table_name=layer_name
         )
         if not created and not should_be_overrided:
             use_uuid = True
@@ -105,8 +103,8 @@ class GPKGFileHandler(AbstractHandler):
             foi_schema, created = ModelSchema.objects.get_or_create(
                 name=f"{layer.GetName()}_{execution_id.replace('-', '_')}",
                 db_name="datastore",
-                is_managed=False,
-                use_applable_as_table_prefix=False
+                managed=False,
+                db_table_name=layer_name
             )
         # define standard field mapping from ogr to django
         dynamic_model, res = self.create_dynamic_model_fields(
@@ -169,7 +167,12 @@ def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer
     '''
     Create the single dynamic model field for each layer. Is made by a batch of 50 field
     '''
-    dynamic_model_schema = ModelSchema.objects.get(id=dynamic_model_schema_id)
+    dynamic_model_schema = ModelSchema.objects.filter(id=dynamic_model_schema_id)
+    if not dynamic_model_schema.exists():
+        raise DynamicModelError(f"The model with id {dynamic_model_schema_id} does not exists. It may be deleted from the error callback tasks")
+
+    dynamic_model_schema = dynamic_model_schema.first()
+
     row_to_insert = []
     for field in fields:
         # setup kwargs for the class provided
@@ -210,7 +213,7 @@ def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer
     acks_late=False,
     ignore_result=False
 )
-def gpkg_ogr2ogr(execution_id, files, original_name, override_layer=False, alternate):
+def gpkg_ogr2ogr(execution_id, files, original_name, override_layer=False, alternate=None):
     '''
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically
@@ -261,3 +264,24 @@ def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
+
+@importer_app.task(name='gpkg_error_callback')
+def error_callback(*args, **kwargs):
+    from dynamic_models.schema import ModelSchemaEditor
+    # rever eventually the import in ogr2ogr or the creation of the model in case of failing
+    alternate = args[0].args[-1]
+    
+    schema_model = ModelSchema.objects.filter(name=alternate)
+    if schema_model.exists():
+        schema = ModelSchemaEditor(
+            initial_model=alternate,
+            db_name="datastore"
+        )
+        try:
+            schema.drop_table(schema_model.first().as_model())
+        except Exception as e:
+            logger.warning(e.args[0])
+
+        schema_model.delete()
+
+    return 'error'
