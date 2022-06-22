@@ -38,6 +38,7 @@ from rest_framework.authentication import (BasicAuthentication,
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from geonode.upload.utils import UploadLimitValidator
 import ast
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ class ImporterViewSet(DynamicModelViewSet):
         if _file and _file.name.endswith('gpkg'):
             #go through the new import flow
             data = self.serializer_class(data=request.data)
-            # data validation
+            # serializer data validation
             data.is_valid(raise_exception=True)
             # cloning data into a local folder
             _data = data.data.copy()
@@ -83,7 +84,12 @@ class ImporterViewSet(DynamicModelViewSet):
             storage_manager.clone_remote_files()
             # get filepath
             files = storage_manager.get_retrieved_paths()
+
             try:
+                upload_validator = UploadLimitValidator(request.user)
+                upload_validator.validate_parallelism_limit_per_user()
+                upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
+
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name="start_import",

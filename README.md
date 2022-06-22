@@ -9,6 +9,8 @@ pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@maste
 Add to settings:
 
 ```
+INSTALLED_APPS += ('importer', 'dynamic_models',)
+
 CELERY_TASK_QUEUES += (
     Queue('importer.import_orchestrator', GEONODE_EXCHANGE, routing_key='importer.import_orchestrator', priority=0),
     Queue('importer.import_resource', GEONODE_EXCHANGE, routing_key='importer.import_resource', priority=0),
@@ -19,14 +21,9 @@ CELERY_TASK_QUEUES += (
     Queue('importer.gpkg_handler', GEONODE_EXCHANGE, routing_key='importer.gpkg_handler', priority=0),
 )
 
-INSTALLED_APPS += ('importer', 'dynamic_models',)
-
-DYNAMIC_MODELS = {
-   "USE_APP_LABEL": "geonode_importer"
-}
-
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
 
+SIZE_RESTRICTED_FILE_UPLOAD_ELEGIBLE_URL_NAMES += ('importer_upload',)
 ```
 
 Run migrations:
