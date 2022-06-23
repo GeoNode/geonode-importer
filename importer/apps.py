@@ -12,6 +12,10 @@ class ImporterConfig(AppConfig):
 
 
 def run_setup_hooks(*args, **kwargs):
+    '''
+    Run basic setup configuration for the importer app.
+    Here we are overriding the upload API url
+    '''
     from django.conf.urls import include, url
     from geonode.urls import urlpatterns
 

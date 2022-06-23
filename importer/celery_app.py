@@ -1,7 +1,11 @@
 from celery import Celery
 
+'''
+Basic Celery app defined for the importer.
+It read all the other settings from the django configuration file
+so is always aligned to the geonode settings
+'''
+
 importer_app = Celery("importer")
 
-# Using a string here means the worker will not have to
-# pickle the object when using Windows.
 importer_app.config_from_object('django.conf:settings', namespace="CELERY")

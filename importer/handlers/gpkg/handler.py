@@ -1,5 +1,4 @@
 import logging
-import os
 from subprocess import PIPE, Popen
 
 from celery import chord, group
@@ -60,6 +59,9 @@ class GPKGFileHandler(AbstractHandler):
         return True
 
     def create_error_log(self, task_name, *args):
+        '''
+        Method needed to personalize the log based on the resource type
+        '''
         return f"Task: {task_name} raised an error during actions for layer: {args[-1]}"
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
@@ -73,8 +75,12 @@ class GPKGFileHandler(AbstractHandler):
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
+        
+        # start looping on the layers available
         for index, layer in enumerate(layers, start=1):
+
             layer_name = layer.GetName().lower()
+
             should_be_overrided = _exec.input_params.get("override_existing_layer")
             # should_be_imported check if the user+layername already exists or not
             if should_be_imported(
@@ -88,7 +94,7 @@ class GPKGFileHandler(AbstractHandler):
                     last_updated=timezone.now(),
                     log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
-                # setup dynamic model and retrieve the group job needed for tun the async workflow
+                # setup dynamic model and retrieve the group task needed for tun the async workflow
                 _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id, should_be_overrided)
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
@@ -103,13 +109,13 @@ class GPKGFileHandler(AbstractHandler):
 
         return
 
-    def _setup_dynamic_model(self, layer, execution_id, should_be_overrided):
+    def _setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool):
         '''
         Extract from the geopackage the layers name and their schema
         after the extraction define the dynamic model instances
         '''
         use_uuid = False
-        # TODO: finish the creation, is raising issues due the NONE value of the table
+
         layer_name = layer.GetName().lower()
         foi_schema, created = ModelSchema.objects.get_or_create(
             name=layer.GetName().lower(),
@@ -118,6 +124,9 @@ class GPKGFileHandler(AbstractHandler):
             db_table_name=layer_name
         )
         if not created and not should_be_overrided:
+            # if the model schema already exists, means that a layer with that name already exists
+            # so we are going to append the executionID to the layer name to have a 
+            # unique alternate for the layer
             use_uuid = True
             layer_name = f"{layer.GetName().lower()}_{execution_id.replace('-', '_')}"
             foi_schema, created = ModelSchema.objects.get_or_create(
@@ -136,12 +145,14 @@ class GPKGFileHandler(AbstractHandler):
         )
         return dynamic_model, use_uuid, res
 
-    def create_dynamic_model_fields(self, layer, dynamic_model_schema, overwrite, execution_id, layer_name):
+    def create_dynamic_model_fields(self, layer: str, dynamic_model_schema: ModelSchema, overwrite: bool, execution_id: str, layer_name: str):
+        # retrieving the field schema from ogr2ogr and converting the type to Django Types
         layer_schema = [
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
         if layer.GetGeometryColumn():
+            # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
                     "name": layer.GetGeometryColumn(),
@@ -149,19 +160,25 @@ class GPKGFileHandler(AbstractHandler):
                 }
             ]
 
+        # ones we have the schema, here we create a list of chunked value
+        # so the async task will handle max of 30 field per task
         list_chunked = [layer_schema[i:i + 30] for i in range(0, len(layer_schema), 30)]
+
+        # definition of the celery group needed to run the async workflow.
+        # in this way each task of the group will handle only 30 field
         job = group(gpkg_handler.s(execution_id, schema, dynamic_model_schema.id, overwrite, layer_name) for schema in list_chunked)
+
         return dynamic_model_schema.as_model(), job
 
-    def _update_execution_request(self, execution_id, **kwargs):
+    def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
 
-    def _get_execution_request_object(self, execution_id):
+    def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
 
-    def _get_type(self, _type):
+    def _get_type(self, _type: str):
         '''
         Used to get the standard field type in the dynamic_model_field definition
         '''
@@ -176,8 +193,9 @@ class GPKGFileHandler(AbstractHandler):
     acks_late=False,
     ignore_result=False
 )
-def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer_name):
+def gpkg_handler(execution_id: str, fields: dict, dynamic_model_schema_id: int, overwrite: bool, layer_name: str):
     def _create_field(dynamic_model_schema, field, _kwargs):
+        # common method to define the Field Schema object
         return FieldSchema(
                     name=field['name'],
                     class_name=field['class_name'],
@@ -185,7 +203,7 @@ def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer
                     kwargs=_kwargs
                 )
     '''
-    Create the single dynamic model field for each layer. Is made by a batch of 50 field
+    Create the single dynamic model field for each layer. Is made by a batch of 30 field
     '''
     dynamic_model_schema = ModelSchema.objects.filter(id=dynamic_model_schema_id)
     if not dynamic_model_schema.exists():
@@ -220,7 +238,8 @@ def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer
                 row_to_insert.append(_create_field(dynamic_model_schema, field, _kwargs))
     
     if row_to_insert:
-        FieldSchema.objects.bulk_create(row_to_insert, 50)
+        # the build creation improves the overall permformance with the DB
+        FieldSchema.objects.bulk_create(row_to_insert, 30)
 
     del row_to_insert
 
@@ -233,7 +252,7 @@ def gpkg_handler(execution_id, fields, dynamic_model_schema_id, overwrite, layer
     acks_late=False,
     ignore_result=False
 )
-def gpkg_ogr2ogr(execution_id, files, original_name, override_layer=False, alternate=None):
+def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_layer=False, alternate=None):
     '''
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically
@@ -269,7 +288,7 @@ def gpkg_ogr2ogr(execution_id, files, original_name, override_layer=False, alter
     name="importer.gpkg_next_step",
     queue="importer.gpkg_next_step"
 )
-def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
+def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alternate:str):
     '''
     If the ingestion of the resource is successfuly, the next step for the layer is called
     '''
@@ -288,7 +307,7 @@ def gpkg_next_step(_, execution_id, actual_step, layer_name, alternate):
 @importer_app.task(name='gpkg_error_callback')
 def error_callback(*args, **kwargs):
     from dynamic_models.schema import ModelSchemaEditor
-    # rever eventually the import in ogr2ogr or the creation of the model in case of failing
+    # revert eventually the import in ogr2ogr or the creation of the model in case of failing
     alternate = args[0].args[-1]
     
     schema_model = ModelSchema.objects.filter(name=alternate)

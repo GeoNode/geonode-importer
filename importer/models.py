@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @receiver(post_delete, sender=Dataset)
 def delete_dynamic_model(instance, sender, **kwargs):
     '''
-    Delete the dynamic relation and the publishde geoserver layer
+    Delete the dynamic relation and the geoserver layer
     '''
     try:
         geoserver_delete(instance.alternate)

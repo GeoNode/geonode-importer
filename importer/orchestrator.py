@@ -87,12 +87,14 @@ class ImportOrchestrator:
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
             # calling the next step for the resource
-            # reschedule with delay if the groupid is not finished yet
 
+            # defining the tasks parameter for the step
             task_params = (str(execution_id), resource_type)
             logger.error(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
+                # if the layer and alternate is provided, means that we are executing the step specifically for a layer
+                # so we add this information to the task_parameters to be sent to the next step
                 logger.error(f"STARTING NEXT STEP {next_step} for resource: {layer_name}, alternate {alternate}")
 
                 '''
@@ -107,6 +109,7 @@ class ImportOrchestrator:
                         alternate
                     )
 
+            # continuing to the next step
             importer_app.tasks.get(next_step).apply_async(task_params)
 
         except StopIteration:

@@ -5,7 +5,10 @@ logger = logging.getLogger(__name__)
 
 
 class ErrorBaseTaskClass(Task):
-
+    '''
+    Basic Error task class. Is common to all the base tasks of the import pahse
+    it defines a on_failure method which set the task as "failed" with some extra information
+    '''
     max_retries = 3
     track_started=True
 

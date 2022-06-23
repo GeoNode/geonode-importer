@@ -34,10 +34,28 @@ logger = logging.getLogger(__name__)
     rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
 )
 def import_orchestrator(
-    self, files, store_spatial_files=True, user=None, execution_id=None, step='start_import', layer_name=None, alternate=None
+    self,files: dict, store_spatial_files: bool = True, user: get_user_model() =None, execution_id: str =None, step='start_import', layer_name=None, alternate=None
 ):
+
+    '''
+    Base task. Is the task responsible to call the orchestrator and redirect the upload to the next step
+    mainly is a wrapper for the Orchestrator object.
+
+            Parameters:
+                    files (dict): dictionary with the files needed for the import. it expect that there is always a base_file
+                                  example: {"base_file": "/path/to/the/local/file/to/be/importerd.gpkg"}
+                    store_spatial_files (bool): boolean to store spatial file or not
+                    user (UserModel): user that is performing the request
+                    execution_id (UUID): unique ID used to keep track of the execution request
+                    step (str): last step performed from the tasks
+                    layer_name (str): layer name
+                    alternate (str): alternate used to naming the layer
+            Returns:
+                    None
+    '''
     try:
         file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
+        # extract the resource_type of the layer and retrieve the expected handler
         handler = orchestrator.get_file_handler(file_ext)
 
         if execution_id is None:
@@ -53,7 +71,7 @@ def import_orchestrator(
             )
 
         orchestrator.perform_next_import_step(
-            resource_type="gpkg",
+            resource_type=file_ext,
             execution_id=execution_id,
             step=step,
             layer_name=layer_name,
@@ -71,14 +89,18 @@ def import_orchestrator(
     max_retries=2,
     rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
 )
-def import_resource(self, execution_id, /, resource_type):
+def import_resource(self, execution_id, /, resource_type):  
     '''
-    Task to import the resources in geoserver
-    after updating the execution status will perform a small data_validation
-    implemented inside the filetype handler.
-    If is the resource is valid, the start_import method of the handler
-    is called to proceed with the import
-    '''    
+    Task to import the resources.
+    NOTE: A validation if done before acutally start the import
+
+            Parameters:
+                    execution_id (UUID): unique ID used to keep track of the execution request
+                    resource_type (str): extension of the resource type that we want to import
+                    The resource type is needed to retrieve the right handler for the resource
+            Returns:
+                    None
+    '''
     # Updating status to running
     try:
         orchestrator.update_execution_request_status(
@@ -92,6 +114,7 @@ def import_resource(self, execution_id, /, resource_type):
 
         _files = _exec.input_params.get("files")
 
+        # initiating the data store manager
         _datastore = DataStoreManager(_files, resource_type, _exec.user)
 
         # starting file validation
@@ -122,15 +145,21 @@ def publish_resource(
     alternate: Optional[str] = None
 ):
     '''
-    Task to publish the resources on geoserver
-    It will take the layers name from the source file
-    The layers name rappresent the table names that were saved
-    in geoserver in the previous step.
-    At the end of the execution the main import_orchestrator is called
-    to proceed to the next step if available
+    Task to publish the resources in geoserver.
+    NOTE: If the layer should be overwritten, for now we are skipping this feature
+        geoserver is not ready yet
+
+            Parameters:
+                    execution_id (UUID): unique ID used to keep track of the execution request
+                    resource_type (str): extension of the resource type that we want to import
+                        The resource type is needed to retrieve the right handler for the resource
+                    step_name (str): step name example: importer.publish_resource
+                    layer_name (UUID): name of the resource example: layer
+                    alternate (UUID): alternate of the resource example: layer_alternate
+            Returns:
+                    None
     '''
     # Updating status to running
-
     try:
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
@@ -144,14 +173,17 @@ def publish_resource(
         _store_spatial_files = _exec.input_params.get("store_spatial_files")
         _overwrite = _exec.input_params.get("override_existing_layer")
         _user = _exec.user
+        
+        # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
         if not _overwrite:
-            # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
             _publisher = DataPublisher()
+            # extracting the crs and the resource name, are needed for publish the resource
             _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
             if _metadata and _metadata[0].get("crs"):
                 # we should not publish resource without a crs
                 _, workspace, store = _publisher.publish_resources(_metadata)
 
+                # updating the execution request status
                 orchestrator.update_execution_request_status(
                     execution_id=execution_id,
                     status=ExecutionRequest.STATUS_RUNNING,
@@ -185,6 +217,17 @@ def create_gn_resource(
 ):
     '''
     Create the GeoNode resource and the relatives information associated
+    NOTE: for gpkg we dont want to handle sld and XML files
+
+            Parameters:
+                    execution_id (UUID): unique ID used to keep track of the execution request
+                    resource_type (str): extension of the resource type that we want to import
+                        The resource type is needed to retrieve the right handler for the resource
+                    step_name (str): step name example: importer.publish_resource
+                    layer_name (UUID): name of the resource example: layer
+                    alternate (UUID): alternate of the resource example: layer_alternate
+            Returns:
+                    None
     '''
     # Updating status to running
     try:
@@ -212,9 +255,12 @@ def create_gn_resource(
         )
     
         saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
+        # if the layer exists, we just update the information of the dataset by
+        # let it recreate the catalogue
         if saved_dataset.exists():
             saved_dataset = saved_dataset.first()
         else:
+            # if it not exists, we create it from scratch
             if not saved_dataset.exists() and _exec.input_params.get("override_existing_layer", False):
                 logger.warning(f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created")
             saved_dataset = resource_manager.create(
@@ -249,6 +295,7 @@ def create_gn_resource(
                 sld_file=_files.get("sld_file", ""),
                 vals={"dirty_state": True}
             )
+
         resource_manager.set_thumbnail(None, instance=saved_dataset)
 
         ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
