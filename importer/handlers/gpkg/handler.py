@@ -10,10 +10,12 @@ from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import AbstractHandler
+from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
                                           STANDARD_TYPE_MAPPING)
 from importer.handlers.utils import should_be_imported
+from geopackage_validator.validate import validate
 from osgeo import ogr
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,24 @@ class GPKGFileHandler(AbstractHandler):
     def is_valid(self, files):
         """
         Define basic validation steps
-        """        
+        Codes table definition is here: https://github.com/PDOK/geopackage-validator#what-does-it-do
+        RQ1: Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores.
+        RQ2: Layers must have at least one feature.
+        RQ5: Geometry should be valid
+        RQ9: All geometry tables must have an rtree index
+        RQ10: All geometry table rtree indexes must be valid.
+        RQ13: It is required to give all GEOMETRY features the same default spatial reference system
+        RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
+        RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
+        RC2: It is recommended to give all GEOMETRY type columns the same name.
+        """ 
+        is_valid = validate(
+            gpkg_path='/mnt/c/Users/user/Documents/Projects/C179-DBIAIT/import/PBAP_20200203_test.gpkg',
+            validations='RQ1, RQ2, RQ5, RQ9, RQ10, RQ13, RQ14, RQ15, RC2'
+        )[-1]
+        if not is_valid:
+            raise InvalidGeopackageException(is_valid[0])
+
         return all([os.path.exists(x) for x in files.values()])
 
     def create_error_log(self, task_name, *args):
