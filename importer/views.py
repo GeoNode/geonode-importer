@@ -19,6 +19,8 @@ from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from geonode.base.models import ResourceBase
 
+from importer.settings import IMPORTER_GLOBAL_RATE_LIMIT, IMPORTER_PUBLISHING_RATE_LIMIT, IMPORTER_RESOURCE_CREATION_RATE_LIMIT
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,8 @@ logger = logging.getLogger(__name__)
     base=ErrorBaseTaskClass,
     name="importer.import_orchestrator",
     queue="importer.import_orchestrator",
-    max_retries=1
+    max_retries=1,
+    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
 )
 def import_orchestrator(
     self, files, store_spatial_files=True, user=None, execution_id=None, step='start_import', layer_name=None, alternate=None
@@ -65,7 +68,8 @@ def import_orchestrator(
     base=ErrorBaseTaskClass,    
     name="importer.import_resource",
     queue="importer.import_resource",
-    max_retries=2
+    max_retries=2,
+    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
 )
 def import_resource(self, execution_id, /, resource_type):
     '''
@@ -88,7 +92,7 @@ def import_resource(self, execution_id, /, resource_type):
 
         _files = _exec.input_params.get("files")
 
-        _datastore = DataStoreManager(_files, resource_type)
+        _datastore = DataStoreManager(_files, resource_type, _exec.user)
 
         # starting file validation
         if not _datastore.input_is_valid():
@@ -107,7 +111,7 @@ def import_resource(self, execution_id, /, resource_type):
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1,
-    rate_limit=3
+    rate_limit=IMPORTER_PUBLISHING_RATE_LIMIT
 )
 def publish_resource(
     execution_id: str,
@@ -169,7 +173,7 @@ def publish_resource(
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1,
-    rate_limit=10
+    rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT
 )
 def create_gn_resource(
     execution_id: str,

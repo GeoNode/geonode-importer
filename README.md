@@ -26,6 +26,17 @@ DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
 SIZE_RESTRICTED_FILE_UPLOAD_ELEGIBLE_URL_NAMES += ('importer_upload',)
 ```
 
+Evironment Variables:
+
+Is possible to define the rate limit for celery to handle the tasks by updating the following evironment variables:
+
+```
+IMPORTER_GLOBAL_RATE_LIMIT= # default 5
+IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
+IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
+```
+
+
 Run migrations:
 
 ```

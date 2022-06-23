@@ -16,6 +16,7 @@ from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
                                           STANDARD_TYPE_MAPPING)
 from importer.handlers.utils import should_be_imported
 from geopackage_validator.validate import validate
+from geonode.upload.utils import UploadLimitValidator
 from osgeo import ogr
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class GPKGFileHandler(AbstractHandler):
         # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
     )
 
-    def is_valid(self, files):
+    def is_valid(self, files, user):
         """
         Define basic validation steps
         Codes table definition is here: https://github.com/PDOK/geopackage-validator#what-does-it-do
@@ -45,7 +46,10 @@ class GPKGFileHandler(AbstractHandler):
         RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
         RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
         RC2: It is recommended to give all GEOMETRY type columns the same name.
-        """ 
+        """        
+        upload_validator = UploadLimitValidator(user)
+        upload_validator.validate_parallelism_limit_per_user()
+
         validator = validate(
             gpkg_path=files.get("base_file"),
             validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC2'
