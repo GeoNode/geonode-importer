@@ -4,6 +4,7 @@ from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
@@ -17,10 +18,9 @@ from importer.celery_tasks import ErrorBaseTaskClass
 from importer.datastore import DataStoreManager
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
-from geonode.base.models import ResourceBase
-
-from importer.settings import IMPORTER_GLOBAL_RATE_LIMIT, IMPORTER_PUBLISHING_RATE_LIMIT, IMPORTER_RESOURCE_CREATION_RATE_LIMIT
-
+from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
+                               IMPORTER_PUBLISHING_RATE_LIMIT,
+                               IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 
 logger = logging.getLogger(__name__)
 
