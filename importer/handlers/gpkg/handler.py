@@ -75,7 +75,7 @@ class GPKGFileHandler(AbstractHandler):
 
         validator = validate(
             gpkg_path=files.get("base_file"),
-            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC2'
+            validations='RQ1, RQ2, RQ13, RQ15, RC2'
         )
         if not validator[-1]:
             raise InvalidGeopackageException(validator[0])
