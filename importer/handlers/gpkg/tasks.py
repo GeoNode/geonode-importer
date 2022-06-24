@@ -1,3 +1,4 @@
+from geonode.base.enumerations import STATE_INVALID
 import logging
 
 from celery import Task
@@ -29,7 +30,7 @@ class SingleMessageErrorHandler(Task):
         orchestrator.update_execution_request_status(
             execution_id=args[0],
             status=ExecutionRequest.STATUS_FAILED,
-            
+            legacy_status=STATE_INVALID,
             output_params=output_params,
             log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
