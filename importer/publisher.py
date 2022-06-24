@@ -1,9 +1,15 @@
-from typing import List
-from geoserver.catalog import Catalog
-from geonode import settings
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
+import logging
 import os
+from typing import List
+
+from geonode import settings
+from geonode.geoserver.helpers import create_geoserver_db_featurestore
+from geonode.services.serviceprocessors.base import \
+    get_geoserver_cascading_workspace
+from geoserver.catalog import Catalog
 from osgeo import ogr
+
+logger = logging.getLogger(__name__)
 
 
 class DataPublisher():
@@ -16,7 +22,7 @@ class DataPublisher():
             username=settings.OGC_SERVER_DEFAULT_USER,
             password=settings.OGC_SERVER_DEFAULT_PASSWORD
         )
-        self.workspace = get_geoserver_cascading_workspace(create=False)
+        self.workspace = get_geoserver_cascading_workspace(create=True)
 
     def extract_resource_name_and_crs(self, files: dict, resource_type: str, layer_name, alternate=None):
         '''
@@ -67,11 +73,13 @@ class DataPublisher():
     
     def integrity_checks(self):
         '''
-        Evaluate if the store exists. if not an excepion is raserd
+        Evaluate if the store exists. if not is created
         '''
+        geodatabase = os.environ.get('GEONODE_GEODATABASE', 'geonode_data')
         self.store = self.cat.get_store(
-            name=os.getenv("GEONODE_GEODATABASE", "geonode_data"),
+            name=geodatabase,
             workspace=self.workspace
         )
         if not self.store:
-            raise Exception(f"The store does not exists: geonode_data")
+            logger.warning(f"The store does not exists: {geodatabase} creating...")
+            create_geoserver_db_featurestore(store_name=geodatabase, workspace=self.workspace.name)

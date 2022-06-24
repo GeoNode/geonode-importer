@@ -20,6 +20,7 @@ from osgeo import ogr
 
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
+from geonode.upload.api.exceptions import UploadParallelismLimitException
 
 
 class GPKGFileHandler(AbstractHandler):
@@ -37,17 +38,40 @@ class GPKGFileHandler(AbstractHandler):
 
     def is_valid(self, files, user):
         """
-        Define basic validation steps
-        Codes table definition is here: https://github.com/PDOK/geopackage-validator#what-does-it-do
-        RQ1: Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores.
-        RQ2: Layers must have at least one feature.
-        RQ13: It is required to give all GEOMETRY features the same default spatial reference system
-        RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
-        RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
-        RC2: It is recommended to give all GEOMETRY type columns the same name.
-        """        
+        Define basic validation steps:
+        Upload limit:
+            - raise exception if the layer number of the gpkg is greater than the max upload per user
+            - raise exception if the actual upload + the gpgk layer is greater than the max upload limit
+
+        Gpkg definition:
+            Codes table definition is here: https://github.com/PDOK/geopackage-validator#what-does-it-do
+            RQ1: Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores.
+            RQ2: Layers must have at least one feature.
+            RQ13: It is required to give all GEOMETRY features the same default spatial reference system
+            RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
+            RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
+            RC2: It is recommended to give all GEOMETRY type columns the same name.
+        """
+        # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
         upload_validator.validate_parallelism_limit_per_user()
+        actual_upload = upload_validator._get_parallel_uploads_count()
+        max_upload = upload_validator._get_max_parallel_uploads()
+
+        layers = ogr.Open(files.get("base_file"))
+        # for the moment we skip the dyanamic model creation
+        layers_count = len(layers)
+
+        if layers_count >= max_upload:
+            raise UploadParallelismLimitException(
+                detail=f"The number of layers in the gpkg {layers_count} is greater than " \
+                f"the max parallel upload permitted: {max_upload} " \
+                f"please upload a smaller file"
+            )
+        elif layers_count + actual_upload >= max_upload:
+            raise UploadParallelismLimitException(
+                detail=f"With the provided gpkg, the number of max parallel upload will exceed the limit of {max_upload}"
+            )
 
         validator = validate(
             gpkg_path=files.get("base_file"),

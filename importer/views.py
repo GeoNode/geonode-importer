@@ -21,6 +21,7 @@ from importer.publisher import DataPublisher
 from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_PUBLISHING_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
+from importer.utils import error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def import_orchestrator(
             alternate=alternate
         )
     except Exception as e:
-        raise StartImportException(e.args[0])
+        raise StartImportException(detail=error_handler(e))
 
 
 @importer_app.task(
@@ -126,7 +127,7 @@ def import_resource(self, execution_id, /, resource_type):
         return
 
     except Exception as e:
-        raise InvalidInputFileException(detail=e.args[0])
+        raise InvalidInputFileException(detail=error_handler(e))
 
 
 @importer_app.task(
@@ -197,7 +198,7 @@ def publish_resource(
         )
 
     except Exception as e:
-        raise PublishResourceException(detail=e.args[0])
+        raise PublishResourceException(detail=error_handler(e))
 
 
 @importer_app.task(
@@ -306,4 +307,4 @@ def create_gn_resource(
         )
 
     except Exception as e:
-        raise ResourceCreationException(detail=e.args[0])
+        raise ResourceCreationException(detail=error_handler(e))
