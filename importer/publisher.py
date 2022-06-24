@@ -7,6 +7,7 @@ from geonode.geoserver.helpers import create_geoserver_db_featurestore
 from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
+from geonode.utils import OGC_Servers_Handler
 from osgeo import ogr
 
 logger = logging.getLogger(__name__)
@@ -17,10 +18,13 @@ class DataPublisher():
     Given a list of resources, will publish them on GeoServer
     '''
     def __init__(self) -> None:
+        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
+        _user, _password = ogc_server_settings.credentials
+
         self.cat = Catalog(
-            service_url=f"{settings.GEOSERVER_LOCATION}rest",
-            username=settings.OGC_SERVER_DEFAULT_USER,
-            password=settings.OGC_SERVER_DEFAULT_PASSWORD
+            service_url=ogc_server_settings.rest,
+            username=_user,
+            password=_password
         )
         self.workspace = get_geoserver_cascading_workspace(create=True)
 
