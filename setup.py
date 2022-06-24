@@ -33,7 +33,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "gdal<3.5",
-        "pdok-geopackage-validator==0.7.0",
+        "geopackage-validator @ git+https://github.com/PDOK/geopackage-validator.git@master#egg=geopackage_validator",
         "dynamic_models @ git+https://github.com/mattiagiupponi/django-dynamic-models@new_settings#egg=dynamic_models",
     ],
 )
