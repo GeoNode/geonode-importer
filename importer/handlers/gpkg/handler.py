@@ -75,18 +75,18 @@ class GPKGFileHandler(AbstractHandler):
 
         validator = validate(
             gpkg_path=files.get("base_file"),
-            validations='RQ1, RQ2, RQ13'
+            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC2'
         )
         if not validator[-1]:
             raise InvalidGeopackageException(validator[0])
 
         return True
 
-    def create_error_log(self, task_name, *args):
+    def create_error_log(self, exc, task_name, *args):
         '''
         Method needed to personalize the log based on the resource type
         '''
-        return f"Task: {task_name} raised an error during actions for layer: {args[-1]}"
+        return f"Task: {task_name} raised an error during actions for layer: {args[-1]}: {exc}"
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''

@@ -4,6 +4,7 @@ STANDARD_TYPE_MAPPING = {
     "Integer64": "django.db.models.IntegerField",
     "Integer": "django.db.models.IntegerField",
     "DateTime": "django.db.models.DateTimeField",
+    "Date": "django.db.models.DateField",
     "Real": "django.db.models.FloatField",
     "String": "django.db.models.CharField"
 }
