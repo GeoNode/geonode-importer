@@ -32,7 +32,8 @@ setup(
     package_data={"importer": ["templates/*.html", "templates/layers/*.html"]},
     include_package_data=True,
     install_requires=[
-        "geopackage-validator @ git+https://github.com/PDOK/geopackage-validator.git@master#egg=geopackage_validator",
+        "gdal==3.2.2",
+        "geopackage-validator @ git+https://github.com/PDOK/geopackage-validator.git#egg=pdok-geopackage-validator",
         "dynamic_models @ git+https://github.com/mattiagiupponi/django-dynamic-models@new_settings#egg=dynamic_models",
     ],
 )
