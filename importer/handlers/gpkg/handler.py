@@ -302,7 +302,7 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
     
     process = Popen(' '.join(commands), stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = process.communicate()
-    if stderr is not None and stderr != b'':
+    if stderr is not None and stderr != b'' and b'Warning' not in stderr:
         raise Exception(stderr)
     return stdout.decode()
 
