@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from geonode.base.models import ResourceBase
-
+from geonode.services.serviceprocessors.base import \
+    get_geoserver_cascading_workspace
 
 def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
     '''
@@ -13,8 +14,9 @@ def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
         - the publisher should republish the resource
         - geonode should update it
     '''
+    workspace = get_geoserver_cascading_workspace(create=False)
     exists = ResourceBase.objects.filter(
-        title__contains=layer,
+        alternate=f"{workspace.name}:{layer}",
         owner=user
     ).exists()
 

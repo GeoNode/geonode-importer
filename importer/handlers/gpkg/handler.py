@@ -7,6 +7,7 @@ from django.utils import timezone
 from dynamic_models.exceptions import InvalidFieldNameError, DynamicModelError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
+from geonode.layers.models import Dataset
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import AbstractHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
@@ -17,6 +18,8 @@ from importer.handlers.utils import should_be_imported
 from geopackage_validator.validate import validate
 from geonode.upload.utils import UploadLimitValidator
 from osgeo import ogr
+from geonode.services.serviceprocessors.base import \
+    get_geoserver_cascading_workspace
 
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
@@ -119,7 +122,7 @@ class GPKGFileHandler(AbstractHandler):
                     log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
                 # setup dynamic model and retrieve the group task needed for tun the async workflow
-                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id, should_be_overrided)
+                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
@@ -133,7 +136,7 @@ class GPKGFileHandler(AbstractHandler):
 
         return
 
-    def _setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool):
+    def _setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool, username: str):
         '''
         Extract from the geopackage the layers name and their schema
         after the extraction define the dynamic model instances
@@ -141,24 +144,60 @@ class GPKGFileHandler(AbstractHandler):
         use_uuid = False
 
         layer_name = layer.GetName().lower()
-        foi_schema, created = ModelSchema.objects.get_or_create(
-            name=layer.GetName().lower(),
-            db_name="datastore",
-            managed=False,
-            db_table_name=layer_name
-        )
-        if not created and not should_be_overrided:
-            # if the model schema already exists, means that a layer with that name already exists
-            # so we are going to append the executionID to the layer name to have a 
-            # unique alternate for the layer
-            use_uuid = True
-            layer_name = f"{layer.GetName().lower()}_{execution_id.replace('-', '_')}"
-            foi_schema, created = ModelSchema.objects.get_or_create(
-                name=f"{layer.GetName().lower()}_{execution_id.replace('-', '_')}",
+        workspace = get_geoserver_cascading_workspace(create=False)
+        user_datasets = Dataset.objects.filter(owner=username, alternate=f'{workspace.name}:{layer_name}')
+        foi_schema = ModelSchema.objects.filter(name=layer_name)
+
+        if user_datasets.exists() and foi_schema.exists() and should_be_overrided:
+            '''
+            If the user have a dataset, the dynamic model has already been created and is in override mode,
+            we just take the dynamic_model to override the existing one
+            '''
+            foi_schema = foi_schema.get()
+        elif not user_datasets.exists() and not foi_schema.exists() and should_be_overrided:
+            '''
+            If the user doesnt have any dataset or foi schema associated and the user is tring to override
+            we raise an error
+            '''
+            logger.error("The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
+            raise InvalidGeopackageException(detail="The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
+        elif (
+                user_datasets.exists() and not foi_schema.exists()
+            ) or (
+                not user_datasets.exists() and not foi_schema.exists()
+            ):
+            '''
+            cames here when is a new brand upload or when (for any reasons) the dataset exists but the
+            dynamic model has not been created before
+            '''
+            foi_schema = ModelSchema.objects.create(
+                name=layer_name,
                 db_name="datastore",
                 managed=False,
                 db_table_name=layer_name
             )
+        elif (
+            not user_datasets.exists() and foi_schema.exists()
+        ) or (
+            user_datasets.exists() and foi_schema.exists() and not should_be_overrided
+        ):
+            '''
+            it comes here when the layer should not be overrided so we append the UUID
+            to the layer to let it proceed to the next steps
+            '''
+            use_uuid = True
+            layer_name = f"{layer_name.lower()}_{execution_id.replace('-', '_')}"
+            foi_schema = ModelSchema.objects.create(
+                name=f"{layer_name.lower()}_{execution_id.replace('-', '_')}",
+                db_name="datastore",
+                managed=False,
+                db_table_name=layer_name
+            )
+        else:
+            raise InvalidGeopackageException("Error during the upload of the gpkg file. The dataset does not exists")
+            
+
+
         # define standard field mapping from ogr to django
         dynamic_model, res = self.create_dynamic_model_fields(
             layer=layer,

@@ -272,7 +272,7 @@ def create_gn_resource(
                     workspace=_exec.input_params.get("workspace", "geonode"),
                     store=_exec.input_params.get("store", "geonode_data"),
                     subtype='vector',
-                    alternate=alternate,
+                    alternate=f'{_exec.input_params.get("workspace", "geonode")}:{alternate}',
                     dirty_state=True,
                     title=layer_name,
                     owner=_user,
