@@ -170,6 +170,7 @@ class ImportOrchestrator:
             Upload.objects.create(
                 name=legacy_upload_name or os.path.basename(input_params.get("files", {}).get("base_file")),
                 state=STATE_RUNNING,
+                user=user,
                 metadata={
                     **{
                         "func_name": func_name,
