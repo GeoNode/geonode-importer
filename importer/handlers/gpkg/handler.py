@@ -128,9 +128,10 @@ class GPKGFileHandler(AbstractHandler):
                 # create the async task for create the resource into geonode_data with ogr2ogr
                 ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
 
+                import_group = group(layer_res.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
-                    [layer_res.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback'])],
+                    import_group,
                     body=execution_id
                 )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate))
 
@@ -366,6 +367,7 @@ def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alte
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
+    import_orchestrator.save()
 
 @importer_app.task(name='gpkg_error_callback')
 def error_callback(*args, **kwargs):

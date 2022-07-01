@@ -124,6 +124,11 @@ def import_resource(self, execution_id, /, resource_type):
 
         _datastore.start_import(execution_id)
 
+        '''
+        The orchestrator to proceed to the next step, should be called by the hander
+        since the call to the orchestrator can changed based on the handler
+        called. See the GPKG handler gpkg_next_step task
+        '''
         return
 
     except Exception as e:
@@ -196,6 +201,7 @@ def publish_resource(
         import_orchestrator.apply_async(
             (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
+        import_orchestrator.save()
 
     except Exception as e:
         raise PublishResourceException(detail=error_handler(e))

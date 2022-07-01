@@ -35,6 +35,6 @@ setup(
         "setuptools>=59",
         "gdal==3.2.2.1",
         "pdok-geopackage-validator @ git+https://github.com/PDOK/geopackage-validator.git#egg=pdok-geopackage-validator",
-        "dynamic_models @ git+https://github.com/mattiagiupponi/django-dynamic-models@new_settings#egg=dynamic_models",
+        "dynamic_models @ git+https://github.com/rvinzent/django-dynamic-models.git@main#egg=dynamic_models",
     ],
 )
