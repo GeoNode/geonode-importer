@@ -201,7 +201,6 @@ def publish_resource(
         import_orchestrator.apply_async(
             (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
-        import_orchestrator.save()
 
     except Exception as e:
         raise PublishResourceException(detail=error_handler(e))
