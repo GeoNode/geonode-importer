@@ -367,7 +367,6 @@ def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alte
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
-    import_orchestrator.save()
 
 @importer_app.task(name='gpkg_error_callback')
 def error_callback(*args, **kwargs):

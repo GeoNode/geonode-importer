@@ -12,6 +12,9 @@ from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 from importer.handlers.gpkg.handler import GPKGFileHandler
+from django_celery_results.models import TaskResult
+from celery import states
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,7 @@ class ImportOrchestrator:
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
                 # The list of task is empty, it means that the process is finished
-                self.set_as_completed(execution_id)
+                self.evaluate_execution_progress(execution_id)
                 return
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
@@ -145,6 +148,27 @@ class ImportOrchestrator:
                 last_updated=timezone.now(),
                 legacy_status=STATE_PROCESSED
             )
+
+    def evaluate_execution_progress(self, execution_id):
+        '''
+        The execution if is a mandatory argument for the task
+        We use that to filter out all the task execution that are still in progress.
+        if any is failed, we raise it.
+        '''
+        exec_result = TaskResult.objects.filter(
+            Q(task_args__contains=execution_id)| Q(task_kwargs__contains=execution_id)
+        )
+        if exec_result.filter(status=states.FAILURE).exists():
+            failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
+            _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
+            logger.error(_log_message)
+            raise ImportException(_log_message)
+        elif exec_result.exclude(status=states.SUCCESS).exists():
+            logger.info(f"Execution progress is not finished yet, continuing")
+            return
+        else:
+            self.set_as_completed(execution_id)
+
 
     def create_execution_request(
         self,
