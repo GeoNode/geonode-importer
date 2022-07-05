@@ -116,7 +116,7 @@ def import_resource(self, execution_id, /, resource_type):
         _files = _exec.input_params.get("files")
 
         # initiating the data store manager
-        _datastore = DataStoreManager(_files, resource_type, _exec.user)
+        _datastore = DataStoreManager(_files, resource_type, _exec.user, execution_id)
 
         # starting file validation
         if not _datastore.input_is_valid():

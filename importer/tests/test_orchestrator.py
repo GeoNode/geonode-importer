@@ -8,44 +8,9 @@ from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import SUPPORTED_TYPES, ImportOrchestrator
 from geonode.upload.models import Upload
 
-from importer.views import import_orchestrator
 from geonode.resource.models import ExecutionRequest
 
 # Create your tests here.
-
-
-class TestCeleryTasks(GeoNodeBaseTestSupport):
-    @patch("importer.views.importer.perform_next_import_step")
-    def test_import_orchestrator_create_exececution_request_if_none(self, importer):
-        user = get_user_model().objects.first()
-        count = ExecutionRequest.objects.count()
-
-        import_orchestrator(
-            files={"base_file": "/tmp/file.txt"},
-            store_spatial_files=True,
-            user=user.username,
-            execution_id=None,
-        )
-
-        self.assertEqual(count + 1, ExecutionRequest.objects.count())
-        importer.assert_called_once()
-
-    @patch("importer.views.importer.perform_next_import_step")
-    def test_import_orchestrator_dont_create_exececution_request_if_not__none(
-        self, importer
-    ):
-        user = get_user_model().objects.first()
-        count = ExecutionRequest.objects.count()
-
-        import_orchestrator(
-            files={"base_file": "/tmp/file.txt"},
-            store_spatial_files=True,
-            user=user.username,
-            execution_id="some value",
-        )
-
-        self.assertEqual(count, ExecutionRequest.objects.count())
-        importer.assert_called_once()
 
 
 class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
@@ -114,7 +79,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         # check that also the legacy is created
         self.assertIsNotNone(Upload.objects.get(metadata__icontains=exec_id))
 
-    @patch("importer.orchestrator.app.tasks.get")
+    @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_next_import_step(self, mock_celery):
         # setup test
         handler = self.importer.get_file_handler("gpkg")
@@ -132,7 +97,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         mock_celery.assert_called_once()
         mock_celery.assert_called_with("importer.import_resource")
 
-    @patch("importer.orchestrator.app.tasks.get")
+    @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_last_import_step(self, mock_celery):
         # setup test
         handler = self.importer.get_file_handler("gpkg")
@@ -149,7 +114,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.importer.perform_next_import_step("gpkg", _id)
         mock_celery.assert_not_called()
 
-    @patch("importer.orchestrator.app.tasks.get")
+    @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_with_error_set_invalid_status(self, mock_celery):
         mock_celery.side_effect = Exception("test exception")
         # setup test

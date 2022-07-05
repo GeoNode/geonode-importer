@@ -7,16 +7,17 @@ class DataStoreManager:
     Utility object to invoke the right handler used to save the
     resource in the datastore db
     '''
-    def __init__(self, files: list, resource_type: str, user: get_user_model()) -> None:
+    def __init__(self, files: list, resource_type: str, user: get_user_model(), execution_id: str) -> None:
         self.files = files
         self.handler = SUPPORTED_TYPES.get(resource_type)
         self.user = user
+        self.execution_id = execution_id
 
     def input_is_valid(self):
         """
         Perform basic validation steps
         """
-        return self.handler.is_valid(self.files, self.user)
+        return self.handler.is_valid(self.files, self.user, self.execution_id)
 
     def start_import(self, execution_id):
         '''
