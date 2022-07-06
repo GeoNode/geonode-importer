@@ -14,7 +14,7 @@ class TestDataPublisher(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.publisher = DataPublisher()
-        cls.gpkg_path = f"{project_dir}/tests/fixtures/small.gpkg"
+        cls.gpkg_path = f"{project_dir}/tests/fixture/valid.gpkg"
 
 
     def test_extract_resource_name_and_crs(self):
@@ -25,11 +25,11 @@ class TestDataPublisher(TestCase):
         values_found = self.publisher.extract_resource_name_and_crs(
             files={"base_file": self.gpkg_path},
             resource_type="gpkg",
-            layer_name="Stazioni_Metropolitana"
+            layer_name="stazioni_metropolitana"
         )
         expected = {
             "crs": "EPSG:32632",
-            "name": "Stazioni_Metropolitana"
+            "name": "stazioni_metropolitana"
         }
         self.assertDictEqual(expected, values_found[0])
 
@@ -41,7 +41,7 @@ class TestDataPublisher(TestCase):
         values_found = self.publisher.extract_resource_name_and_crs(
             files={"base_file": "/wrong/path/file.gpkg"},
             resource_type="gpkg",
-            layer_name="Stazioni_Metropolitana"
+            layer_name="stazioni_metropolitana"
         )
         self.assertListEqual([], values_found)
 
@@ -64,19 +64,19 @@ class TestDataPublisher(TestCase):
             self.publisher.publish_resources(
                 resources=[{
                     "crs": "EPSG:32632",
-                    "name": "Stazioni_Metropolitana"
+                    "name": "stazioni_metropolitana"
                 }]
             )
         publish_featuretype.assert_called_once()
 
     @patch("importer.publisher.Catalog.publish_featuretype")
     def test_publish_resources_should_continue_in_case_the_resource_is_already_published(self, publish_featuretype):
-        publish_featuretype.side_effect = Exception("Resource named Stazioni_Metropolitana already exists in store:")
+        publish_featuretype.side_effect = Exception("Resource named stazioni_metropolitana already exists in store:")
 
         result, workspace, store = self.publisher.publish_resources(
             resources=[{
                 "crs": "EPSG:32632",
-                "name": "Stazioni_Metropolitana"
+                "name": "stazioni_metropolitana"
             }]
         )
         self.assertTrue(result)
@@ -91,7 +91,7 @@ class TestDataPublisher(TestCase):
         result, workspace, store = self.publisher.publish_resources(
             resources=[{
                 "crs": "EPSG:32632",
-                "name": "Stazioni_Metropolitana"
+                "name": "stazioni_metropolitana"
             }]
         )
 

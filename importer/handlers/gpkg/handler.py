@@ -88,6 +88,7 @@ class GPKGFileHandler(AbstractHandler):
     def create_error_log(self, exc, task_name, *args):
         '''
         Method needed to personalize the log based on the resource type
+        args[-1] should contain the layer alternate
         '''
         return f"Task: {task_name} raised an error during actions for layer: {args[-1]}: {exc}"
 
