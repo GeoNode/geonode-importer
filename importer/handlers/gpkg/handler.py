@@ -148,15 +148,18 @@ class GPKGFileHandler(AbstractHandler):
         layer_name = layer.GetName().lower()
         workspace = get_geoserver_cascading_workspace(create=False)
         user_datasets = Dataset.objects.filter(owner=username, alternate=f'{workspace.name}:{layer_name}')
-        foi_schema = ModelSchema.objects.filter(name=layer_name)
+        dynamic_schema = ModelSchema.objects.filter(name=layer_name)
 
-        if user_datasets.exists() and foi_schema.exists() and should_be_overrided:
+        dynamic_schema_exists = dynamic_schema.exists()
+        dataset_exists = user_datasets.exists()
+
+        if dataset_exists and dynamic_schema_exists and should_be_overrided:
             '''
             If the user have a dataset, the dynamic model has already been created and is in override mode,
             we just take the dynamic_model to override the existing one
             '''
-            foi_schema = foi_schema.get()
-        elif not user_datasets.exists() and not foi_schema.exists() and should_be_overrided:
+            dynamic_schema = dynamic_schema.get()
+        elif not dataset_exists and not dynamic_schema_exists and should_be_overrided:
             '''
             If the user doesnt have any dataset or foi schema associated and the user is tring to override
             we raise an error
@@ -164,24 +167,24 @@ class GPKGFileHandler(AbstractHandler):
             logger.error("The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
             raise InvalidGeopackageException(detail="The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
         elif (
-                user_datasets.exists() and not foi_schema.exists()
+                dataset_exists and not dynamic_schema_exists
             ) or (
-                not user_datasets.exists() and not foi_schema.exists()
+                not dataset_exists and not dynamic_schema_exists
             ):
             '''
             cames here when is a new brand upload or when (for any reasons) the dataset exists but the
             dynamic model has not been created before
             '''
-            foi_schema = ModelSchema.objects.create(
+            dynamic_schema = ModelSchema.objects.create(
                 name=layer_name,
                 db_name="datastore",
                 managed=False,
                 db_table_name=layer_name
             )
         elif (
-            not user_datasets.exists() and foi_schema.exists()
+            not dataset_exists and dynamic_schema_exists
         ) or (
-            user_datasets.exists() and foi_schema.exists() and not should_be_overrided
+            dataset_exists and dynamic_schema_exists and not should_be_overrided
         ):
             '''
             it comes here when the layer should not be overrided so we append the UUID
@@ -189,8 +192,8 @@ class GPKGFileHandler(AbstractHandler):
             '''
             use_uuid = True
             layer_name = f"{layer_name.lower()}_{execution_id.replace('-', '_')}"
-            foi_schema = ModelSchema.objects.create(
-                name=f"{layer_name.lower()}_{execution_id.replace('-', '_')}",
+            dynamic_schema = ModelSchema.objects.create(
+                name=layer_name,
                 db_name="datastore",
                 managed=False,
                 db_table_name=layer_name
@@ -203,7 +206,7 @@ class GPKGFileHandler(AbstractHandler):
         # define standard field mapping from ogr to django
         dynamic_model, res = self.create_dynamic_model_fields(
             layer=layer,
-            dynamic_model_schema=foi_schema,
+            dynamic_model_schema=dynamic_schema,
             overwrite=should_be_overrided,
             execution_id=execution_id,
             layer_name=layer_name
