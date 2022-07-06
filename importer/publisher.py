@@ -40,6 +40,8 @@ class DataPublisher():
         '''
         if resource_type == 'gpkg':
             layers = ogr.Open(files.get("base_file"))
+            if not layers:
+                return []
             return [
                 {
                     "name": alternate or layer_name,
@@ -59,7 +61,7 @@ class DataPublisher():
         Given a list of strings (which rappresent the table on geoserver)
         Will publish the resorces on geoserver
         '''
-        self.integrity_checks()
+        self.get_or_create_store()
         for _resource in resources:
             try:
                 self.cat.publish_featuretype(
@@ -75,7 +77,7 @@ class DataPublisher():
                 raise e
         return True, self.workspace.name, self.store.name
     
-    def integrity_checks(self):
+    def get_or_create_store(self):
         '''
         Evaluate if the store exists. if not is created
         '''

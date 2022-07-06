@@ -70,7 +70,7 @@ class ImporterViewSet(DynamicModelViewSet):
         It clone on the local repo the file that the user want to upload
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
-        if _file and _file.name.endswith('gpkg'):
+        if _file and (_file.name.endswith('gpkg') if hasattr(_file, 'name') else _file.endswith('gpkg')):
             #go through the new import flow
             data = self.serializer_class(data=request.data)
             # serializer data validation
