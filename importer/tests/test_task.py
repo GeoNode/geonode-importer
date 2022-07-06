@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
 from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
-from importer.api.exception import InvalidInputFileException
+from importer.api.exception import InvalidInputFileException, PublishResourceException
 
-from importer.views import import_orchestrator, import_resource, orchestrator
+from importer.views import create_gn_resource, import_orchestrator, import_resource, orchestrator, publish_resource
 from geonode.resource.models import ExecutionRequest
-
+from geonode.layers.models import Dataset
 # Create your tests here.
 
 
@@ -98,3 +98,179 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
         )
 
         start_import.assert_called_once()
+        ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @patch("importer.views.import_orchestrator.apply_async")
+    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.views.DataPublisher.publish_resources")
+    def test_publish_resource_should_work(
+        self, publish_resources, extract_resource_name_and_crs, importer,
+    ):
+        try:
+            publish_resources.return_value = True, "workspace", "store"
+            extract_resource_name_and_crs.return_value = [
+                {"crs": 12345, "name": "dataset3"}
+            ]
+
+            user = get_user_model().objects.first()
+        
+            exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=user),
+                    func_name="dummy_func",
+                    step="dummy_step",
+                    legacy_upload_name="dummy",
+                    input_params={
+                        "files": "/filepath",
+                        "store_spatial_files": True
+                    },
+            )
+
+            publish_resource(
+                str(exec_id),
+                resource_type='gpkg',
+                step_name="publish_resource",
+                layer_name="dataset3",
+                alternate="alternate_dataset3"
+            )
+
+            # Evaluation
+            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+            self.assertEqual(publish_resources.call_count , 1)
+            self.assertEqual('importer.publish_resource', req.step)
+            importer.assert_called_once()
+        finally:
+            #cleanup
+            if exec_id:
+                ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @patch("importer.views.import_orchestrator.apply_async")
+    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.views.DataPublisher.publish_resources")
+    def test_publish_resource_should_not_call_the_publishing_if_crs_is_not_provided(
+        self, publish_resources, extract_resource_name_and_crs, importer,
+    ):
+        try:
+            publish_resources.return_value = True, "workspace", "store"
+            extract_resource_name_and_crs.return_value = [
+                {"name": "This should not be published since the CRS is not provided"}
+            ]
+
+            user = get_user_model().objects.first()
+        
+            exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=user),
+                    func_name="dummy_func",
+                    step="dummy_step",
+                    legacy_upload_name="dummy",
+                    input_params={
+                        "files": "/filepath",
+                        "store_spatial_files": True
+                    },
+            )
+            with self.assertRaises(PublishResourceException) as _exc:
+                publish_resource(
+                    str(exec_id),
+                    resource_type='gpkg',
+                    step_name="publish_resource",
+                    layer_name="dataset3",
+                    alternate="alternate_dataset3"
+                )
+
+            # Evaluation
+            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+            self.assertEqual('importer.publish_resource', req.step)
+            expected_msg = "Only resources with a CRS provided can be published"
+            self.assertEqual(expected_msg, str(_exc.exception.detail))
+            
+            publish_resources.assert_not_called()
+            importer.assert_not_called()
+        finally:
+            #cleanup
+            if exec_id:
+                ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @patch("importer.views.import_orchestrator.apply_async")
+    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.views.DataPublisher.publish_resources")
+    def test_publish_resource_if_overwrite_should_not_call_the_publishing(
+        self, publish_resources, extract_resource_name_and_crs, importer,
+    ):
+        try:
+            publish_resources.return_value = True, "workspace", "store"
+            extract_resource_name_and_crs.return_value = [
+                {"crs": 12345, "name": "dataset3"}
+            ]
+
+            user = get_user_model().objects.first()
+        
+            exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=user),
+                    func_name="dummy_func",
+                    step="dummy_step",
+                    legacy_upload_name="dummy",
+                    input_params={
+                        "files": "/filepath",
+                        "override_existing_layer": True,
+                        "store_spatial_files": True
+                    },
+            )
+
+            publish_resource(
+                str(exec_id),
+                resource_type='gpkg',
+                step_name="publish_resource",
+                layer_name="dataset3",
+                alternate="alternate_dataset3"
+            )
+
+            # Evaluation
+            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+            self.assertEqual('importer.publish_resource', req.step)            
+            publish_resources.assert_not_called()
+            importer.assert_called_once()
+
+        finally:
+            #cleanup
+            if exec_id:
+                ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @patch("importer.views.import_orchestrator.apply_async")
+    def test_create_gn_resource(self, import_orchestrator):
+        try:
+            user = get_user_model().objects.first()
+
+            exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=user),
+                    func_name="dummy_func",
+                    step="dummy_step",
+                    legacy_upload_name="dummy",
+                    input_params={
+                        "files": {"base_file": "/filepath"},
+                        #"override_existing_layer": True,
+                        "store_spatial_files": True
+                    },
+            )
+            alternate = "geonode:alternate_foo_dataset"
+            self.assertFalse(Dataset.objects.filter(alternate=alternate).exists())
+
+            create_gn_resource(
+                str(exec_id),
+                resource_type='gpkg',
+                step_name="create_gn_resource",
+                layer_name="foo_dataset",
+                alternate="alternate_foo_dataset"
+            )
+
+
+            # Evaluation
+            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+            self.assertEqual('importer.create_gn_resource', req.step)            
+
+            self.assertTrue(Dataset.objects.filter(alternate=alternate).exists())
+
+            import_orchestrator.assert_called_once()
+
+        finally:
+            #cleanup
+            if Dataset.objects.filter(alternate=alternate).exists():
+                Dataset.objects.filter(alternate=alternate).delete()

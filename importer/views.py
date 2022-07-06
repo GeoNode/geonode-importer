@@ -151,7 +151,7 @@ def publish_resource(
     alternate: Optional[str] = None
 ):
     '''
-    Task to publish the resources in geoserver.
+    Task to publish a single resource in geoserver.
     NOTE: If the layer should be overwritten, for now we are skipping this feature
         geoserver is not ready yet
 
@@ -196,6 +196,9 @@ def publish_resource(
                     last_updated=timezone.now(),
                     input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
                 )
+            else:
+                logger.error("Only resources with a CRS provided can be published")
+                raise PublishResourceException("Only resources with a CRS provided can be published")
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
