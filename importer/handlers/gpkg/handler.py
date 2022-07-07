@@ -95,7 +95,7 @@ class GPKGFileHandler(AbstractHandler):
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
         Main function to import the resource.
-        Internally will cal the steps required to import the 
+        Internally will call the steps required to import the 
         data inside the geonode_data database
         '''
         layers = ogr.Open(files.get("base_file"))
@@ -123,13 +123,13 @@ class GPKGFileHandler(AbstractHandler):
                     log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
                 # setup dynamic model and retrieve the group task needed for tun the async workflow
-                _, use_uuid, layer_res = self._setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
+                _, use_uuid, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
                 # evaluate if a new alternate is created by the previous flow
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
                 ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
 
-                import_group = group(layer_res.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
+                import_group = group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
                     import_group,
@@ -138,7 +138,7 @@ class GPKGFileHandler(AbstractHandler):
 
         return
 
-    def _setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool, username: str):
+    def setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool, username: str):
         '''
         Extract from the geopackage the layers name and their schema
         after the extraction define the dynamic model instances
@@ -204,14 +204,14 @@ class GPKGFileHandler(AbstractHandler):
 
 
         # define standard field mapping from ogr to django
-        dynamic_model, res = self.create_dynamic_model_fields(
+        dynamic_model, celery_group = self.create_dynamic_model_fields(
             layer=layer,
             dynamic_model_schema=dynamic_schema,
             overwrite=should_be_overrided,
             execution_id=execution_id,
             layer_name=layer_name
         )
-        return dynamic_model, use_uuid, res
+        return dynamic_model, use_uuid, celery_group
 
     def create_dynamic_model_fields(self, layer: str, dynamic_model_schema: ModelSchema, overwrite: bool, execution_id: str, layer_name: str):
         # retrieving the field schema from ogr2ogr and converting the type to Django Types
@@ -234,9 +234,9 @@ class GPKGFileHandler(AbstractHandler):
 
         # definition of the celery group needed to run the async workflow.
         # in this way each task of the group will handle only 30 field
-        job = group(gpkg_handler.s(execution_id, schema, dynamic_model_schema.id, overwrite, layer_name) for schema in list_chunked)
+        celery_group = group(gpkg_handler.s(execution_id, schema, dynamic_model_schema.id, overwrite, layer_name) for schema in list_chunked)
 
-        return dynamic_model_schema.as_model(), job
+        return dynamic_model_schema.as_model(), celery_group
 
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
