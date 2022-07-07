@@ -155,19 +155,20 @@ class ImportOrchestrator:
         We use that to filter out all the task execution that are still in progress.
         if any is failed, we raise it.
         '''
+        exec_id = execution_id.lower()
         exec_result = TaskResult.objects.filter(
-            Q(task_args__contains=execution_id)| Q(task_kwargs__contains=execution_id)
+            Q(task_args__icontains=exec_id)| Q(task_args__icontains=exec_id)
         )
         if exec_result.filter(status=states.FAILURE).exists():
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
-            _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
+            _log_message = f"For the execution ID {exec_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
             raise ImportException(_log_message)
         elif exec_result.exclude(status=states.SUCCESS).exists():
             logger.info(f"Execution progress is not finished yet, continuing")
             return
         else:
-            self.set_as_completed(execution_id)
+            self.set_as_completed(exec_id)
 
 
     def create_execution_request(
