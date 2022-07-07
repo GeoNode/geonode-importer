@@ -78,6 +78,7 @@ def import_orchestrator(
             layer_name=layer_name,
             alternate=alternate
         )
+
     except Exception as e:
         raise StartImportException(detail=error_handler(e))
 
@@ -88,7 +89,8 @@ def import_orchestrator(
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=2,
-    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
+    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT,
+    ignore_result=False
 )
 def import_resource(self, execution_id, /, resource_type):  
     '''
@@ -110,6 +112,7 @@ def import_resource(self, execution_id, /, resource_type):
             last_updated=timezone.now(),
             func_name="import_resource",
             step="importer.import_resource",
+            celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
 
@@ -129,20 +132,23 @@ def import_resource(self, execution_id, /, resource_type):
         since the call to the orchestrator can changed based on the handler
         called. See the GPKG handler gpkg_next_step task
         '''
-        return
+        return self.name, execution_id
 
     except Exception as e:
         raise InvalidInputFileException(detail=error_handler(e))
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
     max_retries=1,
-    rate_limit=IMPORTER_PUBLISHING_RATE_LIMIT
+    rate_limit=IMPORTER_PUBLISHING_RATE_LIMIT,
+    ignore_result=False
 )
 def publish_resource(
+    self,
     execution_id: str,
     /,
     resource_type: str,
@@ -173,6 +179,7 @@ def publish_resource(
             last_updated=timezone.now(),
             func_name="publish_resource",
             step="importer.publish_resource",
+            celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
         _files = _exec.input_params.get("files")
@@ -194,7 +201,8 @@ def publish_resource(
                     execution_id=execution_id,
                     status=ExecutionRequest.STATUS_RUNNING,
                     last_updated=timezone.now(),
-                    input_params={**_exec.input_params, **{"workspace": workspace, "store": store}}
+                    input_params={**_exec.input_params, **{"workspace": workspace, "store": store}},
+                    celery_task_request=self.request
                 )
             else:
                 logger.error("Only resources with a CRS provided can be published")
@@ -204,19 +212,23 @@ def publish_resource(
         import_orchestrator.apply_async(
             (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
+        return self.name, execution_id
 
     except Exception as e:
         raise PublishResourceException(detail=error_handler(e))
 
 
 @importer_app.task(
+    bind=True,
     base=ErrorBaseTaskClass,
     name="importer.create_gn_resource",
     queue="importer.create_gn_resource",
     max_retries=1,
-    rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT
+    rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
+    ignore_result=False
 )
 def create_gn_resource(
+    self,
     execution_id: str,
     /,
     resource_type: str,
@@ -246,6 +258,7 @@ def create_gn_resource(
             last_updated=timezone.now(),
             func_name="create_gn_resource",
             step="importer.create_gn_resource",
+            celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
 
@@ -260,7 +273,8 @@ def create_gn_resource(
             status=ExecutionRequest.STATUS_RUNNING,
             execution_id=execution_id,
             last_updated=timezone.now(),
-            log=f"Creating GN dataset for resource: {alternate}:"
+            log=f"Creating GN dataset for resource: {alternate}",
+            celery_task_request=self.request
         )
     
         saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
@@ -313,6 +327,7 @@ def create_gn_resource(
         import_orchestrator.apply_async(
             (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
         )
+        return self.name, execution_id
 
     except Exception as e:
         raise ResourceCreationException(detail=error_handler(e))

@@ -115,14 +115,13 @@ class ImporterViewSet(DynamicModelViewSet):
                     legacy_upload_name=os.path.basename(files.get("base_file"))
                 )
 
-                import_orchestrator.apply_async(
-                    (
+                sig = import_orchestrator.s(
                         files,
                         data.data.get("store_spatial_files"),
                         request.user.username,
                         str(execution_id),
-                    )
                 )
+                sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
             except Exception as e:
                 # in case of any exception, is better to delete the 

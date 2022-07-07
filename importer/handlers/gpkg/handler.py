@@ -128,11 +128,9 @@ class GPKGFileHandler(AbstractHandler):
                 alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
                 ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
-
-                import_group = group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
-                    import_group,
+                    group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback'])),
                     body=execution_id
                 )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate))
 
@@ -192,7 +190,7 @@ class GPKGFileHandler(AbstractHandler):
             '''
             use_uuid = True
             layer_name = f"{layer_name.lower()}_{execution_id.replace('-', '_')}"
-            dynamic_schema = ModelSchema.objects.create(
+            dynamic_schema, _ = ModelSchema.objects.get_or_create(
                 name=layer_name,
                 db_name="datastore",
                 managed=False,
@@ -310,6 +308,7 @@ def gpkg_handler(execution_id: str, fields: dict, dynamic_model_schema_id: int, 
         FieldSchema.objects.bulk_create(row_to_insert, 30)
 
     del row_to_insert
+    return "dynamic_model", layer_name, execution_id
 
 
 @importer_app.task(
@@ -348,7 +347,7 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
     stdout, stderr = process.communicate()
     if stderr is not None and stderr != b'' and b'Warning' not in stderr:
         raise Exception(stderr)
-    return stdout.decode()
+    return "ogr2ogr", alternate, execution_id
 
 
 @importer_app.task(
@@ -371,6 +370,7 @@ def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alte
     import_orchestrator.apply_async(
         (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
     )
+    return "gpkg_next_step", alternate, execution_id
 
 @importer_app.task(name='gpkg_error_callback')
 def error_callback(*args, **kwargs):

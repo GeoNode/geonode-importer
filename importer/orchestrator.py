@@ -93,12 +93,12 @@ class ImportOrchestrator:
 
             # defining the tasks parameter for the step
             task_params = (str(execution_id), resource_type)
-            logger.error(f"STARTING NEXT STEP {next_step}")
+            logger.info(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
                 # if the layer and alternate is provided, means that we are executing the step specifically for a layer
                 # so we add this information to the task_parameters to be sent to the next step
-                logger.error(f"STARTING NEXT STEP {next_step} for resource: {layer_name}, alternate {alternate}")
+                logger.info(f"STARTING NEXT STEP {next_step} for resource: {layer_name}, alternate {alternate}")
 
                 '''
                 If layer name and alternate are provided, are sent as an argument
@@ -114,6 +114,7 @@ class ImportOrchestrator:
 
             # continuing to the next step
             importer_app.tasks.get(next_step).apply_async(task_params)
+            return execution_id
 
         except StopIteration:
             # means that the expected list of steps is completed
@@ -151,13 +152,13 @@ class ImportOrchestrator:
 
     def evaluate_execution_progress(self, execution_id):
         '''
-        The execution if is a mandatory argument for the task
+        The execution id is a mandatory argument for the task
         We use that to filter out all the task execution that are still in progress.
         if any is failed, we raise it.
         '''
-        exec_id = execution_id.lower()
+        exec_id = execution_id.replace('-', '_').lower()
         exec_result = TaskResult.objects.filter(
-            Q(task_args__icontains=exec_id)| Q(task_args__icontains=exec_id)
+            Q(task_args__icontains=exec_id) | Q(task_args__icontains=exec_id) | Q(result__icontains=exec_id)
         )
         if exec_result.filter(status=states.FAILURE).exists():
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
@@ -168,7 +169,7 @@ class ImportOrchestrator:
             logger.info(f"Execution progress is not finished yet, continuing")
             return
         else:
-            self.set_as_completed(exec_id)
+            self.set_as_completed(execution_id)
 
 
     def create_execution_request(
@@ -207,7 +208,7 @@ class ImportOrchestrator:
             )
         return execution.exec_id
 
-    def update_execution_request_status(self, execution_id, status, legacy_status=STATE_RUNNING, **kwargs):
+    def update_execution_request_status(self, execution_id, status, legacy_status=STATE_RUNNING, celery_task_request=None, **kwargs):
         '''
         Update the execution request status and also the legacy upload status if the
         feature toggle is enabled
@@ -219,5 +220,8 @@ class ImportOrchestrator:
             Upload.objects.filter(metadata__contains=execution_id).update(
                 state=legacy_status, complete=True, metadata={**kwargs, **{"exec_id": execution_id}}
             )
+        if celery_task_request:
+            TaskResult.objects.filter(task_id=celery_task_request.id)\
+                .update(task_args=celery_task_request.args)
 
 orchestrator = ImportOrchestrator()
