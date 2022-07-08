@@ -209,14 +209,16 @@ class ImportOrchestrator:
             )
         return execution.exec_id
 
-    def update_execution_request_status(self, execution_id, status, legacy_status=STATE_RUNNING, celery_task_request=None, **kwargs):
+    def update_execution_request_status(self, execution_id, status=None, legacy_status=STATE_RUNNING, celery_task_request=None, **kwargs):
         '''
         Update the execution request status and also the legacy upload status if the
         feature toggle is enabled
         '''
-        ExecutionRequest.objects.filter(exec_id=execution_id).update(
-            status=status, **kwargs
-        )
+        if status is not None:
+            kwargs['status'] = status
+
+        ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
+
         if self.enable_legacy_upload_status:
             Upload.objects.filter(metadata__contains=execution_id).update(
                 state=legacy_status, complete=True, metadata={**kwargs, **{"exec_id": execution_id}}

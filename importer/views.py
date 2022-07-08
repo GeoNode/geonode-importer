@@ -110,7 +110,6 @@ def import_resource(self, execution_id, /, resource_type):
     try:
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
-            status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="import_resource",
             step="importer.import_resource",
@@ -178,7 +177,6 @@ def publish_resource(
     try:
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
-            status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="publish_resource",
             step="importer.publish_resource",
@@ -202,7 +200,6 @@ def publish_resource(
                 # updating the execution request status
                 orchestrator.update_execution_request_status(
                     execution_id=execution_id,
-                    status=ExecutionRequest.STATUS_RUNNING,
                     last_updated=timezone.now(),
                     input_params={**_exec.input_params, **{"workspace": workspace, "store": store}},
                     celery_task_request=self.request
@@ -258,7 +255,6 @@ def create_gn_resource(
     try:
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
-            status=ExecutionRequest.STATUS_RUNNING,
             last_updated=timezone.now(),
             func_name="create_gn_resource",
             step="importer.create_gn_resource",
@@ -274,7 +270,6 @@ def create_gn_resource(
         _user = _exec.user
 
         orchestrator.update_execution_request_status(
-            status=ExecutionRequest.STATUS_RUNNING,
             execution_id=execution_id,
             last_updated=timezone.now(),
             log=f"Creating GN dataset for resource: {alternate}",
