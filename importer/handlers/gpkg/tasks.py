@@ -1,4 +1,4 @@
-from geonode.base.enumerations import STATE_INVALID
+from uuid import UUID
 import logging
 
 from celery import Task
@@ -17,10 +17,10 @@ class SingleMessageErrorHandler(Task):
         # kwargs (Dict) - Original keyword arguments for the task that failed.
         from importer.views import orchestrator
 
-        exec_id = orchestrator.get_execution_object(exec_id=args[0])
+        exec_id = orchestrator.get_execution_object(exec_id=self._get_uuid(args))
         output_params = exec_id.output_params.copy()
 
-        logger.error(f"Task FAILED with ID: {args[1]}, reason: {exc}")
+        logger.error(f"Task FAILED with ID: {self._get_uuid(args)}, reason: {exc}")
         _log = orchestrator.get_file_handler('gpkg').create_error_log(exc, self.name, *args)
         if output_params.get("errors"):
             output_params.get("errors").append(_log)
@@ -29,8 +29,15 @@ class SingleMessageErrorHandler(Task):
 
         orchestrator.update_execution_request_status(
             execution_id=args[0],
-            status=ExecutionRequest.STATUS_FAILED,
-            legacy_status=STATE_INVALID,
+            status=ExecutionRequest.STATUS_RUNNING,
             output_params=output_params,
             log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
+
+    def _get_uuid(self, _list):
+        for el in _list:
+            try:
+                UUID(el)
+                return el
+            except:
+                continue

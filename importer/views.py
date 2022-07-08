@@ -32,10 +32,11 @@ logger = logging.getLogger(__name__)
     name="importer.import_orchestrator",
     queue="importer.import_orchestrator",
     max_retries=1,
-    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT
+    rate_limit=IMPORTER_GLOBAL_RATE_LIMIT,
+    task_track_started=True
 )
 def import_orchestrator(
-    self,files: dict, store_spatial_files: bool = True, user: get_user_model() =None, execution_id: str =None, step='start_import', layer_name=None, alternate=None
+    self, files: dict, store_spatial_files: bool = True, user: get_user_model() =None, execution_id: str =None, step='start_import', layer_name=None, alternate=None
 ):
 
     '''
@@ -90,7 +91,8 @@ def import_orchestrator(
     queue="importer.import_resource",
     max_retries=2,
     rate_limit=IMPORTER_GLOBAL_RATE_LIMIT,
-    ignore_result=False
+    ignore_result=False,
+    task_track_started=True
 )
 def import_resource(self, execution_id, /, resource_type):  
     '''
@@ -145,7 +147,8 @@ def import_resource(self, execution_id, /, resource_type):
     queue="importer.publish_resource",
     max_retries=1,
     rate_limit=IMPORTER_PUBLISHING_RATE_LIMIT,
-    ignore_result=False
+    ignore_result=False,
+    task_track_started=True
 )
 def publish_resource(
     self,
@@ -225,7 +228,8 @@ def publish_resource(
     queue="importer.create_gn_resource",
     max_retries=1,
     rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
-    ignore_result=False
+    ignore_result=False,
+    task_track_started=True
 )
 def create_gn_resource(
     self,

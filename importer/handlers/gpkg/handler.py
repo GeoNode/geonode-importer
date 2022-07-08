@@ -257,7 +257,8 @@ class GPKGFileHandler(AbstractHandler):
     queue="importer.gpkg_handler",
     max_retries=1,
     acks_late=False,
-    ignore_result=False
+    ignore_result=False,
+    task_track_started=True
 )
 def gpkg_handler(execution_id: str, fields: dict, dynamic_model_schema_id: int, overwrite: bool, layer_name: str):
     def _create_field(dynamic_model_schema, field, _kwargs):
@@ -317,7 +318,8 @@ def gpkg_handler(execution_id: str, fields: dict, dynamic_model_schema_id: int, 
     queue="importer.gpkg_ogr2ogr",
     max_retries=1,
     acks_late=False,
-    ignore_result=False
+    ignore_result=False,
+    task_track_started=True
 )
 def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_layer=False, alternate=None):
     '''
@@ -353,7 +355,8 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
 @importer_app.task(
     base=ErrorBaseTaskClass,
     name="importer.gpkg_next_step",
-    queue="importer.gpkg_next_step"
+    queue="importer.gpkg_next_step",
+    task_track_started=True
 )
 def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alternate:str):
     '''
