@@ -88,4 +88,4 @@ class DataPublisher():
         )
         if not self.store:
             logger.warning(f"The store does not exists: {geodatabase} creating...")
-            create_geoserver_db_featurestore(store_name=geodatabase, workspace=self.workspace.name)
+            self.store = create_geoserver_db_featurestore(store_name=geodatabase, workspace=self.workspace.name)
