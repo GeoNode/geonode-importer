@@ -158,7 +158,7 @@ class ImportOrchestrator:
         '''
         exec_id = execution_id.replace('-', '_').lower()
         exec_result = TaskResult.objects.filter(
-            Q(task_args__icontains=exec_id) | Q(task_args__icontains=exec_id) | Q(result__icontains=exec_id)
+            Q(task_args__icontains=exec_id) | Q(task_kwargs__icontains=exec_id) | Q(result__icontains=exec_id)
         )
         
         if exec_result.exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE)).exists():

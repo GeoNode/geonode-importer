@@ -77,7 +77,7 @@ class ImporterViewSet(DynamicModelViewSet):
             data.is_valid(raise_exception=True)
             # cloning data into a local folder
             _data = data.data.copy()
-            skip_existsing_layer = _data.pop('skip_existsing_layer', "False")
+            skip_existing_layers = _data.pop('skip_existing_layers', "False")
             override_existing_layer = _data.pop('override_existing_layer', "False")
             store_spatial_file = _data.pop("store_spatial_files", "True")
             storage_manager = StorageManager(remote_files={**_data, **{"base_file": request.data.get('base_file')}})
@@ -102,9 +102,9 @@ class ImporterViewSet(DynamicModelViewSet):
                             else store_spatial_file
                         ),
                         "skip_existing_layer": (
-                            ast.literal_eval(skip_existsing_layer)
-                            if isinstance(skip_existsing_layer, str)
-                            else skip_existsing_layer
+                            ast.literal_eval(skip_existing_layers)
+                            if isinstance(skip_existing_layers, str)
+                            else skip_existing_layers
                         ),
                         "override_existing_layer": (
                             ast.literal_eval(override_existing_layer)
