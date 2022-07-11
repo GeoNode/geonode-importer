@@ -85,6 +85,22 @@ class GPKGFileHandler(AbstractHandler):
 
         return True
 
+    def extract_resource_name_and_crs(self, files, layer_name, alternate):
+        layers = ogr.Open(files.get("base_file"))
+        if not layers:
+            return []
+        return [
+            {
+                "name": alternate or layer_name,
+                "crs" : (
+                    f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS')}"
+                    if _l.GetSpatialRef() else None
+                )
+            } 
+            for _l in layers
+            if _l.GetName() == layer_name
+        ]
+
     def create_error_log(self, exc, task_name, *args):
         '''
         Method needed to personalize the log based on the resource type

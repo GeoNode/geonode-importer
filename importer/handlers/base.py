@@ -19,20 +19,30 @@ class AbstractHandler(ABC):
         '''
         return self.TASKS_LIST
 
-    def is_valid(self):
+    def is_valid(self, files, user):
         """
         Define basic validation steps
         """
         return NotImplementedError
     
-    def create_error_log(self, *args):
+    def extract_resource_name_and_crs(self, files, layer_name, alternate):
+        '''
+        Function to extract the layer name and the CRS from needed in the 
+        publishing phase
+        [
+            {'name': 'alternate or layer_name', 'crs': 'EPSG:25832'}
+        ]
+        '''
+        return NotImplementedError
+    
+    def create_error_log(self, exc, task_name, *args):
         '''
         This function will handle the creation of the log error for each message.
         This is helpful and needed, so each handler can specify the log as needed
         '''
         return NotImplementedError
 
-    def import_resource(self):
+    def import_resource(self, files: dict, execution_id: str, **kwargs):
         '''
         Define the step to perform the import of the data
         into the datastore db

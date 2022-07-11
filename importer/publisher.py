@@ -8,7 +8,8 @@ from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
-from osgeo import ogr
+
+from importer.orchestrator import SUPPORTED_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -38,22 +39,8 @@ class DataPublisher():
             {'name': 'layer_name', 'crs': 'EPSG:25832'}
         ]
         '''
-        if resource_type == 'gpkg':
-            layers = ogr.Open(files.get("base_file"))
-            if not layers:
-                return []
-            return [
-                {
-                    "name": alternate or layer_name,
-                    "crs" : (
-                        f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS')}"
-                        if _l.GetSpatialRef() else None
-                    )
-                } 
-                for _l in layers
-                if _l.GetName() == layer_name
-            ]
-        return files.values() if isinstance(files, dict) else files
+        handler = SUPPORTED_TYPES.get(resource_type)
+        return handler.extract_resource_name_and_crs(files, layer_name, alternate)
 
 
     def publish_resources(self, resources: List[str]):
