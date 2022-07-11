@@ -18,6 +18,7 @@
 #########################################################################
 import logging
 import os
+import pathlib
 
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
@@ -71,6 +72,10 @@ class ImporterViewSet(DynamicModelViewSet):
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
         if _file and (_file.name.endswith('gpkg') if hasattr(_file, 'name') else _file.endswith('gpkg')):
+            file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
+
+            handler = orchestrator.get_file_handler(file_ext)
+
             #go through the new import flow
             data = self.serializer_class(data=request.data)
             # serializer data validation
@@ -92,8 +97,8 @@ class ImporterViewSet(DynamicModelViewSet):
 
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
-                    func_name="start_import",
-                    step="start_import",
+                    func_name=next(iter(handler.TASKS_LIST)),
+                    step=next(iter(handler.TASKS_LIST)),
                     input_params={
                         "files": files,
                         "store_spatial_files": (
