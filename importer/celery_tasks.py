@@ -38,7 +38,7 @@ class ErrorBaseTaskClass(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        from importer.views import orchestrator
+        from importer.orchestrator import orchestrator
         _uuid = self._get_uuid(args)
 
         logger.error(f"Task FAILED with ID: {_uuid}, reason: {exc}")

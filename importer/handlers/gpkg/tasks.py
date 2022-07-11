@@ -15,7 +15,7 @@ class SingleMessageErrorHandler(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        from importer.views import orchestrator
+        from importer.celery_tasks import orchestrator
 
         exec_id = orchestrator.get_execution_object(exec_id=self._get_uuid(args))
         output_params = exec_id.output_params.copy()

@@ -3,14 +3,14 @@ from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import InvalidInputFileException, PublishResourceException
 
-from importer.views import create_gn_resource, import_orchestrator, import_resource, orchestrator, publish_resource
+from importer.celery_tasks import create_gn_resource, import_orchestrator, import_resource, orchestrator, publish_resource
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
 # Create your tests here.
 
 
 class TestCeleryTasks(GeoNodeBaseTestSupport):
-    @patch("importer.views.orchestrator.perform_next_import_step")
+    @patch("importer.celery_tasks.orchestrator.perform_next_import_step")
     def test_import_orchestrator_create_exececution_request_if_none(self, importer):
         user = get_user_model().objects.first()
         count = ExecutionRequest.objects.count()
@@ -25,7 +25,7 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
         self.assertEqual(count + 1, ExecutionRequest.objects.count())
         importer.assert_called_once()
 
-    @patch("importer.views.orchestrator.perform_next_import_step")
+    @patch("importer.celery_tasks.orchestrator.perform_next_import_step")
     def test_import_orchestrator_dont_create_exececution_request_if_not__none(
         self, importer
     ):
@@ -43,8 +43,8 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
         importer.assert_called_once()
 
 
-    @patch("importer.views.orchestrator.perform_next_import_step")
-    @patch("importer.views.DataStoreManager.input_is_valid")
+    @patch("importer.celery_tasks.orchestrator.perform_next_import_step")
+    @patch("importer.celery_tasks.DataStoreManager.input_is_valid")
     def test_import_resource_should_rase_exp_if_is_invalid(
         self, is_valid, importer,
     ):  
@@ -72,9 +72,9 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
         ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
     
     
-    @patch("importer.views.orchestrator.perform_next_import_step")
-    @patch("importer.views.DataStoreManager.input_is_valid")
-    @patch("importer.views.DataStoreManager.start_import")
+    @patch("importer.celery_tasks.orchestrator.perform_next_import_step")
+    @patch("importer.celery_tasks.DataStoreManager.input_is_valid")
+    @patch("importer.celery_tasks.DataStoreManager.start_import")
     def test_import_resource_should_work(
         self, start_import, is_valid, importer,
     ):  
@@ -100,9 +100,9 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
         start_import.assert_called_once()
         ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
-    @patch("importer.views.import_orchestrator.apply_async")
-    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
-    @patch("importer.views.DataPublisher.publish_resources")
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.celery_tasks.DataPublisher.publish_resources")
     def test_publish_resource_should_work(
         self, publish_resources, extract_resource_name_and_crs, importer,
     ):
@@ -143,9 +143,9 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
-    @patch("importer.views.import_orchestrator.apply_async")
-    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
-    @patch("importer.views.DataPublisher.publish_resources")
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.celery_tasks.DataPublisher.publish_resources")
     def test_publish_resource_should_not_call_the_publishing_if_crs_is_not_provided(
         self, publish_resources, extract_resource_name_and_crs, importer,
     ):
@@ -189,9 +189,9 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
-    @patch("importer.views.import_orchestrator.apply_async")
-    @patch("importer.views.DataPublisher.extract_resource_name_and_crs")
-    @patch("importer.views.DataPublisher.publish_resources")
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.DataPublisher.extract_resource_name_and_crs")
+    @patch("importer.celery_tasks.DataPublisher.publish_resources")
     def test_publish_resource_if_overwrite_should_not_call_the_publishing(
         self, publish_resources, extract_resource_name_and_crs, importer,
     ):
@@ -234,7 +234,7 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
-    @patch("importer.views.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
     def test_create_gn_resource(self, import_orchestrator):
         try:
             user = get_user_model().objects.first()

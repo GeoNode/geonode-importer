@@ -32,7 +32,6 @@ from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import import_orchestrator, orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -63,6 +62,8 @@ class ImporterViewSet(DynamicModelViewSet):
     http_method_names = ['get', 'post']
 
     def create(self, request, *args, **kwargs):
+        from importer.celery_tasks import import_orchestrator, orchestrator
+
         '''
         Main function called by the new import flow.
         It received the file via the front end
@@ -72,7 +73,7 @@ class ImporterViewSet(DynamicModelViewSet):
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
         if _file and (_file.name.endswith('gpkg') if hasattr(_file, 'name') else _file.endswith('gpkg')):
-            file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
+            file_ext = pathlib.Path(_file.name).suffix[1:]
 
             handler = orchestrator.get_file_handler(file_ext)
 
@@ -82,9 +83,7 @@ class ImporterViewSet(DynamicModelViewSet):
             data.is_valid(raise_exception=True)
             # cloning data into a local folder
             _data = data.data.copy()
-            skip_existing_layers = _data.pop('skip_existing_layers', "False")
-            override_existing_layer = _data.pop('override_existing_layer', "False")
-            store_spatial_file = _data.pop("store_spatial_files", "True")
+            extracted_params, _data = handler.extract_params_from_data(_data)
             storage_manager = StorageManager(remote_files={**_data, **{"base_file": request.data.get('base_file')}})
             storage_manager.clone_remote_files()
             # get filepath
@@ -99,25 +98,12 @@ class ImporterViewSet(DynamicModelViewSet):
                     user=request.user,
                     func_name=next(iter(handler.TASKS_LIST)),
                     step=next(iter(handler.TASKS_LIST)),
-                    input_params={
-                        "files": files,
-                        "store_spatial_files": (
-                            ast.literal_eval(store_spatial_file)
-                            if isinstance(store_spatial_file, str)
-                            else store_spatial_file
-                        ),
-                        "skip_existing_layer": (
-                            ast.literal_eval(skip_existing_layers)
-                            if isinstance(skip_existing_layers, str)
-                            else skip_existing_layers
-                        ),
-                        "override_existing_layer": (
-                            ast.literal_eval(override_existing_layer)
-                            if isinstance(override_existing_layer, str)
-                            else override_existing_layer
-                        )
+                    input_params={**{
+                            "files": files,
+                        },
+                        **extracted_params
                     },
-                    legacy_upload_name=os.path.basename(files.get("base_file"))
+                    legacy_upload_name=_file.name
                 )
 
                 sig = import_orchestrator.s(
@@ -132,6 +118,8 @@ class ImporterViewSet(DynamicModelViewSet):
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control
                 storage_manager.delete_retrieved_paths(force=True)
+                if execution_id:
+                    orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
                 raise ImportException(detail=e.args[0])
 
         # if is a geopackage we just use the new import flow

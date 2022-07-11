@@ -8,7 +8,6 @@ from dynamic_models.exceptions import InvalidFieldNameError, DynamicModelError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
-from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import AbstractHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
@@ -84,6 +83,17 @@ class GPKGFileHandler(AbstractHandler):
             raise InvalidGeopackageException(validator[0])
 
         return True
+    
+    def extract_params_from_data(self, _data):
+        '''
+        Remove from the _data the params that needs to save into the executionRequest object
+        all the other are returned
+        '''
+        return {
+            "skip_existing_layers": _data.pop('skip_existing_layers', "False"),
+            "override_existing_layer": _data.pop('override_existing_layer', "False"),
+            "store_spatial_file": _data.pop("store_spatial_files", "True"),
+        }, _data
 
     def extract_resource_name_and_crs(self, files, layer_name, alternate):
         layers = ogr.Open(files.get("base_file"))
@@ -369,7 +379,6 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
 
 
 @importer_app.task(
-    base=ErrorBaseTaskClass,
     name="importer.gpkg_next_step",
     queue="importer.gpkg_next_step",
     task_track_started=True
@@ -378,7 +387,7 @@ def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alte
     '''
     If the ingestion of the resource is successfuly, the next step for the layer is called
     '''
-    from importer.views import import_orchestrator, orchestrator
+    from importer.celery_tasks import import_orchestrator, orchestrator
 
     _exec = orchestrator.get_execution_object(execution_id)
 
