@@ -8,8 +8,7 @@ from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
-
-from importer.orchestrator import SUPPORTED_TYPES
+from importer.type_registry import SUPPORTED_TYPES
 
 logger = logging.getLogger(__name__)
 

@@ -392,11 +392,9 @@ def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alte
     _exec = orchestrator.get_execution_object(execution_id)
 
     _files = _exec.input_params.get("files")
-    _store_spatial_files = _exec.input_params.get("store_spatial_files")
-    _user = _exec.user
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, _store_spatial_files, _user.username, execution_id, actual_step, layer_name, alternate)
+        (_files, execution_id, actual_step, layer_name, alternate)
     )
     return "gpkg_next_step", alternate, execution_id
 

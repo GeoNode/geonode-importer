@@ -17,7 +17,6 @@
 #
 #########################################################################
 import logging
-import os
 import pathlib
 
 from django.utils.translation import ugettext as _
@@ -39,7 +38,9 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.upload.utils import UploadLimitValidator
-import ast
+from importer.type_registry import SupportedTypeRegistry
+from importer.celery_tasks import import_orchestrator
+from importer.orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,6 @@ class ImporterViewSet(DynamicModelViewSet):
     http_method_names = ['get', 'post']
 
     def create(self, request, *args, **kwargs):
-        from importer.celery_tasks import import_orchestrator, orchestrator
 
         '''
         Main function called by the new import flow.
@@ -72,9 +72,8 @@ class ImporterViewSet(DynamicModelViewSet):
         It clone on the local repo the file that the user want to upload
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
-        if _file and (_file.name.endswith('gpkg') if hasattr(_file, 'name') else _file.endswith('gpkg')):
-            file_ext = pathlib.Path(_file.name).suffix[1:]
-
+        file_ext = pathlib.Path(_file.name if hasattr(_file, 'name') else _file).suffix[1:] if _file else None
+        if _file and file_ext in SupportedTypeRegistry.REGISTRY.keys():
             handler = orchestrator.get_file_handler(file_ext)
 
             #go through the new import flow
@@ -108,8 +107,6 @@ class ImporterViewSet(DynamicModelViewSet):
 
                 sig = import_orchestrator.s(
                         files,
-                        data.data.get("store_spatial_files"),
-                        request.user.username,
                         str(execution_id),
                 )
                 sig.apply_async()

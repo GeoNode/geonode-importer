@@ -38,7 +38,6 @@ class ErrorBaseTaskClass(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        from importer.orchestrator import orchestrator
         _uuid = self._get_uuid(args)
 
         logger.error(f"Task FAILED with ID: {_uuid}, reason: {exc}")
@@ -66,7 +65,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, store_spatial_files: bool = True, user: get_user_model() =None, execution_id: str =None, step='start_import', layer_name=None, alternate=None
+    self, files: dict, execution_id: str =None, step='start_import', layer_name=None, alternate=None
 ):
 
     '''
@@ -76,7 +75,6 @@ def import_orchestrator(
             Parameters:
                     files (dict): dictionary with the files needed for the import. it expect that there is always a base_file
                                   example: {"base_file": "/path/to/the/local/file/to/be/importerd.gpkg"}
-                    store_spatial_files (bool): boolean to store spatial file or not
                     user (UserModel): user that is performing the request
                     execution_id (UUID): unique ID used to keep track of the execution request
                     step (str): last step performed from the tasks
@@ -201,9 +199,7 @@ def publish_resource(
         )
         _exec = orchestrator.get_execution_object(execution_id)
         _files = _exec.input_params.get("files")
-        _store_spatial_files = _exec.input_params.get("store_spatial_files")
         _overwrite = _exec.input_params.get("override_existing_layer")
-        _user = _exec.user
         
         # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
         if not _overwrite:
@@ -227,7 +223,7 @@ def publish_resource(
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
+            (_files, execution_id, step_name, layer_name, alternate)
         )
         return self.name, execution_id
 
@@ -280,7 +276,6 @@ def create_gn_resource(
         _exec = orchestrator.get_execution_object(execution_id)
 
         _files = _exec.input_params.get("files")
-        _store_spatial_files = _exec.input_params.get("store_spatial_files")
 
         metadata_uploaded = _files.get("xml_file", "") or False
         sld_uploaded = _files.get("sld_file", "") or False
@@ -341,7 +336,7 @@ def create_gn_resource(
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, _store_spatial_files, _user.username, execution_id, step_name, layer_name, alternate)
+            (_files, execution_id, step_name, layer_name, alternate)
         )
         return self.name, execution_id
 

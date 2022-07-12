@@ -2,8 +2,11 @@ import logging
 import os
 from uuid import UUID
 
+from celery import states
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.utils import timezone
+from django_celery_results.models import TaskResult
 from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
                                        STATE_RUNNING)
 from geonode.resource.models import ExecutionRequest
@@ -11,18 +14,9 @@ from geonode.upload.models import Upload
 
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from importer.handlers.gpkg.handler import GPKGFileHandler
-from django_celery_results.models import TaskResult
-from celery import states
-from django.db.models import Q
+from importer.type_registry import SUPPORTED_TYPES
 
 logger = logging.getLogger(__name__)
-
-
-SUPPORTED_TYPES = {
-    "gpkg": GPKGFileHandler()
-    # "vector": VectorFileHandler
-}
 
 
 class ImportOrchestrator:

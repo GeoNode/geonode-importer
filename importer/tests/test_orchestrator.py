@@ -5,7 +5,8 @@ from unittest.mock import patch
 from importer.api.exception import ImportException
 from importer.handlers.base import AbstractHandler
 from importer.handlers.gpkg.handler import GPKGFileHandler
-from importer.orchestrator import SUPPORTED_TYPES, ImportOrchestrator
+from importer.orchestrator import ImportOrchestrator
+from importer.type_registry import SUPPORTED_TYPES
 from geonode.upload.models import Upload
 from django.utils import timezone
 
@@ -25,7 +26,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         actual = self.orchestrator.supported_type
         self.assertEqual(SUPPORTED_TYPES.keys(), actual)
 
-    @patch("importer.orchestrator.SUPPORTED_TYPES")
+    @patch("importer.type_registry.SUPPORTED_TYPES")
     def test_get_file_handler_raise_error_if_not_exists(self, supported_types):
         supported_types.get.return_value = {}
         with self.assertRaises(ImportException) as _exc:
@@ -35,7 +36,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             "The requested filetype is not supported: invalid_type",
         )
 
-    @patch("importer.orchestrator.SUPPORTED_TYPES")
+    @patch("importer.type_registry.SUPPORTED_TYPES")
     def test_get_file_handler(self, supported_types):
         supported_types.get.return_value = {"gpkg": GPKGFileHandler()}
         actual = self.orchestrator.get_file_handler("gpkg")
