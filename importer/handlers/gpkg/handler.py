@@ -1,3 +1,4 @@
+import json
 import logging
 from subprocess import PIPE, Popen
 
@@ -37,6 +38,18 @@ class GPKGFileHandler(BaseHandler):
         "importer.create_gn_resource",
         # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
     )
+
+    @staticmethod
+    def can_handle(_data) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        base = _data.get("base_file")
+        if not base:
+            return False
+        return base.endswith('.gpkg') if isinstance(base, str) else base.name.endswith('.gpkg')
+
 
     def is_valid(self, files, user):
         """
@@ -95,7 +108,7 @@ class GPKGFileHandler(BaseHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
-    def extract_resource_name_and_crs(self, files, layer_name, alternate):
+    def extract_resource_to_publish(self, files, layer_name, alternate):
         layers = ogr.Open(files.get("base_file"))
         if not layers:
             return []

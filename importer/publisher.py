@@ -8,7 +8,7 @@ from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
-from importer.handlers.base import BaseHandler
+from django.utils.module_loading import import_string
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class DataPublisher():
         )
         self.workspace = get_geoserver_cascading_workspace(create=True)
 
-    def extract_resource_name_and_crs(self, files: dict, resource_type: str, layer_name, alternate=None):
+    def extract_resource_to_publish(self, files: dict, handler_module_path: str, layer_name, alternate=None):
         '''
         Will try to extract the layers name from the original file
         this is needed since we have to publish the resources
@@ -39,8 +39,8 @@ class DataPublisher():
             {'name': 'layer_name', 'crs': 'EPSG:25832'}
         ]
         '''
-        handler = BaseHandler.REGISTRY.get(resource_type)
-        return handler.extract_resource_name_and_crs(files, layer_name, alternate)
+        handler = import_string(handler_module_path)
+        return handler.extract_resource_to_publish(files, layer_name, alternate)
 
 
     def publish_resources(self, resources: List[str]):

@@ -12,6 +12,7 @@ from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
 from typing import Optional
+from django.utils.module_loading import import_string
 
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
@@ -33,24 +34,16 @@ class ImportOrchestrator:
     def __init__(self, enable_legacy_upload_status=True) -> None:
         self.enable_legacy_upload_status = enable_legacy_upload_status
 
-    @property
-    def supported_type(self):
-        """
-        Returns the supported types for the import
-        """
-        return BaseHandler.REGISTRY.keys()
-
-    def can_handle(self) -> Optional[BaseHandler]:
+    def get_handler(self, _data) -> Optional[BaseHandler]:
         """
         If is part of the supported format, return the handler which can handle the import
         otherwise return None
         """
-        _type = BaseHandler.REGISTRY.get("gpkg")
-        if not _type:
-            raise ImportException(
-                detail=f"The requested filetype is not supported: file_type"
-            )
-        return _type
+        for handler in BaseHandler.get_registry().values():
+            if handler.can_handle(_data):
+                return handler()
+        logger.error("Handler not found, fallback on the legacy upload system")
+        return None
 
     def get_execution_object(self, exec_id):
         '''
@@ -62,7 +55,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req.first()
 
-    def perform_next_import_step(self, resource_type: str, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None) -> None:
+    def perform_next_import_step(self, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -70,11 +63,12 @@ class ImportOrchestrator:
         in async the next step is called
         '''
         try:
+            _exec_obj = self.get_execution_object(str(execution_id))
             if step is None:
-                step = self.get_execution_object(str(execution_id)).step
+                step = _exec_obj.step
 
             # retrieve the task list for the resource_type
-            tasks = self.get_file_handler(resource_type).TASKS_LIST
+            tasks = import_string(handler_module_path).TASKS_LIST
             # getting the index
             _index = tasks.index(step) + 1
             # finding in the task_list the last step done
@@ -88,7 +82,7 @@ class ImportOrchestrator:
             # calling the next step for the resource
 
             # defining the tasks parameter for the step
-            task_params = (str(execution_id), resource_type)
+            task_params = (str(execution_id), handler_module_path)
             logger.info(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
@@ -102,10 +96,10 @@ class ImportOrchestrator:
                 '''
                 task_params = (
                         str(execution_id),
-                        resource_type,
                         next_step,
                         layer_name,
-                        alternate
+                        alternate,
+                        handler_module_path
                     )
 
             # continuing to the next step

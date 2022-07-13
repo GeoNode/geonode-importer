@@ -1,3 +1,4 @@
+from django.utils.module_loading import import_string
 from importer.handlers.base import BaseHandler
 from django.contrib.auth import get_user_model
 
@@ -6,9 +7,9 @@ class DataStoreManager:
     Utility object to invoke the right handler used to save the
     resource in the datastore db
     '''
-    def __init__(self, files: list, resource_type: str, user: get_user_model(), execution_id: str) -> None:
+    def __init__(self, files: list, handler_module_path: str, user: get_user_model(), execution_id: str) -> None:
         self.files = files
-        self.handler = BaseHandler.REGISTRY.get(resource_type)
+        self.handler = import_string(handler_module_path)
         self.user = user
         self.execution_id = execution_id
 

@@ -1,19 +1,10 @@
 from abc import ABC
 import logging
+from importer.handlers import *
 
 logger = logging.getLogger(__name__)
 
-class BaseHandler(ABC):
-    '''
-    Base abstract handler object
-    define the required method needed to define an upload handler
-    it must be:
-    - provide the tasks list to complete the import
-    - validation function
-    - method to import the resource
-    - create_error_log
-    '''
-    TASKS_LIST = []
+class TypeRegistryBase(type):
 
     REGISTRY = {}
 
@@ -26,11 +17,47 @@ class BaseHandler(ABC):
             _log =  f"The class with name {new_cls.__name__.lower()} is already present in the registry, Please take another name"
             logger.error(_log)
             raise Exception(_log)
-        elif not attrs.get("handler"):
-            raise Exception("If must define the handler")
 
-        cls.REGISTRY[new_cls.__name__.lower()] = attrs.get("handler")
+        cls.REGISTRY[new_cls.__name__.lower()] = new_cls
         return new_cls
+
+    @classmethod
+    def get_registry(cls):
+        return dict(cls.REGISTRY)
+
+
+class BaseHandler(metaclass=TypeRegistryBase):
+    '''
+    Base abstract handler object
+    define the required method needed to define an upload handler
+    it must be:
+    - provide the tasks list to complete the import
+    - validation function
+    - method to import the resource
+    - create_error_log
+    '''
+    TASKS_LIST = []
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __str__(self):
+        return f"{self.__module__}.{self.__class__.__name__}"
+
+    def __repr__(self):
+        return self.__str__()
+
+    @classmethod
+    def get_registry(cls):
+        return dict(cls.REGISTRY)
+
+    @staticmethod
+    def can_handle(_data) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        return False
 
     def step_list(self):
         '''

@@ -1,10 +1,8 @@
 import logging
-import pathlib
 from typing import Optional
 from uuid import UUID
 
 from celery import Task
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
@@ -65,7 +63,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, execution_id: str =None, step='start_import', layer_name=None, alternate=None
+    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None
 ):
 
     '''
@@ -84,15 +82,14 @@ def import_orchestrator(
                     None
     '''
     try:
-        file_ext = pathlib.Path(files.get("base_file")).suffix[1:]
-        # extract the resource_type of the layer and retrieve the expected handler
+       # extract the resource_type of the layer and retrieve the expected handler
 
         orchestrator.perform_next_import_step(
-            resource_type=file_ext,
             execution_id=execution_id,
             step=step,
             layer_name=layer_name,
-            alternate=alternate
+            alternate=alternate,
+            handler_module_path=handler
         )
 
     except Exception as e:
@@ -109,7 +106,7 @@ def import_orchestrator(
     ignore_result=False,
     task_track_started=True
 )
-def import_resource(self, execution_id, /, resource_type):  
+def import_resource(self, execution_id, /, handler_module_path):  
     '''
     Task to import the resources.
     NOTE: A validation if done before acutally start the import
@@ -135,7 +132,7 @@ def import_resource(self, execution_id, /, resource_type):
         _files = _exec.input_params.get("files")
 
         # initiating the data store manager
-        _datastore = DataStoreManager(_files, resource_type, _exec.user, execution_id)
+        _datastore = DataStoreManager(_files, handler_module_path, _exec.user, execution_id)
 
         # starting file validation
         if not _datastore.input_is_valid():
@@ -168,10 +165,10 @@ def publish_resource(
     self,
     execution_id: str,
     /,
-    resource_type: str,
     step_name: str,
     layer_name: Optional[str] = None,
-    alternate: Optional[str] = None
+    alternate: Optional[str] = None,
+    handler_module_path: str = None
 ):
     '''
     Task to publish a single resource in geoserver.
@@ -180,8 +177,6 @@ def publish_resource(
 
             Parameters:
                     execution_id (UUID): unique ID used to keep track of the execution request
-                    resource_type (str): extension of the resource type that we want to import
-                        The resource type is needed to retrieve the right handler for the resource
                     step_name (str): step name example: importer.publish_resource
                     layer_name (UUID): name of the resource example: layer
                     alternate (UUID): alternate of the resource example: layer_alternate
@@ -205,8 +200,8 @@ def publish_resource(
         if not _overwrite:
             _publisher = DataPublisher()
             # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_name_and_crs(_files, resource_type, layer_name, alternate)
-            if _metadata and _metadata[0].get("crs"):
+            _metadata = _publisher.extract_resource_to_publish(_files, handler_module_path, layer_name, alternate)
+            if _metadata:
                 # we should not publish resource without a crs
                 _, workspace, store = _publisher.publish_resources(_metadata)
 
@@ -245,10 +240,10 @@ def create_gn_resource(
     self,
     execution_id: str,
     /,
-    resource_type: str,
     step_name: str,
     layer_name: Optional[str] = None,
-    alternate: Optional[str] = None
+    alternate: Optional[str] = None,
+    handler_module_path: str = None
 ):
     '''
     Create the GeoNode resource and the relatives information associated
@@ -313,14 +308,14 @@ def create_gn_resource(
                 )
             )
 
-        if metadata_uploaded and resource_type != 'gpkg':
+        if metadata_uploaded:
             resource_manager.update(None,
                 instance=saved_dataset,
                 xml_file=_files.get("xml_file", ""),
                 metadata_uploaded=metadata_uploaded,
                 vals={"dirty_state": True}
             )
-        if sld_uploaded and resource_type != 'gpkg':
+        if sld_uploaded:
             resource_manager.exec(
                 'set_style',
                 None,

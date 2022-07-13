@@ -76,13 +76,13 @@ class ImporterViewSet(DynamicModelViewSet):
         data = self.serializer_class(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
-        _data = data.data.copy()
+        _data = {**data.data.copy(), **{"base_file": request.data.get('base_file')}}
 
-        handler = orchestrator.can_handle()
+        handler = orchestrator.get_handler(_data)
 
         if _file and handler:
             extracted_params, _data = handler.extract_params_from_data(_data)
-            storage_manager = StorageManager(remote_files={**_data, **{"base_file": request.data.get('base_file')}})
+            storage_manager = StorageManager(remote_files=_data)
             # cloning data into a local folder
             storage_manager.clone_remote_files()
             # get filepath
@@ -107,7 +107,8 @@ class ImporterViewSet(DynamicModelViewSet):
 
                 sig = import_orchestrator.s(
                         files,
-                        str(execution_id)
+                        str(execution_id),
+                        handler=str(handler)
                 )
                 sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
@@ -117,6 +118,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
+                logger.exception(e)
                 raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
         # if is a geopackage we just use the new import flow

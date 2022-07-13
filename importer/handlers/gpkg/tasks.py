@@ -21,7 +21,7 @@ class SingleMessageErrorHandler(Task):
         output_params = exec_id.output_params.copy()
 
         logger.error(f"Task FAILED with ID: {self._get_uuid(args)}, reason: {exc}")
-        _log = orchestrator.get_file_handler('gpkg').create_error_log(exc, self.name, *args)
+        _log = orchestrator.get_handler(exec_id.input_params).create_error_log(exc, self.name, *args)
         if output_params.get("errors"):
             output_params.get("errors").append(_log)
         else:

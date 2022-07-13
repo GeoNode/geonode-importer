@@ -22,7 +22,7 @@ class TestDataPublisher(TestCase):
         Given a layer and the original file, should extract the crs and the name
         to let it publish in Geoserver
         '''
-        values_found = self.publisher.extract_resource_name_and_crs(
+        values_found = self.publisher.extract_resource_to_publish(
             files={"base_file": self.gpkg_path},
             resource_type="gpkg",
             layer_name="stazioni_metropolitana"
@@ -38,7 +38,7 @@ class TestDataPublisher(TestCase):
         Given a layer and the original file, should extract the crs and the name
         to let it publish in Geoserver
         '''
-        values_found = self.publisher.extract_resource_name_and_crs(
+        values_found = self.publisher.extract_resource_to_publish(
             files={"base_file": "/wrong/path/file.gpkg"},
             resource_type="gpkg",
             layer_name="stazioni_metropolitana"
