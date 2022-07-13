@@ -38,7 +38,7 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.upload.utils import UploadLimitValidator
-from importer.type_registry import SupportedTypeRegistry
+#from importer.type_registry import SupportedTypeRegistry
 from importer.celery_tasks import import_orchestrator
 from importer.orchestrator import orchestrator
 
@@ -72,18 +72,18 @@ class ImporterViewSet(DynamicModelViewSet):
         It clone on the local repo the file that the user want to upload
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
-        file_ext = pathlib.Path(_file.name if hasattr(_file, 'name') else _file).suffix[1:] if _file else None
-        if _file and file_ext in SupportedTypeRegistry.REGISTRY.keys():
-            handler = orchestrator.get_file_handler(file_ext)
 
-            #go through the new import flow
-            data = self.serializer_class(data=request.data)
-            # serializer data validation
-            data.is_valid(raise_exception=True)
-            # cloning data into a local folder
-            _data = data.data.copy()
+        data = self.serializer_class(data=request.data)
+        # serializer data validation
+        data.is_valid(raise_exception=True)
+        _data = data.data.copy()
+
+        handler = orchestrator.can_handle()
+
+        if _file and handler:
             extracted_params, _data = handler.extract_params_from_data(_data)
             storage_manager = StorageManager(remote_files={**_data, **{"base_file": request.data.get('base_file')}})
+            # cloning data into a local folder
             storage_manager.clone_remote_files()
             # get filepath
             files = storage_manager.get_retrieved_paths()
@@ -107,7 +107,7 @@ class ImporterViewSet(DynamicModelViewSet):
 
                 sig = import_orchestrator.s(
                         files,
-                        str(execution_id),
+                        str(execution_id)
                 )
                 sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
@@ -117,7 +117,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
-                raise ImportException(detail=e.args[0])
+                raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True

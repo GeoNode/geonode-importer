@@ -8,7 +8,7 @@ from dynamic_models.exceptions import InvalidFieldNameError, DynamicModelError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
-from importer.handlers.base import AbstractHandler
+from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
@@ -25,7 +25,7 @@ from importer.celery_app import importer_app
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 
 
-class GPKGFileHandler(AbstractHandler):
+class GPKGFileHandler(BaseHandler):
     '''
     Handler to import GPK files into GeoNode data db
     It must provide the task_lists required to comple the upload
@@ -156,8 +156,7 @@ class GPKGFileHandler(AbstractHandler):
                 ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
-                    group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback'])),
-                    body=execution_id
+                    group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
                 )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate))
 
         return
@@ -383,7 +382,7 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
     queue="importer.gpkg_next_step",
     task_track_started=True
 )
-def gpkg_next_step(_, execution_id: str, actual_step: str, layer_name: str, alternate:str):
+def gpkg_next_step(execution_id: str, actual_step: str, layer_name: str, alternate:str):
     '''
     If the ingestion of the resource is successfuly, the next step for the layer is called
     '''

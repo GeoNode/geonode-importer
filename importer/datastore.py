@@ -1,5 +1,5 @@
+from importer.handlers.base import BaseHandler
 from django.contrib.auth import get_user_model
-from importer.type_registry import SupportedTypeRegistry
 
 class DataStoreManager:
     '''
@@ -8,7 +8,7 @@ class DataStoreManager:
     '''
     def __init__(self, files: list, resource_type: str, user: get_user_model(), execution_id: str) -> None:
         self.files = files
-        self.handler = SupportedTypeRegistry.REGISTRY.get(resource_type)
+        self.handler = BaseHandler.REGISTRY.get(resource_type)
         self.user = user
         self.execution_id = execution_id
 

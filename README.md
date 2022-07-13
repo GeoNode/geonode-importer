@@ -12,13 +12,13 @@ Add to settings:
 INSTALLED_APPS += ('importer', 'dynamic_models',)
 
 CELERY_TASK_QUEUES += (
-    Queue('importer.import_orchestrator', GEONODE_EXCHANGE, routing_key='importer.import_orchestrator', priority=0),
-    Queue('importer.import_resource', GEONODE_EXCHANGE, routing_key='importer.import_resource', priority=0),
-    Queue('importer.publish_resource', GEONODE_EXCHANGE, routing_key='importer.publish_resource', priority=0),
-    Queue('importer.create_gn_resource', GEONODE_EXCHANGE, routing_key='importer.create_gn_resource', priority=0),
-    Queue('importer.gpkg_ogr2ogr', GEONODE_EXCHANGE, routing_key='importer.gpkg_ogr2ogr', priority=1),
-    Queue('importer.gpkg_next_step', GEONODE_EXCHANGE, routing_key='importer.gpkg_next_step', priority=0),
-    Queue('importer.gpkg_handler', GEONODE_EXCHANGE, routing_key='importer.gpkg_handler', priority=1),
+    Queue('importer.import_orchestrator', GEONODE_EXCHANGE, routing_key='importer.import_orchestrator'),
+    Queue('importer.import_resource', GEONODE_EXCHANGE, routing_key='importer.import_resource', max_priority=8),
+    Queue('importer.publish_resource', GEONODE_EXCHANGE, routing_key='importer.publish_resource', max_priority=8),
+    Queue('importer.create_gn_resource', GEONODE_EXCHANGE, routing_key='importer.create_gn_resource', max_priority=8),
+    Queue('importer.gpkg_ogr2ogr', GEONODE_EXCHANGE, routing_key='importer.gpkg_ogr2ogr', max_priority=10),
+    Queue('importer.gpkg_next_step', GEONODE_EXCHANGE, routing_key='importer.gpkg_next_step', max_priority=3),
+    Queue('importer.gpkg_handler', GEONODE_EXCHANGE, routing_key='importer.gpkg_handler', max_priority=10),
 )
 
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
@@ -30,7 +30,6 @@ ADDITIONAL_DATASET_FILE_TYPES = [{
         "label": 'GeoPackage',
         "format": 'archive',
         "ext": ['gpkg'],
-        "needsFiles": ['gpkg']
     }]
 
 ```

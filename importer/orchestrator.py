@@ -11,10 +11,11 @@ from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
                                        STATE_RUNNING)
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
+from typing import Optional
 
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from importer.type_registry import SUPPORTED_TYPES
+from importer.handlers.base import BaseHandler
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +38,17 @@ class ImportOrchestrator:
         """
         Returns the supported types for the import
         """
-        return SUPPORTED_TYPES.keys()
+        return BaseHandler.REGISTRY.keys()
 
-    def get_file_handler(self, file_type):
+    def can_handle(self) -> Optional[BaseHandler]:
         """
-        Returns the supported types for the import
+        If is part of the supported format, return the handler which can handle the import
+        otherwise return None
         """
-        _type = SUPPORTED_TYPES.get(file_type)
+        _type = BaseHandler.REGISTRY.get("gpkg")
         if not _type:
             raise ImportException(
-                detail=f"The requested filetype is not supported: {file_type}"
+                detail=f"The requested filetype is not supported: file_type"
             )
         return _type
 

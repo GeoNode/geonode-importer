@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import ImportException
-from importer.handlers.base import AbstractHandler
+from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import ImportOrchestrator
 from importer.type_registry import SUPPORTED_TYPES
@@ -40,7 +40,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
     def test_get_file_handler(self, supported_types):
         supported_types.get.return_value = {"gpkg": GPKGFileHandler()}
         actual = self.orchestrator.get_file_handler("gpkg")
-        self.assertIsInstance(actual.get("gpkg"), AbstractHandler)
+        self.assertIsInstance(actual.get("gpkg"), BaseHandler)
 
     def test_get_execution_object_raise_exp_if_not_exists(self):
         with self.assertRaises(ImportException) as _exc:

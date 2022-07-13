@@ -8,7 +8,8 @@ from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
-from importer.type_registry import SUPPORTED_TYPES
+from importer.handlers.base import BaseHandler
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class DataPublisher():
             {'name': 'layer_name', 'crs': 'EPSG:25832'}
         ]
         '''
-        handler = SUPPORTED_TYPES.get(resource_type)
+        handler = BaseHandler.REGISTRY.get(resource_type)
         return handler.extract_resource_name_and_crs(files, layer_name, alternate)
 
 
