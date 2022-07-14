@@ -9,7 +9,8 @@ pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@maste
 Add to settings:
 
 ```
-INSTALLED_APPS += ('importer', 'dynamic_models',)
+
+INSTALLED_APPS += ('dynamic_models', 'importer', 'importer.handlers',)
 
 CELERY_TASK_QUEUES += (
     Queue('importer.import_orchestrator', GEONODE_EXCHANGE, routing_key='importer.import_orchestrator'),
