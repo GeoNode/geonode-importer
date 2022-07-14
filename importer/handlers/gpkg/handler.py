@@ -1,4 +1,3 @@
-import json
 import logging
 from subprocess import PIPE, Popen
 
@@ -24,7 +23,7 @@ from geonode.services.serviceprocessors.base import \
 logger = logging.getLogger(__name__)
 from importer.celery_app import importer_app
 from geonode.upload.api.exceptions import UploadParallelismLimitException
-
+import hashlib
 
 
 class GPKGFileHandler(BaseHandler):
@@ -154,7 +153,7 @@ class GPKGFileHandler(BaseHandler):
                 if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
                     continue
                 raise e
-        return True, workspace.name, store.name
+        return True
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
@@ -187,9 +186,8 @@ class GPKGFileHandler(BaseHandler):
                     log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
                 )
                 # setup dynamic model and retrieve the group task needed for tun the async workflow
-                _, use_uuid, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
+                _, alternate, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
                 # evaluate if a new alternate is created by the previous flow
-                alternate = layer_name if not use_uuid else f"{layer_name}_{execution_id.replace('-', '_')}"
                 # create the async task for create the resource into geonode_data with ogr2ogr
                 ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
                 # prepare the async chord workflow with the on_success and on_fail methods
@@ -205,12 +203,15 @@ class GPKGFileHandler(BaseHandler):
 
         return
 
-    def setup_dynamic_model(self, layer, execution_id: str, should_be_overrided: bool, username: str):
+    def setup_dynamic_model(self, layer: ogr.Layer, execution_id: str, should_be_overrided: bool, username: str):
         '''
         Extract from the geopackage the layers name and their schema
         after the extraction define the dynamic model instances
+        Returns:
+            - dynamic_model as model, so the actual dynamic instance
+            - alternate -> the alternate of the resource which contains (if needed) the uuid
+            - celery_group -> the celery group of the field creation
         '''
-        use_uuid = False
 
         layer_name = layer.GetName().lower()
         workspace = get_geoserver_cascading_workspace(create=False)
@@ -257,8 +258,7 @@ class GPKGFileHandler(BaseHandler):
             it comes here when the layer should not be overrided so we append the UUID
             to the layer to let it proceed to the next steps
             '''
-            use_uuid = True
-            layer_name = f"{layer_name.lower()}_{execution_id.replace('-', '_')}"
+            layer_name = self._create_alternate(layer_name)
             dynamic_schema, _ = ModelSchema.objects.get_or_create(
                 name=layer_name,
                 db_name="datastore",
@@ -267,8 +267,6 @@ class GPKGFileHandler(BaseHandler):
             )
         else:
             raise InvalidGeopackageException("Error during the upload of the gpkg file. The dataset does not exists")
-            
-
 
         # define standard field mapping from ogr to django
         dynamic_model, celery_group = self.create_dynamic_model_fields(
@@ -278,7 +276,7 @@ class GPKGFileHandler(BaseHandler):
             execution_id=execution_id,
             layer_name=layer_name
         )
-        return dynamic_model, use_uuid, celery_group
+        return dynamic_model, layer_name, celery_group
 
     def create_dynamic_model_fields(self, layer: str, dynamic_model_schema: ModelSchema, overwrite: bool, execution_id: str, layer_name: str):
         # retrieving the field schema from ogr2ogr and converting the type to Django Types
@@ -309,6 +307,13 @@ class GPKGFileHandler(BaseHandler):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
+
+    def _create_alternate(self, layer_name):
+        _hash = hashlib.md5(layer_name.encode('utf-8')).hexdigest()
+        alternate = f"{layer_name}_{_hash}"
+        if len(alternate) >= 64: # 64 is the max table lengh in postgres
+            return f"{layer_name[:50]}{_hash[:14]}"
+        return alternate
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()

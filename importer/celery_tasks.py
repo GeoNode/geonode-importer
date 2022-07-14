@@ -1,8 +1,10 @@
 import logging
+import os
 from typing import Optional
 from uuid import UUID
 
 from celery import Task
+from django.conf import settings
 from django.utils import timezone
 from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
@@ -20,6 +22,7 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_PUBLISHING_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 from importer.utils import error_handler
+from geonode.settings import CASCADE_WORKSPACE
 
 logger = logging.getLogger(__name__)
 
@@ -203,13 +206,13 @@ def publish_resource(
             _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate)
             if _metadata:
                 # we should not publish resource without a crs
-                _, workspace, store = _publisher.publish_resources(_metadata)
+
+                _publisher.publish_resources(_metadata)
 
                 # updating the execution request status
                 orchestrator.update_execution_request_status(
                     execution_id=execution_id,
                     last_updated=timezone.now(),
-                    input_params={**_exec.input_params, **{"workspace": workspace, "store": store}},
                     celery_task_request=self.request
                 )
             else:
@@ -285,6 +288,8 @@ def create_gn_resource(
         )
     
         saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
+
+        workspace = getattr(settings, "DEFAULT_WORKSPACE", getattr(settings, "CASCADE_WORKSPACE", "geonode"))
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
         if saved_dataset.exists():
@@ -298,10 +303,10 @@ def create_gn_resource(
                 resource_type=Dataset,
                 defaults=dict(
                     name=alternate,
-                    workspace=_exec.input_params.get("workspace", "geonode"),
-                    store=_exec.input_params.get("store", "geonode_data"),
+                    workspace=workspace,
+                    store=os.environ.get('GEONODE_GEODATABASE', 'geonode_data'),
                     subtype='vector',
-                    alternate=f'{_exec.input_params.get("workspace", "geonode")}:{alternate}',
+                    alternate=f'{workspace}:{alternate}',
                     dirty_state=True,
                     title=layer_name,
                     owner=_user,
