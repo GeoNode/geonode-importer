@@ -81,14 +81,15 @@ class ImporterViewSet(DynamicModelViewSet):
         handler = orchestrator.get_handler(_data)
 
         if _file and handler:
-            extracted_params, _data = handler.extract_params_from_data(_data)
-            storage_manager = StorageManager(remote_files=_data)
-            # cloning data into a local folder
-            storage_manager.clone_remote_files()
-            # get filepath
-            files = storage_manager.get_retrieved_paths()
 
             try:
+                extracted_params, _data = handler.extract_params_from_data(_data)
+                storage_manager = StorageManager(remote_files=_data)
+                # cloning data into a local folder
+                storage_manager.clone_remote_files()
+                # get filepath
+                files = storage_manager.get_retrieved_paths()
+
                 upload_validator = UploadLimitValidator(request.user)
                 upload_validator.validate_parallelism_limit_per_user()
                 upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
