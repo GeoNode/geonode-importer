@@ -39,7 +39,7 @@ class ImportOrchestrator:
         If is part of the supported format, return the handler which can handle the import
         otherwise return None
         """
-        for handler in BaseHandler.get_registry().values():
+        for handler in BaseHandler.get_registry():
             if handler.can_handle(_data):
                 return handler()
         logger.error("Handler not found, fallback on the legacy upload system")

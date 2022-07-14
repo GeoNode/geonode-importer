@@ -1,32 +1,9 @@
 from abc import ABC
 import logging
-from importer.handlers import *
 
 logger = logging.getLogger(__name__)
 
-class TypeRegistryBase(type):
-
-    REGISTRY = {}
-
-    def __new__(cls, name, bases, attrs):
-        # instantiate a new type corresponding to the type of class being defined
-        # this is currently RegisterBase but in child classes will be the child class
-        new_cls = type.__new__(cls, name, bases, attrs)
-
-        if new_cls.__name__.lower() in cls.REGISTRY:
-            _log =  f"The class with name {new_cls.__name__.lower()} is already present in the registry, Please take another name"
-            logger.error(_log)
-            raise Exception(_log)
-
-        cls.REGISTRY[new_cls.__name__.lower()] = new_cls
-        return new_cls
-
-    @classmethod
-    def get_registry(cls):
-        return dict(cls.REGISTRY)
-
-
-class BaseHandler(metaclass=TypeRegistryBase):
+class BaseHandler(ABC):
     '''
     Base abstract handler object
     define the required method needed to define an upload handler
@@ -36,10 +13,8 @@ class BaseHandler(metaclass=TypeRegistryBase):
     - method to import the resource
     - create_error_log
     '''
-    TASKS_LIST = []
 
-    def __init__(self, *args, **kwargs):
-        pass
+    REGISTRY = []
 
     def __str__(self):
         return f"{self.__module__}.{self.__class__.__name__}"
@@ -48,8 +23,12 @@ class BaseHandler(metaclass=TypeRegistryBase):
         return self.__str__()
 
     @classmethod
+    def register(cls):
+        BaseHandler.REGISTRY.append(cls)
+
+    @classmethod
     def get_registry(cls):
-        return dict(cls.REGISTRY)
+        return BaseHandler.REGISTRY
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -59,19 +38,13 @@ class BaseHandler(metaclass=TypeRegistryBase):
         '''
         return False
 
-    def step_list(self):
-        '''
-        return the step list for he handler
-        '''
-        return self.TASKS_LIST
-
     def is_valid(self, files, user):
         """
         Define basic validation steps
         """
         return NotImplementedError
     
-    def extract_resource_name_and_crs(self, files, layer_name, alternate):
+    def extract_resource_to_publish(self, files, layer_name, alternate):
         '''
         Function to extract the layer name and the CRS from needed in the 
         publishing phase

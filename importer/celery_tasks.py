@@ -217,8 +217,9 @@ def publish_resource(
                 raise PublishResourceException("Only resources with a CRS provided can be published")
 
         # at the end recall the import_orchestrator for the next step
+
         import_orchestrator.apply_async(
-            (_files, execution_id, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
         )
         return self.name, execution_id
 
@@ -331,7 +332,7 @@ def create_gn_resource(
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, execution_id, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
         )
         return self.name, execution_id
 

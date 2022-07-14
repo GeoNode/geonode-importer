@@ -26,6 +26,7 @@ from importer.celery_app import importer_app
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 
 
+
 class GPKGFileHandler(BaseHandler):
     '''
     Handler to import GPK files into GeoNode data db
@@ -50,8 +51,8 @@ class GPKGFileHandler(BaseHandler):
             return False
         return base.endswith('.gpkg') if isinstance(base, str) else base.name.endswith('.gpkg')
 
-
-    def is_valid(self, files, user):
+    @staticmethod
+    def is_valid(files, user):
         """
         Define basic validation steps:
         Upload limit:
@@ -96,8 +97,9 @@ class GPKGFileHandler(BaseHandler):
             raise InvalidGeopackageException(validator[0])
 
         return True
-    
-    def extract_params_from_data(self, _data):
+
+    @staticmethod
+    def extract_params_from_data(_data):
         '''
         Remove from the _data the params that needs to save into the executionRequest object
         all the other are returned
@@ -108,7 +110,8 @@ class GPKGFileHandler(BaseHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
-    def extract_resource_to_publish(self, files, layer_name, alternate):
+    @staticmethod
+    def extract_resource_to_publish(files, layer_name, alternate):
         layers = ogr.Open(files.get("base_file"))
         if not layers:
             return []
@@ -124,7 +127,8 @@ class GPKGFileHandler(BaseHandler):
             if _l.GetName() == layer_name
         ]
 
-    def create_error_log(self, exc, task_name, *args):
+    @staticmethod
+    def create_error_log(exc, task_name, *args):
         '''
         Method needed to personalize the log based on the resource type
         args[-1] should contain the layer alternate
@@ -170,7 +174,13 @@ class GPKGFileHandler(BaseHandler):
                 # prepare the async chord workflow with the on_success and on_fail methods
                 workflow = chord(
                     group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
-                )(gpkg_next_step.s(execution_id, "importer.import_resource", layer_name, alternate))
+                )(gpkg_next_step.s(
+                    execution_id,
+                    str(self), # passing the handler module path
+                    "importer.import_resource",
+                    layer_name,
+                    alternate
+                ))
 
         return
 
@@ -395,7 +405,7 @@ def gpkg_ogr2ogr(execution_id: str, files: dict, original_name:str, override_lay
     queue="importer.gpkg_next_step",
     task_track_started=True
 )
-def gpkg_next_step(execution_id: str, actual_step: str, layer_name: str, alternate:str):
+def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str, layer_name: str, alternate:str):
     '''
     If the ingestion of the resource is successfuly, the next step for the layer is called
     '''
@@ -406,7 +416,7 @@ def gpkg_next_step(execution_id: str, actual_step: str, layer_name: str, alterna
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, execution_id, actual_step, layer_name, alternate)
+        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate)
     )
     return "gpkg_next_step", alternate, execution_id
 
