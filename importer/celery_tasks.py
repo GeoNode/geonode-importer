@@ -198,9 +198,9 @@ def publish_resource(
         
         # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
         if not _overwrite:
-            _publisher = DataPublisher()
+            _publisher = DataPublisher(handler_module_path)
             # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_to_publish(_files, handler_module_path, layer_name, alternate)
+            _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate)
             if _metadata:
                 # we should not publish resource without a crs
                 _, workspace, store = _publisher.publish_resources(_metadata)

@@ -135,6 +135,27 @@ class GPKGFileHandler(BaseHandler):
         '''
         return f"Task: {task_name} raised an error during actions for layer: {args[-1]}: {exc}"
 
+    @staticmethod
+    def publish_resources(resources, catalog, store, workspace):
+        '''
+        Given a list of strings (which rappresent the table on geoserver)
+        Will publish the resorces on geoserver
+        '''
+        for _resource in resources:
+            try:
+                catalog.publish_featuretype(
+                    name=_resource.get("name"),
+                    store=store,
+                    native_crs=_resource.get("crs"),
+                    srs=_resource.get("crs"),
+                    jdbc_virtual_table=_resource.get("name")
+                )
+            except Exception as e:
+                if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
+                    continue
+                raise e
+        return True, workspace.name, store.name
+
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
         Main function to import the resource.
@@ -297,7 +318,6 @@ class GPKGFileHandler(BaseHandler):
         Used to get the standard field type in the dynamic_model_field definition
         '''
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
-
 
 @importer_app.task(
     base=SingleMessageErrorHandler,

@@ -18,8 +18,9 @@ class DataPublisher():
     '''
     Given a list of resources, will publish them on GeoServer
     '''
-    def __init__(self) -> None:
+    def __init__(self, handler_module_path) -> None:
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
+
         _user, _password = ogc_server_settings.credentials
 
         self.cat = Catalog(
@@ -29,7 +30,9 @@ class DataPublisher():
         )
         self.workspace = get_geoserver_cascading_workspace(create=True)
 
-    def extract_resource_to_publish(self, files: dict, handler_module_path: str, layer_name, alternate=None):
+        self.handler = import_string(handler_module_path)
+
+    def extract_resource_to_publish(self, files: dict, layer_name, alternate=None):
         '''
         Will try to extract the layers name from the original file
         this is needed since we have to publish the resources
@@ -39,8 +42,8 @@ class DataPublisher():
             {'name': 'layer_name', 'crs': 'EPSG:25832'}
         ]
         '''
-        handler = import_string(handler_module_path)
-        return handler.extract_resource_to_publish(files, layer_name, alternate)
+        
+        return self.handler.extract_resource_to_publish(files, layer_name, alternate)
 
 
     def publish_resources(self, resources: List[str]):
@@ -49,20 +52,12 @@ class DataPublisher():
         Will publish the resorces on geoserver
         '''
         self.get_or_create_store()
-        for _resource in resources:
-            try:
-                self.cat.publish_featuretype(
-                    name=_resource.get("name"),
-                    store=self.store,
-                    native_crs=_resource.get("crs"),
-                    srs=_resource.get("crs"),
-                    jdbc_virtual_table=_resource.get("name")
-                )
-            except Exception as e:
-                if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
-                    continue
-                raise e
-        return True, self.workspace.name, self.store.name
+        return self.handler.publish_resources(
+            resources=resources,
+            catalog=self.cat,
+            store=self.store,
+            workspace=self.workspace
+        )
     
     def get_or_create_store(self):
         '''

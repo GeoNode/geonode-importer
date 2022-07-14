@@ -1,5 +1,6 @@
 from abc import ABC
 import logging
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +39,23 @@ class BaseHandler(ABC):
         '''
         return False
 
-    def is_valid(self, files, user):
+    @staticmethod
+    def is_valid(files, user):
         """
         Define basic validation steps
         """
         return NotImplementedError
     
-    def extract_resource_to_publish(self, files, layer_name, alternate):
+    @staticmethod
+    def extract_params_from_data(_data):
+        '''
+        Remove from the _data the params that needs to save into the executionRequest object
+        all the other are returned
+        '''
+        return []
+
+    @staticmethod
+    def extract_resource_to_publish(files, layer_name, alternate):
         '''
         Function to extract the layer name and the CRS from needed in the 
         publishing phase
@@ -53,8 +64,9 @@ class BaseHandler(ABC):
         ]
         '''
         return NotImplementedError
-    
-    def create_error_log(self, exc, task_name, *args):
+
+    @staticmethod
+    def create_error_log(exc, task_name, *args):
         '''
         This function will handle the creation of the log error for each message.
         This is helpful and needed, so each handler can specify the log as needed
@@ -67,4 +79,10 @@ class BaseHandler(ABC):
         into the datastore db
         '''
         return NotImplementedError
-
+    
+    @staticmethod
+    def publish_resources(resources: List[str], catalog, store, workspace):
+        '''
+        Function (if needed) to publish the resource into GeoServer
+        '''
+        return NotImplementedError
