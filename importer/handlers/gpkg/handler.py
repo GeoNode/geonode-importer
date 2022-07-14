@@ -12,7 +12,7 @@ from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
-                                          STANDARD_TYPE_MAPPING)
+                                          STANDARD_TYPE_MAPPING, drop_dynamic_model_schema)
 from importer.handlers.utils import should_be_imported
 from geopackage_validator.validate import validate
 from geonode.upload.utils import UploadLimitValidator
@@ -166,41 +166,50 @@ class GPKGFileHandler(BaseHandler):
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
-        
-        # start looping on the layers available
-        for index, layer in enumerate(layers, start=1):
+        dynamic_model = None
+        try:
+            # start looping on the layers available
+            for index, layer in enumerate(layers, start=1):
 
-            layer_name = layer.GetName().lower()
+                layer_name = layer.GetName().lower()
 
-            should_be_overrided = _exec.input_params.get("override_existing_layer")
-            # should_be_imported check if the user+layername already exists or not
-            if should_be_imported(
-                layer_name, _exec.user,
-                skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
-                override_existing_layer=should_be_overrided
-            ) and layer.GetGeometryColumn() is not None:
-                #update the execution request object
-                self._update_execution_request(
-                    execution_id=execution_id,
-                    last_updated=timezone.now(),
-                    log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
-                )
-                # setup dynamic model and retrieve the group task needed for tun the async workflow
-                _, alternate, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
-                # evaluate if a new alternate is created by the previous flow
-                # create the async task for create the resource into geonode_data with ogr2ogr
-                ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
-                # prepare the async chord workflow with the on_success and on_fail methods
-                workflow = chord(
-                    group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
-                )(gpkg_next_step.s(
-                    execution_id,
-                    str(self), # passing the handler module path
-                    "importer.import_resource",
-                    layer_name,
-                    alternate
-                ))
-
+                should_be_overrided = _exec.input_params.get("override_existing_layer")
+                # should_be_imported check if the user+layername already exists or not
+                if should_be_imported(
+                    layer_name, _exec.user,
+                    skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
+                    override_existing_layer=should_be_overrided
+                ) and layer.GetGeometryColumn() is not None:
+                    #update the execution request object
+                    self._update_execution_request(
+                        execution_id=execution_id,
+                        last_updated=timezone.now(),
+                        log=f"setting up dynamic model for layer: {layer_name} complited: {(100*index)/layer_count}%"
+                    )
+                    # setup dynamic model and retrieve the group task needed for tun the async workflow
+                    dynamic_model, alternate, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
+                    # evaluate if a new alternate is created by the previous flow
+                    # create the async task for create the resource into geonode_data with ogr2ogr
+                    ogr_res = gpkg_ogr2ogr.s(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
+                    # prepare the async chord workflow with the on_success and on_fail methods
+                    workflow = chord(
+                        group(celery_group.set(link_error=['gpkg_error_callback']), ogr_res.set(link_error=['gpkg_error_callback']))
+                    )(gpkg_next_step.s(
+                        execution_id,
+                        str(self), # passing the handler module path
+                        "importer.import_resource",
+                        layer_name,
+                        alternate
+                    ))
+        except Exception as e:
+            logger.error(e)
+            if dynamic_model:
+                '''
+                In case of fail, we want to delete the dynamic_model schema and his field
+                to keep the DB in a consistent state
+                '''
+                drop_dynamic_model_schema(dynamic_model)
+            raise e
         return
 
     def setup_dynamic_model(self, layer: ogr.Layer, execution_id: str, should_be_overrided: bool, username: str):
@@ -258,7 +267,7 @@ class GPKGFileHandler(BaseHandler):
             it comes here when the layer should not be overrided so we append the UUID
             to the layer to let it proceed to the next steps
             '''
-            layer_name = self._create_alternate(layer_name)
+            layer_name = self._create_alternate(layer_name, execution_id)
             dynamic_schema, _ = ModelSchema.objects.get_or_create(
                 name=layer_name,
                 db_name="datastore",
@@ -301,15 +310,17 @@ class GPKGFileHandler(BaseHandler):
         # in this way each task of the group will handle only 30 field
         celery_group = group(gpkg_handler.s(execution_id, schema, dynamic_model_schema.id, overwrite, layer_name) for schema in list_chunked)
 
-        return dynamic_model_schema.as_model(), celery_group
+        return dynamic_model_schema, celery_group
 
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
 
-    def _create_alternate(self, layer_name):
-        _hash = hashlib.md5(layer_name.encode('utf-8')).hexdigest()
+    def _create_alternate(self, layer_name, execution_id):
+        _hash = hashlib.md5(
+            f"{layer_name}_{execution_id}".encode('utf-8')
+        ).hexdigest()
         alternate = f"{layer_name}_{_hash}"
         if len(alternate) >= 64: # 64 is the max table lengh in postgres
             return f"{layer_name[:50]}{_hash[:14]}"
@@ -447,21 +458,10 @@ def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str,
 
 @importer_app.task(name='gpkg_error_callback')
 def error_callback(*args, **kwargs):
-    from dynamic_models.schema import ModelSchemaEditor
     # revert eventually the import in ogr2ogr or the creation of the model in case of failing
     alternate = args[0].args[-1]
-    
-    schema_model = ModelSchema.objects.filter(name=alternate)
-    if schema_model.exists():
-        schema = ModelSchemaEditor(
-            initial_model=alternate,
-            db_name="datastore"
-        )
-        try:
-            schema.drop_table(schema_model.first().as_model())
-        except Exception as e:
-            logger.warning(e.args[0])
+    schema_model = ModelSchema.objects.filter(name=alternate).first()
 
-        schema_model.delete()
+    drop_dynamic_model_schema(schema_model)
 
     return 'error'

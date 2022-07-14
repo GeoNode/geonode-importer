@@ -99,6 +99,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     step=next(iter(handler.TASKS_LIST)),
                     input_params={**{
                             "files": files,
+                            "handler_module_path": str(handler)
                         },
                         **extracted_params
                     },

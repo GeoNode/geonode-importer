@@ -1,8 +1,10 @@
-from uuid import UUID
 import logging
+from uuid import UUID
 
 from celery import Task
-from geonode.resource.models import ExecutionRequest
+from django.utils.module_loading import import_string
+from django_celery_results.models import TaskResult
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,8 +22,13 @@ class SingleMessageErrorHandler(Task):
         exec_id = orchestrator.get_execution_object(exec_id=self._get_uuid(args))
         output_params = exec_id.output_params.copy()
 
-        logger.error(f"Task FAILED with ID: {self._get_uuid(args)}, reason: {exc}")
-        _log = orchestrator.get_handler(exec_id.input_params).create_error_log(exc, self.name, *args)
+        logger.error(f"Task FAILED with ID: {str(exec_id.exec_id)}, reason: {exc}")
+
+        handler = import_string(exec_id.input_params.get("handler_module_path"))
+
+        # creting the log message
+        _log = handler.create_error_log(exc, self.name, *args)
+
         if output_params.get("errors"):
             output_params.get("errors").append(_log)
         else:
@@ -29,10 +36,13 @@ class SingleMessageErrorHandler(Task):
 
         orchestrator.update_execution_request_status(
             execution_id=args[0],
-            status=ExecutionRequest.STATUS_RUNNING,
             output_params=output_params,
             log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
+
+        TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
+
+        orchestrator.evaluate_execution_progress(self._get_uuid(args))
 
     def _get_uuid(self, _list):
         for el in _list:

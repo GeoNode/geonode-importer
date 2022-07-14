@@ -22,7 +22,6 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_PUBLISHING_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 from importer.utils import error_handler
-from geonode.settings import CASCADE_WORKSPACE
 
 logger = logging.getLogger(__name__)
 

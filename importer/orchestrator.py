@@ -146,9 +146,10 @@ class ImportOrchestrator:
         We use that to filter out all the task execution that are still in progress.
         if any is failed, we raise it.
         '''
-        exec_id = execution_id.replace('-', '_').lower()
+        lower_exec_id = execution_id.replace('-', '_').lower()
         exec_result = TaskResult.objects.filter(
-            Q(task_args__icontains=exec_id) | Q(task_kwargs__icontains=exec_id) | Q(result__icontains=exec_id)
+            Q(task_args__icontains=lower_exec_id) | Q(task_kwargs__icontains=lower_exec_id) | Q(result__icontains=lower_exec_id)
+            | Q(task_args__icontains=execution_id) | Q(task_kwargs__icontains=execution_id) | Q(result__icontains=execution_id)
         )
         
         if exec_result.exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE)).exists():
@@ -156,7 +157,7 @@ class ImportOrchestrator:
             return
         elif exec_result.filter(status=states.FAILURE).exists():
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
-            _log_message = f"For the execution ID {exec_id} The following celery task are failed: {failed}"
+            _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
             raise ImportException(_log_message)
         else:

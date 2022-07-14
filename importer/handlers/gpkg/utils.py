@@ -1,3 +1,7 @@
+from dynamic_models.schema import ModelSchemaEditor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 STANDARD_TYPE_MAPPING = {
@@ -17,3 +21,17 @@ GEOM_TYPE_MAPPING = {
     "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
     "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
 }
+
+
+def drop_dynamic_model_schema(schema_model):
+    if schema_model:
+        schema = ModelSchemaEditor(
+            initial_model=schema_model.name,
+            db_name="datastore"
+        )
+        try:
+            schema.drop_table(schema_model.as_model())
+        except Exception as e:
+            logger.warning(e.args[0])
+
+        schema_model.delete()
