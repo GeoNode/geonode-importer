@@ -17,6 +17,7 @@
 #
 #########################################################################
 import logging
+import pathlib
 
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
@@ -30,13 +31,16 @@ from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
-from importer.views import run_dataset_import
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from geonode.upload.utils import UploadLimitValidator
+#from importer.type_registry import SupportedTypeRegistry
+from importer.celery_tasks import import_orchestrator
+from importer.orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +63,7 @@ class ImporterViewSet(DynamicModelViewSet):
     http_method_names = ['get', 'post']
 
     def create(self, request, *args, **kwargs):
+
         '''
         Main function called by the new import flow.
         It received the file via the front end
@@ -67,26 +72,56 @@ class ImporterViewSet(DynamicModelViewSet):
         It clone on the local repo the file that the user want to upload
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
-        if _file and _file.name.endswith('gpkg'):
-            #go through the new import flow
-            data = self.serializer_class(data=request.data)
-            # data validation
-            data.is_valid(raise_exception=True)
-            # cloning data into a local folder
-            storage_manager = StorageManager(remote_files={"base_file": request.data.get('base_file')})
-            storage_manager.clone_remote_files()
-            # get filepath
-            files = storage_manager.get_retrieved_paths()
+
+        data = self.serializer_class(data=request.data)
+        # serializer data validation
+        data.is_valid(raise_exception=True)
+        _data = {**data.data.copy(), **{"base_file": request.data.get('base_file')}}
+
+        handler = orchestrator.get_handler(_data)
+
+        if _file and handler:
+
             try:
-                run_dataset_import.apply_async(
-                    (files, data.data.get("store_spatial_files"))
+                extracted_params, _data = handler.extract_params_from_data(_data)
+                storage_manager = StorageManager(remote_files=_data)
+                # cloning data into a local folder
+                storage_manager.clone_remote_files()
+                # get filepath
+                files = storage_manager.get_retrieved_paths()
+
+                upload_validator = UploadLimitValidator(request.user)
+                upload_validator.validate_parallelism_limit_per_user()
+                upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
+
+                execution_id = orchestrator.create_execution_request(
+                    user=request.user,
+                    func_name=next(iter(handler.TASKS_LIST)),
+                    step=next(iter(handler.TASKS_LIST)),
+                    input_params={**{
+                            "files": files,
+                            "handler_module_path": str(handler)
+                        },
+                        **extracted_params
+                    },
+                    legacy_upload_name=_file.name
                 )
-                return Response(status=201)
+
+                sig = import_orchestrator.s(
+                        files,
+                        str(execution_id),
+                        handler=str(handler)
+                )
+                sig.apply_async()
+                return Response(data={"execution_id": execution_id}, status=201)
             except Exception as e:
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control
                 storage_manager.delete_retrieved_paths(force=True)
-                raise ImportException(detail=e.args[0])
+                if execution_id:
+                    orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
+                logger.exception(e)
+                raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True
