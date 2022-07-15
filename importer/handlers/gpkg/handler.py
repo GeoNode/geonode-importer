@@ -236,13 +236,6 @@ class GPKGFileHandler(BaseHandler):
             we just take the dynamic_model to override the existing one
             '''
             dynamic_schema = dynamic_schema.get()
-        elif not dataset_exists and not dynamic_schema_exists and should_be_overrided:
-            '''
-            If the user doesnt have any dataset or foi schema associated and the user is tring to override
-            we raise an error
-            '''
-            logger.error("The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
-            raise InvalidGeopackageException(detail="The user is trying to override a dataset that doesnt belongs to it. Please fix the geopackage and try")
         elif (
                 dataset_exists and not dynamic_schema_exists
             ) or (
