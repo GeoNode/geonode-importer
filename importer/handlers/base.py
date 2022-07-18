@@ -86,3 +86,10 @@ class BaseHandler(ABC):
         Function (if needed) to publish the resource into GeoServer
         '''
         return NotImplementedError
+
+    def create_gn_resource(self, layer_name, alternate, execution_id):
+        '''
+        Base function to create the resource into geonode. Each handler can specify
+        and handle the resource in a different way
+        '''
+        return NotImplementedError

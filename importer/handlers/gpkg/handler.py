@@ -1,29 +1,34 @@
+import hashlib
 import logging
+import os
 from subprocess import PIPE, Popen
 
 from celery import chord, group
 from django.conf import settings
 from django.utils import timezone
-from dynamic_models.exceptions import InvalidFieldNameError, DynamicModelError
+from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from dynamic_models.models import FieldSchema, ModelSchema
-from geonode.resource.models import ExecutionRequest
+from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
+from geonode.resource.manager import resource_manager
+from geonode.resource.models import ExecutionRequest
+from geonode.services.serviceprocessors.base import \
+    get_geoserver_cascading_workspace
+from geonode.upload.api.exceptions import UploadParallelismLimitException
+from geonode.upload.utils import UploadLimitValidator
+from geopackage_validator.validate import validate
+from pyparsing import Optional
+from importer.celery_app import importer_app
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
-                                          STANDARD_TYPE_MAPPING, drop_dynamic_model_schema)
+                                          STANDARD_TYPE_MAPPING,
+                                          drop_dynamic_model_schema)
 from importer.handlers.utils import should_be_imported
-from geopackage_validator.validate import validate
-from geonode.upload.utils import UploadLimitValidator
 from osgeo import ogr
-from geonode.services.serviceprocessors.base import \
-    get_geoserver_cascading_workspace
 
 logger = logging.getLogger(__name__)
-from importer.celery_app import importer_app
-from geonode.upload.api.exceptions import UploadParallelismLimitException
-import hashlib
 
 
 class GPKGFileHandler(BaseHandler):
@@ -305,12 +310,72 @@ class GPKGFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
+    def create_gn_resource(self, layer_name: str, alternate: str, execution_id: str) -> Optional:
+        '''
+        Base function to create the resource into geonode. Each handler can specify
+        and handle the resource in a different way
+        '''
+        saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
+
+        _exec = self._get_execution_request_object(execution_id)
+
+        workspace = getattr(settings, "DEFAULT_WORKSPACE", getattr(settings, "CASCADE_WORKSPACE", "geonode"))
+            # if the layer exists, we just update the information of the dataset by
+            # let it recreate the catalogue
+        if saved_dataset.exists():
+            saved_dataset = saved_dataset.first()
+        else:
+                # if it not exists, we create it from scratch
+            if not saved_dataset.exists() and _exec.input_params.get("override_existing_layer", False):
+                logger.warning(f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created")
+            saved_dataset = resource_manager.create(
+                    None,
+                    resource_type=Dataset,
+                    defaults=dict(
+                        name=alternate,
+                        workspace=workspace,
+                        store=os.environ.get('GEONODE_GEODATABASE', 'geonode_data'),
+                        subtype='vector',
+                        alternate=f'{workspace}:{alternate}',
+                        dirty_state=True,
+                        title=layer_name,
+                        owner=_exec.user,
+                        files=_exec.input_params.get("files", {}),
+                    )
+                )
+
+        if _exec.input_params.get("metadata_uploaded", False):
+            resource_manager.update(None,
+                    instance=saved_dataset,
+                    xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
+                    metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
+                    vals={"dirty_state": True}
+                )
+
+        resource_manager.exec(
+                'set_style',
+                None,
+                instance=saved_dataset,
+                sld_uploaded=_exec.input_params.get("sld_uploaded", False),
+                sld_file=_exec.input_params.get("files", {}).get("xml_file", ""),
+                vals={"dirty_state": True}
+            )
+
+        resource_manager.set_thumbnail(None, instance=saved_dataset)
+
+        ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
+
+
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
 
     def _create_alternate(self, layer_name, execution_id):
+        '''
+        Utility to generate the expected alternate for the resource
+        is alternate = layer_name_ + md5(layer_name + uuid)
+        '''
         _hash = hashlib.md5(
             f"{layer_name}_{execution_id}".encode('utf-8')
         ).hexdigest()
