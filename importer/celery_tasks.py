@@ -158,7 +158,7 @@ def import_resource(self, execution_id, /, handler_module_path):
     base=ErrorBaseTaskClass,    
     name="importer.publish_resource",
     queue="importer.publish_resource",
-    max_retries=1,
+    max_retries=3,
     rate_limit=IMPORTER_PUBLISHING_RATE_LIMIT,
     ignore_result=False,
     task_track_started=True
@@ -201,6 +201,7 @@ def publish_resource(
         # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
         if not _overwrite:
             _publisher = DataPublisher(handler_module_path)
+
             # extracting the crs and the resource name, are needed for publish the resource
             _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate)
             if _metadata:

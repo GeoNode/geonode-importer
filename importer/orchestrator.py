@@ -151,16 +151,17 @@ class ImportOrchestrator:
             Q(task_args__icontains=lower_exec_id) | Q(task_kwargs__icontains=lower_exec_id) | Q(result__icontains=lower_exec_id)
             | Q(task_args__icontains=execution_id) | Q(task_kwargs__icontains=execution_id) | Q(result__icontains=execution_id)
         )
-        
-        if exec_result.exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE)).exists():
-            logger.info(f"Execution progress is not finished yet, continuing")
+        # .all() is needed since we want to have the last status on the DB without take in consideration the cache
+        if exec_result.all().exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE)).exists():
+            logger.info(f"Execution progress with id {execution_id} is not finished yet, continuing")
             return
-        elif exec_result.filter(status=states.FAILURE).exists():
+        elif exec_result.all().filter(status=states.FAILURE).exists():
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
             raise ImportException(_log_message)
         else:
+            logger.info(f"Execution with ID {execution_id} is completed. All tasks are done")
             self.set_as_completed(execution_id)
 
 
