@@ -17,7 +17,6 @@
 #
 #########################################################################
 import logging
-import pathlib
 
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
@@ -38,7 +37,6 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.upload.utils import UploadLimitValidator
-#from importer.type_registry import SupportedTypeRegistry
 from importer.celery_tasks import import_orchestrator
 from importer.orchestrator import orchestrator
 

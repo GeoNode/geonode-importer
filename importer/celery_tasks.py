@@ -4,11 +4,8 @@ from typing import Optional
 from uuid import UUID
 
 from celery import Task
-from django.conf import settings
 from django.utils import timezone
-from geonode.base.models import ResourceBase
-from geonode.layers.models import Dataset
-from geonode.resource.manager import resource_manager
+from django.utils.module_loading import import_string
 
 from importer.api.exception import (InvalidInputFileException,
                                     PublishResourceException,
@@ -276,64 +273,13 @@ def create_gn_resource(
 
         _files = _exec.input_params.get("files")
 
-        metadata_uploaded = _files.get("xml_file", "") or False
-        sld_uploaded = _files.get("sld_file", "") or False
-        _user = _exec.user
+        hander = import_string(handler_module_path)()
 
-        orchestrator.update_execution_request_status(
-            execution_id=execution_id,
-            last_updated=timezone.now(),
-            log=f"Creating GN dataset for resource: {alternate}",
-            celery_task_request=self.request
+        hander.create_gn_resource(
+            layer_name=layer_name,
+            alternate=alternate, 
+            execution_id=execution_id
         )
-    
-        saved_dataset = Dataset.objects.filter(alternate__icontains=alternate)
-
-        workspace = getattr(settings, "DEFAULT_WORKSPACE", getattr(settings, "CASCADE_WORKSPACE", "geonode"))
-        # if the layer exists, we just update the information of the dataset by
-        # let it recreate the catalogue
-        if saved_dataset.exists():
-            saved_dataset = saved_dataset.first()
-        else:
-            # if it not exists, we create it from scratch
-            if not saved_dataset.exists() and _exec.input_params.get("override_existing_layer", False):
-                logger.warning(f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created")
-            saved_dataset = resource_manager.create(
-                None,
-                resource_type=Dataset,
-                defaults=dict(
-                    name=alternate,
-                    workspace=workspace,
-                    store=os.environ.get('GEONODE_GEODATABASE', 'geonode_data'),
-                    subtype='vector',
-                    alternate=f'{workspace}:{alternate}',
-                    dirty_state=True,
-                    title=layer_name,
-                    owner=_user,
-                    files=_files,
-                )
-            )
-
-        if metadata_uploaded:
-            resource_manager.update(None,
-                instance=saved_dataset,
-                xml_file=_files.get("xml_file", ""),
-                metadata_uploaded=metadata_uploaded,
-                vals={"dirty_state": True}
-            )
-
-        resource_manager.exec(
-            'set_style',
-            None,
-            instance=saved_dataset,
-            sld_uploaded=sld_uploaded,
-            sld_file=_files.get("sld_file", None),
-            vals={"dirty_state": True}
-        )
-
-        resource_manager.set_thumbnail(None, instance=saved_dataset)
-
-        ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
