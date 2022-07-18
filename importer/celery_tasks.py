@@ -321,15 +321,15 @@ def create_gn_resource(
                 metadata_uploaded=metadata_uploaded,
                 vals={"dirty_state": True}
             )
-        if sld_uploaded:
-            resource_manager.exec(
-                'set_style',
-                None,
-                instance=saved_dataset,
-                sld_uploaded=sld_uploaded,
-                sld_file=_files.get("sld_file", ""),
-                vals={"dirty_state": True}
-            )
+
+        resource_manager.exec(
+            'set_style',
+            None,
+            instance=saved_dataset,
+            sld_uploaded=sld_uploaded,
+            sld_file=_files.get("sld_file", None),
+            vals={"dirty_state": True}
+        )
 
         resource_manager.set_thumbnail(None, instance=saved_dataset)
 
