@@ -151,7 +151,7 @@ class ImportOrchestrator:
             Q(task_args__icontains=lower_exec_id) | Q(task_kwargs__icontains=lower_exec_id) | Q(result__icontains=lower_exec_id)
             | Q(task_args__icontains=execution_id) | Q(task_kwargs__icontains=execution_id) | Q(result__icontains=execution_id)
         )
-
+        # .all() is needed since we want to have the last status on the DB without take in consideration the cache
         if exec_result.all().exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE)).exists():
             logger.info(f"Execution progress with id {execution_id} is not finished yet, continuing")
             return
