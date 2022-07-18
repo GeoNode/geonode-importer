@@ -72,7 +72,7 @@ class ImporterViewSet(DynamicModelViewSet):
         It clone on the local repo the file that the user want to upload
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
-
+        execution_id = None
         data = self.serializer_class(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
