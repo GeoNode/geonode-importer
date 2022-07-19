@@ -310,7 +310,7 @@ class GPKGFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
-    def create_gn_resource(self, layer_name: str, alternate: str, execution_id: str) -> Optional:
+    def create_gn_resource(self, layer_name: str, alternate: str, execution_id: str) -> ResourceBase:
         '''
         Base function to create the resource into geonode. Each handler can specify
         and handle the resource in a different way
@@ -365,6 +365,8 @@ class GPKGFileHandler(BaseHandler):
 
         ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
 
+        saved_dataset.refresh_from_db()
+        return saved_dataset
 
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(

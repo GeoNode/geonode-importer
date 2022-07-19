@@ -13,6 +13,7 @@ from importer.api.exception import (InvalidInputFileException,
                                     StartImportException)
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
+from importer.models import ResourceHandler
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
@@ -275,12 +276,16 @@ def create_gn_resource(
 
         hander = import_string(handler_module_path)()
 
-        hander.create_gn_resource(
+        resource = hander.create_gn_resource(
             layer_name=layer_name,
             alternate=alternate, 
             execution_id=execution_id
         )
 
+        ResourceHandler.objects.create(
+            module_path=handler_module_path,
+            resource=resource
+        )
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
