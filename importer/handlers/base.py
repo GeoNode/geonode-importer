@@ -1,6 +1,7 @@
 from abc import ABC
 import logging
 from typing import List
+from geonode.base.models import ResourceBase
 
 logger = logging.getLogger(__name__)
 
@@ -91,5 +92,12 @@ class BaseHandler(ABC):
         '''
         Base function to create the resource into geonode. Each handler can specify
         and handle the resource in a different way
+        '''
+        return NotImplementedError
+
+    def clone(self, resource: ResourceBase) -> str:
+        '''
+        Logic to clone a resource. For the GPKG is needed because we have the dynamic_model
+        to be cloned/copy too
         '''
         return NotImplementedError

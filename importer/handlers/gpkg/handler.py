@@ -19,11 +19,12 @@ from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
 from pyparsing import Optional
 from importer.celery_app import importer_app
+from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
-                                          STANDARD_TYPE_MAPPING,
+                                          STANDARD_TYPE_MAPPING, create_alternate,
                                           drop_dynamic_model_schema)
 from importer.handlers.utils import should_be_imported
 from osgeo import ogr
@@ -265,7 +266,7 @@ class GPKGFileHandler(BaseHandler):
             it comes here when the layer should not be overrided so we append the UUID
             to the layer to let it proceed to the next steps
             '''
-            layer_name = self._create_alternate(layer_name, execution_id)
+            layer_name = create_alternate(layer_name, execution_id)
             dynamic_schema, _ = ModelSchema.objects.get_or_create(
                 name=layer_name,
                 db_name="datastore",
@@ -340,7 +341,7 @@ class GPKGFileHandler(BaseHandler):
                         dirty_state=True,
                         title=layer_name,
                         owner=_exec.user,
-                        files=_exec.input_params.get("files", {}),
+                        files=list(_exec.input_params.get("files", {}).values()),
                     )
                 )
 
@@ -368,23 +369,19 @@ class GPKGFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
+    @staticmethod
+    def clone(resource: ResourceBase, execution_id: str) -> str:
+        '''
+        Logic to clone a resource. For the GPKG is needed because we have the dynamic_model
+        to be cloned/copy too
+        '''
+        clone = clone_resource.s(resource.pk, execution_id)
+        clone.apply_async()
+
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
-
-    def _create_alternate(self, layer_name, execution_id):
-        '''
-        Utility to generate the expected alternate for the resource
-        is alternate = layer_name_ + md5(layer_name + uuid)
-        '''
-        _hash = hashlib.md5(
-            f"{layer_name}_{execution_id}".encode('utf-8')
-        ).hexdigest()
-        alternate = f"{layer_name}_{_hash}"
-        if len(alternate) >= 64: # 64 is the max table lengh in postgres
-            return f"{layer_name[:50]}{_hash[:14]}"
-        return alternate
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
@@ -525,3 +522,55 @@ def error_callback(*args, **kwargs):
     drop_dynamic_model_schema(schema_model)
 
     return 'error'
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.gpkg_clone_resource",
+    queue="importer.gpkg_clone_resource",
+    task_track_started=True
+)
+def clone_resource(resource_id, execution_id):
+    '''
+    If the ingestion of the resource is successfuly, the next step for the layer is called
+    '''
+    from importer.celery_tasks import orchestrator
+
+    _exec = orchestrator.get_execution_object(execution_id)
+
+    resource = ResourceBase.objects.filter(pk=resource_id)
+    if not resource.exists():
+        raise Exception("The resource requested does not exists")
+    resource = resource.first()
+
+    workspace = get_geoserver_cascading_workspace(create=False)
+
+    new_alternate = create_alternate(resource.title, execution_id)
+
+    resource_manager.copy(
+        resource,
+        owner=resource.owner,
+        defaults={"alternate": f'{workspace.name}:{new_alternate}'},
+        use_concrete_manager=False
+    )
+
+    dynamic_schema = ModelSchema.objects.filter(name=resource.alternate.split(':')[1])
+    if dynamic_schema.exists():
+        # Creating the dynamic schema object
+        new_schema = dynamic_schema.first()
+        new_schema.name = new_alternate
+        new_schema.pk = None
+        new_schema.save()
+        # create the field_schema object
+        fields = []
+        for field in dynamic_schema.first().fields.all():
+            obj = field
+            obj.model_schema=new_schema
+            obj.pk = None
+            fields.append(obj)
+
+        FieldSchema.objects.bulk_create(fields)
+
+    else:
+        #get the value from the DB and create the schema
+        pass
+

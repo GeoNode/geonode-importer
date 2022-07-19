@@ -17,28 +17,37 @@
 #
 #########################################################################
 import logging
+from urllib.parse import urljoin
+from django.conf import settings
+from django.urls import reverse
 
+from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
-from geonode.base.api.filters import DynamicSearchFilter
+from geonode.base.api.filters import (DynamicSearchFilter, ExtentFilter,
+                                      FavoriteFilter)
 from geonode.base.api.pagination import GeoNodeApiPagination
-from geonode.base.api.permissions import IsOwnerOrReadOnly
+from geonode.base.api.permissions import (IsOwnerOrReadOnly,
+                                          ResourceBasePermissionsFilter)
+from geonode.base.api.serializers import ResourceBaseSerializer
+from geonode.base.api.views import ResourceBaseViewSet
+from geonode.base.models import ResourceBase
 from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
 from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
+from geonode.upload.utils import UploadLimitValidator
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
+from importer.celery_tasks import import_orchestrator
+from importer.orchestrator import orchestrator, no_legacy_orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from geonode.upload.utils import UploadLimitValidator
-from importer.celery_tasks import import_orchestrator
-from importer.orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -124,3 +133,53 @@ class ImporterViewSet(DynamicModelViewSet):
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True
         return UploadViewSet().upload(request)
+
+
+class ImporterResource(DynamicModelViewSet):
+
+    authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    filter_backends = [
+        DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
+        ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter
+    ]
+    queryset = ResourceBase.objects.all().order_by('-last_updated')
+    serializer_class = ResourceBaseSerializer
+    pagination_class = GeoNodeApiPagination
+
+    def copy(self, request, *args, **kwargs):
+        resource = self.get_object()
+        if resource.resourcehandler_set.exists():
+            handler_module_path = resource.resourcehandler_set.first().module_path
+
+            execution_id = no_legacy_orchestrator.create_execution_request(
+                    user=request.user,
+                    func_name="importer_copy",
+                    step="importer_copy",
+                    input_params={"handler_module_path": handler_module_path},
+                )
+
+            handler = import_string(handler_module_path)
+
+            # follow the handler flow    
+            handler.clone(resource=resource, execution_id=execution_id)
+
+            # to reduce the work on the FE, the old payload is mantained 
+            return Response(
+                data={
+                    "status": "ready",
+                    "execution_id": execution_id,
+                    "status_url": urljoin(
+                            settings.SITEURL,
+                            reverse('rs-execution-status', kwargs={'execution_id': execution_id})
+                        )
+                },
+                status=200
+            )
+
+        return ResourceBaseViewSet(
+            request=request,
+            format_kwarg=None,
+            args=args,
+            kwargs=kwargs
+        ).resource_service_copy(request, pk=kwargs.get("pk"))

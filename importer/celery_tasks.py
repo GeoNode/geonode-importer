@@ -101,7 +101,7 @@ def import_orchestrator(
     base=ErrorBaseTaskClass,    
     name="importer.import_resource",
     queue="importer.import_resource",
-    max_retries=2,
+    max_retries=1,
     rate_limit=IMPORTER_GLOBAL_RATE_LIMIT,
     ignore_result=False,
     task_track_started=True

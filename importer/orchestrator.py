@@ -220,3 +220,4 @@ class ImportOrchestrator:
                 .update(task_args=celery_task_request.args)
 
 orchestrator = ImportOrchestrator()
+no_legacy_orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
