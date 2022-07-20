@@ -14,11 +14,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='ResourceHandler',
+            name='ResourceHandlerInfo',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('module_path', models.CharField(max_length=250)),
+                ('handler_module_path', models.CharField(max_length=250)),
                 ('resource', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='base.resourcebase')),
             ],
-        ),
+        )
     ]
