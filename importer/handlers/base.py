@@ -50,7 +50,7 @@ class BaseHandler(ABC):
     @classmethod
     def get_task_list(cls, action) -> tuple:
         if action not in cls.ACTIONS:
-            raise Exception("THe requirest action is not implemented yet")
+            raise Exception("The requested action is not implemented yet")
         return cls.ACTIONS.get(action)
 
     @staticmethod
