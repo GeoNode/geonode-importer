@@ -63,7 +63,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None
+    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action="import"
 ):
 
     '''
@@ -84,12 +84,13 @@ def import_orchestrator(
     try:
        # extract the resource_type of the layer and retrieve the expected handler
 
-        orchestrator.perform_next_import_step(
+        orchestrator.perform_next_step(
             execution_id=execution_id,
             step=step,
             layer_name=layer_name,
             alternate=alternate,
-            handler_module_path=handler
+            handler_module_path=handler,
+            action=action
         )
 
     except Exception as e:
@@ -106,7 +107,7 @@ def import_orchestrator(
     ignore_result=False,
     task_track_started=True
 )
-def import_resource(self, execution_id, /, handler_module_path):  
+def import_resource(self, execution_id, /, handler_module_path, action):  
     '''
     Task to import the resources.
     NOTE: A validation if done before acutally start the import
@@ -168,7 +169,8 @@ def publish_resource(
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
-    handler_module_path: str = None
+    handler_module_path: str = None,
+    action: str = None
 ):
     '''
     Task to publish a single resource in geoserver.
@@ -220,7 +222,7 @@ def publish_resource(
         # at the end recall the import_orchestrator for the next step
 
         import_orchestrator.apply_async(
-            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate, action)
         )
         return self.name, execution_id
 
@@ -245,7 +247,8 @@ def create_geonode_resource(
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
-    handler_module_path: str = None
+    handler_module_path: str = None,
+    action: str = None
 ):
     '''
     Create the GeoNode resource and the relatives information associated
@@ -288,7 +291,7 @@ def create_geonode_resource(
         )
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate, action)
         )
         return self.name, execution_id
 

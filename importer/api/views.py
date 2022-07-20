@@ -41,7 +41,7 @@ from geonode.upload.utils import UploadLimitValidator
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import import_orchestrator
-from importer.orchestrator import orchestrator, no_legacy_orchestrator
+from importer.orchestrator import ImportOrchestrator, orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -101,10 +101,12 @@ class ImporterViewSet(DynamicModelViewSet):
                 upload_validator.validate_parallelism_limit_per_user()
                 upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
 
+                action = "import"
+
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
-                    func_name=next(iter(handler.TASKS_LIST)),
-                    step=next(iter(handler.TASKS_LIST)),
+                    func_name=next(iter(handler.get_task_list(action=action))),
+                    step=next(iter(handler.get_task_list(action=action))),
                     input_params={**{
                             "files": files,
                             "handler_module_path": str(handler)
@@ -117,7 +119,8 @@ class ImporterViewSet(DynamicModelViewSet):
                 sig = import_orchestrator.s(
                         files,
                         str(execution_id),
-                        handler=str(handler)
+                        handler=str(handler),
+                        action=action
                 )
                 sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
@@ -150,7 +153,9 @@ class ImporterResource(DynamicModelViewSet):
     def copy(self, request, *args, **kwargs):
         resource = self.get_object()
         if resource.resourcehandler_set.exists():
-            handler_module_path = resource.resourcehandler_set.first().module_path
+            no_legacy_orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
+
+            handler_module_path = resource.resourcehandler_set.first().handler_module_path
 
             execution_id = no_legacy_orchestrator.create_execution_request(
                     user=request.user,

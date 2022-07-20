@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import os
 from subprocess import PIPE, Popen
@@ -17,7 +16,6 @@ from geonode.services.serviceprocessors.base import \
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
-from pyparsing import Optional
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
@@ -37,13 +35,22 @@ class GPKGFileHandler(BaseHandler):
     Handler to import GPK files into GeoNode data db
     It must provide the task_lists required to comple the upload
     '''
-    TASKS_LIST = (
-        "start_import",
-        "importer.import_resource",
-        "importer.publish_resource",
-        "importer.create_geonode_resource",
-        # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
-    )
+
+    ACTIONS = {
+        "import": (
+            "start_import",
+            "importer.import_resource",
+            "importer.publish_resource",
+            "importer.create_geonode_resource"
+        ),
+        "clone": (
+            "start_cloning",
+            "importer.clone_geonode_resource",
+            "importer.clone_dynamic_model",
+            "importer.clone_geonode_data_table"
+        ),
+    }
+
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -509,7 +516,7 @@ def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str,
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate)
+        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, "import")
     )
     return "gpkg_next_step", alternate, execution_id
 

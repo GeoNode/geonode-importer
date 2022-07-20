@@ -18,6 +18,13 @@ class BaseHandler(ABC):
 
     REGISTRY = []
 
+    ACTIONS = {
+        "import": (),
+        "clone": (),
+        "delete": (),
+        "update": (),
+    }
+
     def __str__(self):
         return f"{self.__module__}.{self.__class__.__name__}"
 
@@ -39,6 +46,12 @@ class BaseHandler(ABC):
         the handler is able to handle the file or not
         '''
         return False
+    
+    @classmethod
+    def get_task_list(cls, action) -> tuple:
+        if action not in cls.ACTIONS:
+            raise Exception("THe requirest action is not implemented yet")
+        return cls.ACTIONS.get(action)
 
     @staticmethod
     def is_valid(files, user):

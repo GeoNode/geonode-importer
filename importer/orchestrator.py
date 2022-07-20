@@ -55,7 +55,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req.first()
 
-    def perform_next_import_step(self, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None) -> None:
+    def perform_next_step(self, execution_id: str, action: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -68,7 +68,7 @@ class ImportOrchestrator:
                 step = _exec_obj.step
 
             # retrieve the task list for the resource_type
-            tasks = import_string(handler_module_path).TASKS_LIST
+            tasks = import_string(handler_module_path).get_task_list(action=action)
             # getting the index
             _index = tasks.index(step) + 1
             # finding in the task_list the last step done
@@ -82,7 +82,7 @@ class ImportOrchestrator:
             # calling the next step for the resource
 
             # defining the tasks parameter for the step
-            task_params = (str(execution_id), handler_module_path)
+            task_params = (str(execution_id), handler_module_path, action)
             logger.info(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
@@ -99,7 +99,8 @@ class ImportOrchestrator:
                         next_step,
                         layer_name,
                         alternate,
-                        handler_module_path
+                        handler_module_path,
+                        action
                     )
 
             # continuing to the next step
@@ -220,4 +221,3 @@ class ImportOrchestrator:
                 .update(task_args=celery_task_request.args)
 
 orchestrator = ImportOrchestrator()
-no_legacy_orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
