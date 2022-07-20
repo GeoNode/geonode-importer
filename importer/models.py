@@ -27,10 +27,10 @@ def delete_dynamic_model(instance, sender, **kwargs):
         logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
 
 
-class ResourceHandler(models.Model):
+class ResourceHandlerInfo(models.Model):
 
     """
     Here we save the relation between the geonode resource created and the handler that created that resource
     """
     resource = models.ForeignKey(ResourceBase, blank=False, null=False, on_delete=models.CASCADE)
-    module_path = models.CharField(max_length=250, blank=False, null=False)
+    handler_module_path = models.CharField(max_length=250, blank=False, null=False)

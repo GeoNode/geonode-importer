@@ -40,7 +40,7 @@ class GPKGFileHandler(BaseHandler):
         "start_import",
         "importer.import_resource",
         "importer.publish_resource",
-        "importer.create_gn_resource",
+        "importer.create_geonode_resource",
         # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
     )
 
@@ -310,7 +310,7 @@ class GPKGFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
-    def create_gn_resource(self, layer_name: str, alternate: str, execution_id: str) -> ResourceBase:
+    def create_geonode_resource(self, layer_name: str, alternate: str, execution_id: str) -> ResourceBase:
         '''
         Base function to create the resource into geonode. Each handler can specify
         and handle the resource in a different way
