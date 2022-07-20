@@ -16,7 +16,7 @@ CELERY_TASK_QUEUES += (
     Queue('importer.import_orchestrator', GEONODE_EXCHANGE, routing_key='importer.import_orchestrator'),
     Queue('importer.import_resource', GEONODE_EXCHANGE, routing_key='importer.import_resource', max_priority=8),
     Queue('importer.publish_resource', GEONODE_EXCHANGE, routing_key='importer.publish_resource', max_priority=8),
-    Queue('importer.create_gn_resource', GEONODE_EXCHANGE, routing_key='importer.create_gn_resource', max_priority=8),
+    Queue('importer.create_geonode_resource', GEONODE_EXCHANGE, routing_key='importer.create_geonode_resource', max_priority=8),
     Queue('importer.gpkg_ogr2ogr', GEONODE_EXCHANGE, routing_key='importer.gpkg_ogr2ogr', max_priority=10),
     Queue('importer.gpkg_next_step', GEONODE_EXCHANGE, routing_key='importer.gpkg_next_step', max_priority=3),
     Queue('importer.gpkg_handler', GEONODE_EXCHANGE, routing_key='importer.gpkg_handler', max_priority=10),
