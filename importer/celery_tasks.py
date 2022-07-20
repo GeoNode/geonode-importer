@@ -283,7 +283,7 @@ def create_geonode_resource(
         )
 
         ResourceHandlerInfo.objects.create(
-            module_path=handler_module_path,
+            handler_module_path=handler_module_path,
             resource=resource
         )
         # at the end recall the import_orchestrator for the next step
