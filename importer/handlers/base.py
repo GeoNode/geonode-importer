@@ -88,7 +88,7 @@ class BaseHandler(ABC):
         '''
         return NotImplementedError
 
-    def create_gn_resource(self, layer_name, alternate, execution_id):
+    def create_geonode_resource(self, layer_name, alternate, execution_id):
         '''
         Base function to create the resource into geonode. Each handler can specify
         and handle the resource in a different way

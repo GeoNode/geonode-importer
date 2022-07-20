@@ -37,7 +37,7 @@ class TestGPKGHandler(TestCase):
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_gn_resource"
+            "importer.create_geonode_resource"
         )
         self.assertEqual(len(self.handler.TASKS_LIST), 4)
         self.assertTupleEqual(expected, self.handler.TASKS_LIST)

@@ -13,7 +13,7 @@ from importer.api.exception import (InvalidInputFileException,
                                     StartImportException)
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
-from importer.models import ResourceHandler
+from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
@@ -231,14 +231,14 @@ def publish_resource(
 @importer_app.task(
     bind=True,
     base=ErrorBaseTaskClass,
-    name="importer.create_gn_resource",
-    queue="importer.create_gn_resource",
+    name="importer.create_geonode_resource",
+    queue="importer.create_geonode_resource",
     max_retries=1,
     rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
     ignore_result=False,
     task_track_started=True
 )
-def create_gn_resource(
+def create_geonode_resource(
     self,
     execution_id: str,
     /,
@@ -266,8 +266,8 @@ def create_gn_resource(
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
             last_updated=timezone.now(),
-            func_name="create_gn_resource",
-            step="importer.create_gn_resource",
+            func_name="create_geonode_resource",
+            step="importer.create_geonode_resource",
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -276,14 +276,14 @@ def create_gn_resource(
 
         hander = import_string(handler_module_path)()
 
-        resource = hander.create_gn_resource(
+        resource = hander.create_geonode_resource(
             layer_name=layer_name,
             alternate=alternate, 
             execution_id=execution_id
         )
 
-        ResourceHandler.objects.create(
-            module_path=handler_module_path,
+        ResourceHandlerInfo.objects.create(
+            handler_module_path=handler_module_path,
             resource=resource
         )
         # at the end recall the import_orchestrator for the next step

@@ -107,7 +107,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _id = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name=next(iter(handler.TASKS_LIST)),
-            step="importer.create_gn_resource",  # adding the first step for the GPKG file
+            step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
                 "store_spatial_files": True,
@@ -145,7 +145,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _uuid = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="name",
-            step="importer.create_gn_resource",  # adding the first step for the GPKG file
+            step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
                 "store_spatial_files": True,
@@ -173,7 +173,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _uuid = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="name",
-            step="importer.create_gn_resource",  # adding the first step for the GPKG file
+            step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
                 "store_spatial_files": True,
@@ -200,7 +200,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _uuid = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="name",
-            step="importer.create_gn_resource",  # adding the first step for the GPKG file
+            step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
                 "store_spatial_files": True,

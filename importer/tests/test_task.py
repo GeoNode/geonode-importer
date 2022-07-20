@@ -3,7 +3,7 @@ from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import InvalidInputFileException, PublishResourceException
 
-from importer.celery_tasks import create_gn_resource, import_orchestrator, import_resource, orchestrator, publish_resource
+from importer.celery_tasks import create_geonode_resource, import_orchestrator, import_resource, orchestrator, publish_resource
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
 # Create your tests here.
@@ -235,7 +235,7 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
                 ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
-    def test_create_gn_resource(self, import_orchestrator):
+    def test_create_geonode_resource(self, import_orchestrator):
         try:
             user = get_user_model().objects.first()
 
@@ -253,10 +253,10 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
             alternate = "geonode:alternate_foo_dataset"
             self.assertFalse(Dataset.objects.filter(alternate=alternate).exists())
 
-            create_gn_resource(
+            create_geonode_resource(
                 str(exec_id),
                 resource_type='gpkg',
-                step_name="create_gn_resource",
+                step_name="create_geonode_resource",
                 layer_name="foo_dataset",
                 alternate="alternate_foo_dataset"
             )
@@ -264,7 +264,7 @@ class TestCeleryTasks(GeoNodeBaseTestSupport):
 
             # Evaluation
             req = ExecutionRequest.objects.get(exec_id=str(exec_id))
-            self.assertEqual('importer.create_gn_resource', req.step)            
+            self.assertEqual('importer.create_geonode_resource', req.step)            
 
             self.assertTrue(Dataset.objects.filter(alternate=alternate).exists())
 
