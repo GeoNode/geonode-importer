@@ -45,6 +45,9 @@ class ImportOrchestrator:
         logger.error("Handler not found, fallback on the legacy upload system")
         return None
 
+    def load_handler(self, module_path):
+        return import_string(module_path)
+
     def get_execution_object(self, exec_id):
         '''
         Returns the ExecutionRequest object with the detail about the 
@@ -55,7 +58,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req.first()
 
-    def perform_next_step(self, execution_id: str, action: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None) -> None:
+    def perform_next_step(self, execution_id: str, action: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None, **kwargs) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -68,7 +71,7 @@ class ImportOrchestrator:
                 step = _exec_obj.step
 
             # retrieve the task list for the resource_type
-            tasks = import_string(handler_module_path).get_task_list(action=action)
+            tasks = self.load_handler(handler_module_path).get_task_list(action=action)
             # getting the index
             _index = tasks.index(step) + 1
             # finding in the task_list the last step done
@@ -104,7 +107,7 @@ class ImportOrchestrator:
                     )
 
             # continuing to the next step
-            importer_app.tasks.get(next_step).apply_async(task_params)
+            importer_app.tasks.get(next_step).apply_async(task_params, kwargs)
             return execution_id
 
         except StopIteration:

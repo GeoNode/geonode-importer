@@ -1,11 +1,17 @@
 from geonode.resource.manager import ResourceManager
-from geonode.geoserver.manager import ResourceManagerInterface
+from geonode.geoserver.manager import GeoServerResourceManager
+from geonode.base.models import ResourceBase
 
 def error_handler(exc):
     return str(exc.detail if hasattr(exc, "detail") else exc.args[0])
 
 
-class ImporterConcreteManager(ResourceManagerInterface):
-    pass
+class ImporterConcreteManager(GeoServerResourceManager):
 
-importer_resource_manager = ResourceManager(concrete_manager=ImporterConcreteManager)
+    def copy(self, instance, uuid, defaults):
+        return ResourceBase.objects.get(uuid=uuid)
+
+    def update(self, uuid, **kwargs) -> ResourceBase:
+        return ResourceBase.objects.get(uuid=uuid)
+
+custom_resource_manager = ResourceManager(concrete_manager=ImporterConcreteManager())

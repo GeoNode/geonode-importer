@@ -19,13 +19,15 @@ from geopackage_validator.validate import validate
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
+from importer.handlers.utils import create_alternate
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
-                                          STANDARD_TYPE_MAPPING, create_alternate,
+                                          STANDARD_TYPE_MAPPING,
                                           drop_dynamic_model_schema)
 from importer.handlers.utils import should_be_imported
 from osgeo import ogr
+from django.db import connections, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +45,12 @@ class GPKGFileHandler(BaseHandler):
             "importer.publish_resource",
             "importer.create_geonode_resource"
         ),
-        "clone": (
-            "start_cloning",
-            "importer.clone_geonode_resource",
-            "importer.clone_dynamic_model",
-            "importer.clone_geonode_data_table"
+        "copy": (
+            "start_copy",
+            "importer.copy_geonode_resource",
+            "importer.copy_dynamic_model",
+            "importer.copy_geonode_data_table",
+            "importer.publish_resource"
         ),
     }
 
@@ -123,7 +126,17 @@ class GPKGFileHandler(BaseHandler):
         }, _data
 
     @staticmethod
-    def extract_resource_to_publish(files, layer_name, alternate):
+    def extract_resource_to_publish(files, layer_name, alternate, action="import"):
+        if action == 'copy':
+            workspace = get_geoserver_cascading_workspace(create=False)
+            full_alternate = alternate if ':' in alternate else f"{workspace.name}:{alternate}"
+            return [
+                {
+                    "name": alternate,
+                    "crs": ResourceBase.objects.get(alternate=full_alternate).srid
+                }
+            ]
+
         layers = ogr.Open(files.get("base_file"))
         if not layers:
             return []
@@ -376,15 +389,6 @@ class GPKGFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
-    @staticmethod
-    def clone(resource: ResourceBase, execution_id: str) -> str:
-        '''
-        Logic to clone a resource. For the GPKG is needed because we have the dynamic_model
-        to be cloned/copy too
-        '''
-        clone = clone_resource.s(resource.pk, execution_id)
-        clone.apply_async()
-
     def _update_execution_request(self, execution_id: str, **kwargs):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
@@ -530,54 +534,81 @@ def error_callback(*args, **kwargs):
 
     return 'error'
 
+
 @importer_app.task(
     base=ErrorBaseTaskClass,
-    name="importer.gpkg_clone_resource",
-    queue="importer.gpkg_clone_resource",
+    name="importer.copy_dynamic_model",
+    queue="importer.copy_dynamic_model",
     task_track_started=True
 )
-def clone_resource(resource_id, execution_id):
+def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
     '''
-    If the ingestion of the resource is successfuly, the next step for the layer is called
+    Once the base resource is copied, is time to copy also the dynamic model
     '''
-    from importer.celery_tasks import orchestrator
+    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
+    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
 
-    _exec = orchestrator.get_execution_object(execution_id)
+    from importer.celery_tasks import import_orchestrator
+    try:
+        dynamic_schema = ModelSchema.objects.filter(name=original_dataset_alternate.split(':')[1])
+        alternative_dynamic_schema = ModelSchema.objects.filter(name=new_dataset_alternate.split(':')[1])
 
-    resource = ResourceBase.objects.filter(pk=resource_id)
-    if not resource.exists():
-        raise Exception("The resource requested does not exists")
-    resource = resource.first()
+        if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
+            # Creating the dynamic schema object
+            new_schema = dynamic_schema.first()
+            new_schema.name = new_dataset_alternate.split(':')[1]
+            new_schema.pk = None
+            new_schema.save()
+            # create the field_schema object
+            fields = []
+            for field in dynamic_schema.first().fields.all():
+                obj = field
+                obj.model_schema=new_schema
+                obj.pk = None
+                fields.append(obj)
 
-    workspace = get_geoserver_cascading_workspace(create=False)
+            FieldSchema.objects.bulk_create(fields)
+        else:
+            # get the value from the DB and create the schema
+            pass
 
-    new_alternate = create_alternate(resource.title, execution_id)
+        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
+        # for some reason celery will always put the kwargs into a key kwargs
+        # so we need to remove it
+        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
 
-    resource_manager.copy(
-        resource,
-        owner=resource.owner,
-        defaults={"alternate": f'{workspace.name}:{new_alternate}'},
-        use_concrete_manager=False
-    )
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        raise InvalidGeopackageException(detail=e)
+    return exec_id, kwargs
 
-    dynamic_schema = ModelSchema.objects.filter(name=resource.alternate.split(':')[1])
-    if dynamic_schema.exists():
-        # Creating the dynamic schema object
-        new_schema = dynamic_schema.first()
-        new_schema.name = new_alternate
-        new_schema.pk = None
-        new_schema.save()
-        # create the field_schema object
-        fields = []
-        for field in dynamic_schema.first().fields.all():
-            obj = field
-            obj.model_schema=new_schema
-            obj.pk = None
-            fields.append(obj)
 
-        FieldSchema.objects.bulk_create(fields)
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.copy_geonode_data_table",
+    queue="importer.copy_geonode_data_table",
+    task_track_started=True
+)
+def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+    '''
+    Once the base resource is copied, is time to copy also the dynamic model
+    '''
+    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate").split(':')[1]
+    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate").split(':')[1]
 
-    else:
-        #get the value from the DB and create the schema
-        pass
+    from importer.celery_tasks import import_orchestrator
+    try:
+        
+        db_name = ModelSchema.objects.filter(name=new_dataset_alternate).first().db_name
+        with transaction.atomic():
+            with connections[db_name].cursor() as cursor:
+                cursor.execute(
+                    f"CREATE TABLE {new_dataset_alternate} AS TABLE {original_dataset_alternate};"
+                )
 
+        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
+
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        raise InvalidGeopackageException(detail=e)
+    return exec_id, kwargs

@@ -1,4 +1,3 @@
-import hashlib
 from dynamic_models.schema import ModelSchemaEditor
 import logging
 
@@ -36,17 +35,3 @@ def drop_dynamic_model_schema(schema_model):
             logger.warning(e.args[0])
 
         schema_model.delete()
-
-
-def create_alternate(layer_name, execution_id):
-    '''
-    Utility to generate the expected alternate for the resource
-    is alternate = layer_name_ + md5(layer_name + uuid)
-    '''
-    _hash = hashlib.md5(
-        f"{layer_name}_{execution_id}".encode('utf-8')
-    ).hexdigest()
-    alternate = f"{layer_name}_{_hash}"
-    if len(alternate) >= 64: # 64 is the max table lengh in postgres
-        return f"{layer_name[:50]}{_hash[:14]}"
-    return alternate

@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional
 from uuid import UUID
 
@@ -8,11 +7,12 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 
 from importer.api.exception import (InvalidInputFileException,
-                                    PublishResourceException,
+                                    PublishResourceException, ResourceCopyException,
                                     ResourceCreationException,
                                     StartImportException)
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
+from importer.handlers.utils import create_alternate
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
@@ -20,6 +20,8 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_PUBLISHING_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 from importer.utils import error_handler
+from geonode.base.models import ResourceBase
+
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +65,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action="import"
+    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action="import", **kwargs
 ):
 
     '''
@@ -71,8 +73,6 @@ def import_orchestrator(
     mainly is a wrapper for the Orchestrator object.
 
             Parameters:
-                    files (dict): dictionary with the files needed for the import. it expect that there is always a base_file
-                                  example: {"base_file": "/path/to/the/local/file/to/be/importerd.gpkg"}
                     user (UserModel): user that is performing the request
                     execution_id (UUID): unique ID used to keep track of the execution request
                     step (str): last step performed from the tasks
@@ -90,7 +90,8 @@ def import_orchestrator(
             layer_name=layer_name,
             alternate=alternate,
             handler_module_path=handler,
-            action=action
+            action=action,
+            kwargs=kwargs
         )
 
     except Exception as e:
@@ -107,7 +108,7 @@ def import_orchestrator(
     ignore_result=False,
     task_track_started=True
 )
-def import_resource(self, execution_id, /, handler_module_path, action):  
+def import_resource(self, execution_id, /, handler_module_path, action, **kwargs):  
     '''
     Task to import the resources.
     NOTE: A validation if done before acutally start the import
@@ -170,7 +171,8 @@ def publish_resource(
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
     handler_module_path: str = None,
-    action: str = None
+    action: str = None,
+    **kwargs
 ):
     '''
     Task to publish a single resource in geoserver.
@@ -203,7 +205,7 @@ def publish_resource(
             _publisher = DataPublisher(handler_module_path)
 
             # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate)
+            _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate, action=action)
             if _metadata:
                 # we should not publish resource without a crs
 
@@ -248,7 +250,8 @@ def create_geonode_resource(
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
     handler_module_path: str = None,
-    action: str = None
+    action: str = None,
+    **kwargs
 ):
     '''
     Create the GeoNode resource and the relatives information associated
@@ -297,3 +300,47 @@ def create_geonode_resource(
 
     except Exception as e:
         raise ResourceCreationException(detail=error_handler(e))
+
+
+@importer_app.task(
+    name="importer.copy_geonode_resource",
+    queue="importer.copy_geonode_resource",
+    task_track_started=True
+)
+def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+    '''
+    Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
+    have the new generated alternate
+    '''
+    from importer.celery_tasks import import_orchestrator
+    from importer.utils import custom_resource_manager
+    try:
+        resource = ResourceBase.objects.filter(alternate=alternate)
+        if not resource.exists():
+            raise Exception("The resource requested does not exists")
+        resource = resource.first()
+
+        new_alternate = create_alternate(resource.title, exec_id)
+
+        workspace = resource.alternate.split(':')[0]
+
+        new_resource = custom_resource_manager.copy(
+            resource,
+            owner=resource.owner,
+            defaults={"alternate": f'{workspace}:{new_alternate}', 'name': new_alternate},
+        )
+
+        assert f'{workspace}:{new_alternate}' == new_resource.alternate
+
+        additional_kwargs = {
+            "original_dataset_alternate": resource.alternate,
+            "new_dataset_alternate": new_resource.alternate
+        }
+
+        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, new_alternate, action)
+
+        import_orchestrator.apply_async(task_params, additional_kwargs)
+
+    except Exception as e:
+        raise ResourceCopyException(detail=e)
+    return exec_id, new_alternate
