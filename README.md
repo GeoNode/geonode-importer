@@ -24,7 +24,6 @@ CELERY_TASK_QUEUES += (
     Queue('importer.copy_dynamic_model', GEONODE_EXCHANGE, routing_key='importer.copy_dynamic_model'),
     Queue('importer.copy_geonode_data_table', GEONODE_EXCHANGE, routing_key='importer.copy_geonode_data_table'),
 )
-)
 
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
 
