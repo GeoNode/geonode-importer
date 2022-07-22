@@ -126,7 +126,7 @@ class GPKGFileHandler(BaseHandler):
         }, _data
 
     @staticmethod
-    def extract_resource_to_publish(files, layer_name, alternate, action="import"):
+    def extract_resource_to_publish(files, action, layer_name, alternate):
         if action == 'copy':
             workspace = get_geoserver_cascading_workspace(create=False)
             full_alternate = alternate if ':' in alternate else f"{workspace.name}:{alternate}"

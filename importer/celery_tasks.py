@@ -205,7 +205,7 @@ def publish_resource(
             _publisher = DataPublisher(handler_module_path)
 
             # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate, action=action)
+            _metadata = _publisher.extract_resource_to_publish(_files, action, layer_name, alternate)
             if _metadata:
                 # we should not publish resource without a crs
 
@@ -303,11 +303,15 @@ def create_geonode_resource(
 
 
 @importer_app.task(
+    base=ErrorBaseTaskClass,
     name="importer.copy_geonode_resource",
     queue="importer.copy_geonode_resource",
+    max_retries=1,
+    rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
+    ignore_result=False,
     task_track_started=True
 )
-def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_module_path, action, **kwargs):
     '''
     Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
     have the new generated alternate
@@ -327,7 +331,15 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handlers_
         new_resource = custom_resource_manager.copy(
             resource,
             owner=resource.owner,
-            defaults={"alternate": f'{workspace}:{new_alternate}', 'name': new_alternate},
+            defaults={
+                "alternate": f'{workspace}:{new_alternate}', 
+                'name': new_alternate
+            },
+        )
+
+        ResourceHandlerInfo.objects.create(
+            resource=new_resource,
+            handler_module_path=handler_module_path
         )
 
         assert f'{workspace}:{new_alternate}' == new_resource.alternate
@@ -337,7 +349,7 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handlers_
             "new_dataset_alternate": new_resource.alternate
         }
 
-        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, new_alternate, action)
+        task_params = ({}, exec_id, handler_module_path, actual_step, layer_name, new_alternate, action)
 
         import_orchestrator.apply_async(task_params, additional_kwargs)
 

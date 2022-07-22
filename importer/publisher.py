@@ -32,7 +32,7 @@ class DataPublisher():
 
         self.handler = import_string(handler_module_path)
 
-    def extract_resource_to_publish(self, files: dict, layer_name, alternate=None, action="import"):
+    def extract_resource_to_publish(self, files: dict, action: str, layer_name, alternate=None):
         '''
         Will try to extract the layers name from the original file
         this is needed since we have to publish the resources
@@ -43,7 +43,7 @@ class DataPublisher():
         ]
         '''
         
-        return self.handler.extract_resource_to_publish(files, layer_name, alternate, action)
+        return self.handler.extract_resource_to_publish(files, action, layer_name, alternate)
 
 
     def publish_resources(self, resources: List[str]):

@@ -7,7 +7,11 @@ def error_handler(exc):
 
 
 class ImporterConcreteManager(GeoServerResourceManager):
-
+    '''
+    The default GeoNode concrete manager, handle the communication with geoserver
+    For this implementation the interaction with geoserver is not needed
+    so we are going to override the concrete manager to avoid it
+    '''
     def copy(self, instance, uuid, defaults):
         return ResourceBase.objects.get(uuid=uuid)
 
