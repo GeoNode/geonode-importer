@@ -17,7 +17,6 @@ from geonode.services.serviceprocessors.base import \
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
-from pyparsing import Optional
 from importer.celery_app import importer_app
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
@@ -78,8 +77,10 @@ class GPKGFileHandler(BaseHandler):
         actual_upload = upload_validator._get_parallel_uploads_count()
         max_upload = upload_validator._get_max_parallel_uploads()
 
-        layers = ogr.Open(files.get("base_file"))
-        # for the moment we skip the dyanamic model creation
+        layers = ogr.GetDriverByName("GPKG").Open(files.get("base_file"))
+        if not layers:
+            raise InvalidGeopackageException("The geopackage provided is invalid")
+
         layers_count = len(layers)
 
         if layers_count >= max_upload:
