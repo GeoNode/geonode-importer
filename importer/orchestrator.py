@@ -176,7 +176,9 @@ class ImportOrchestrator:
         step: str,
         input_params: dict,
         resource=None,
-        legacy_upload_name=""
+        legacy_upload_name="",
+        action=None,
+        name=None,
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
@@ -187,6 +189,8 @@ class ImportOrchestrator:
             func_name=func_name,
             step=step,
             input_params=input_params,
+            action=action,
+            name=name
         )
         if self.enable_legacy_upload_status:
             # getting the package name from the base_filename
@@ -223,4 +227,4 @@ class ImportOrchestrator:
             TaskResult.objects.filter(task_id=celery_task_request.id)\
                 .update(task_args=celery_task_request.args)
 
-orchestrator = ImportOrchestrator()
+orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)

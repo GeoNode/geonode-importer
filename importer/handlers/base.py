@@ -19,7 +19,7 @@ class BaseHandler(ABC):
     REGISTRY = []
 
     ACTIONS = {
-        "import": (),
+        "upload": (),
         "copy": (),
         "delete": (),
         "update": (),

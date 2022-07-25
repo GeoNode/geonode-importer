@@ -16,6 +16,7 @@ from geonode.services.serviceprocessors.base import \
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
+from importer.api.exception import ResourceCopyException
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
@@ -39,7 +40,7 @@ class GPKGFileHandler(BaseHandler):
     '''
 
     ACTIONS = {
-        "import": (
+        "upload": (
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
@@ -520,7 +521,7 @@ def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str,
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, "import")
+        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, "upload")
     )
     return "gpkg_next_step", alternate, execution_id
 
@@ -610,5 +611,5 @@ def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handler
 
         import_orchestrator.apply_async(task_params, kwargs)
     except Exception as e:
-        raise InvalidGeopackageException(detail=e)
+        raise ResourceCopyException(detail=e)
     return exec_id, kwargs

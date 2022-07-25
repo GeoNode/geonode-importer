@@ -65,7 +65,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action="import", **kwargs
+    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action="upload", **kwargs
 ):
 
     '''

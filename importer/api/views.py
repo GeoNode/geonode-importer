@@ -21,7 +21,7 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.urls import reverse
 
-from django.utils.module_loading import import_string
+from geonode.resource.enumerator import ExecutionRequestAction
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
@@ -101,7 +101,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 upload_validator.validate_parallelism_limit_per_user()
                 upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
 
-                action = "import"
+                action = ExecutionRequestAction.upload.value
 
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
@@ -113,7 +113,9 @@ class ImporterViewSet(DynamicModelViewSet):
                         },
                         **extracted_params
                     },
-                    legacy_upload_name=_file.name
+                    legacy_upload_name=_file.name,
+                    action=action,
+                    name=_file.name
                 )
 
                 sig = import_orchestrator.s(
