@@ -155,14 +155,13 @@ class ImporterResource(DynamicModelViewSet):
     def copy(self, request, *args, **kwargs):
         resource = self.get_object()
         if resource.resourcehandlerinfo_set.exists():
-            no_legacy_orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
 
             handler_module_path = resource.resourcehandlerinfo_set.first().handler_module_path
 
             action = 'copy'
-            handler = no_legacy_orchestrator.load_handler(handler_module_path)
+            handler = orchestrator.load_handler(handler_module_path)
             step = next(iter(handler.get_task_list(action=action)))
-            execution_id = no_legacy_orchestrator.create_execution_request(
+            execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name=step,
                     step=step,
