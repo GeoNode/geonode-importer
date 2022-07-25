@@ -582,7 +582,7 @@ def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handlers_mod
 
         import_orchestrator.apply_async(task_params, kwargs)
     except Exception as e:
-        raise InvalidGeopackageException(detail=e)
+        raise CopyResourceException(detail=e)
     return exec_id, kwargs
 
 
