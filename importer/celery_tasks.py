@@ -21,7 +21,7 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 from importer.utils import error_handler
 from geonode.base.models import ResourceBase
-
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 
 logger = logging.getLogger(__name__)
 
