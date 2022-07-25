@@ -42,3 +42,10 @@ class StartImportException(APIException):
     default_detail = "Error during start of the import session"
     default_code = "start_import_exception"
     category = "importer"
+
+
+class HandlerException(APIException):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "base handler exception"
+    default_code = "handler_exception"
+    category = "handler"

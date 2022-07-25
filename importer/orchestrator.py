@@ -106,6 +106,10 @@ class ImportOrchestrator:
                         action
                     )
 
+            self.update_execution_request_status(
+                execution_id=str(_exec_obj.exec_id),
+                status=ExecutionRequest.STATUS_RUNNING
+            )
             # continuing to the next step
             importer_app.tasks.get(next_step).apply_async(task_params, kwargs)
             return execution_id

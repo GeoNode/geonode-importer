@@ -40,13 +40,6 @@ class BaseHandler(ABC):
     def get_registry(cls):
         return BaseHandler.REGISTRY
 
-    @staticmethod
-    def can_handle(_data) -> bool:
-        '''
-        This endpoint will return True or False if with the info provided
-        the handler is able to handle the file or not
-        '''
-        return False
     
     @classmethod
     def get_task_list(cls, action) -> tuple:
@@ -61,6 +54,22 @@ class BaseHandler(ABC):
         """
         return NotImplementedError
     
+    @staticmethod
+    def can_handle(_data) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        return False
+
+    @staticmethod
+    def can_do(action) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        return action in BaseHandler.ACTIONS
+
     @staticmethod
     def extract_params_from_data(_data):
         '''

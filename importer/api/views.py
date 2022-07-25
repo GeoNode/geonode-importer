@@ -38,7 +38,7 @@ from geonode.upload.api.permissions import UploadPermissionsFilter
 from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
 from geonode.upload.utils import UploadLimitValidator
-from importer.api.exception import ImportException
+from importer.api.exception import HandlerException, ImportException
 from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import import_orchestrator
 from importer.orchestrator import orchestrator
@@ -161,7 +161,12 @@ class ImporterResource(DynamicModelViewSet):
             action = ExecutionRequestAction.COPY.value
 
             handler = orchestrator.load_handler(handler_module_path)
+
+            if not handler.can_do(action):
+                raise HandlerException(detail=f"The handler {handler_module_path} cannot manage the action required: {action}")
+
             step = next(iter(handler.get_task_list(action=action)))
+
             execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name=step,

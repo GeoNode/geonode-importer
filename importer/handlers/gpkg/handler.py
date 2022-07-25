@@ -56,7 +56,7 @@ class GPKGFileHandler(BaseHandler):
             "importer.publish_resource"
         ),
     }
-
+   
 
     @staticmethod
     def can_handle(_data) -> bool:
