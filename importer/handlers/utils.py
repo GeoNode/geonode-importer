@@ -37,7 +37,7 @@ def create_alternate(layer_name, execution_id):
         f"{layer_name}_{execution_id}".encode('utf-8')
     ).hexdigest()
     alternate = f"{layer_name}_{_hash}"
-    if len(alternate) >= 64: # 64 is the max table lengh in postgres
-        return f"{layer_name[:50]}{_hash[:14]}"
+    if len(alternate) > 63: # 63 is the max table lengh in postgres
+        return f"{layer_name[:50]}{_hash[:13]}"
     return alternate
 

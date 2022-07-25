@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext
 from importer.api.exception import (InvalidInputFileException,
-                                    PublishResourceException, ResourceCopyException,
+                                    PublishResourceException, CopyResourceException,
                                     ResourceCreationException,
                                     StartImportException)
 from importer.celery_app import importer_app
@@ -354,5 +354,5 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
         import_orchestrator.apply_async(task_params, additional_kwargs)
 
     except Exception as e:
-        raise ResourceCopyException(detail=e)
+        raise CopyResourceException(detail=e)
     return exec_id, new_alternate

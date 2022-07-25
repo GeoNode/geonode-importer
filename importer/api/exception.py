@@ -30,7 +30,7 @@ class ResourceCreationException(APIException):
     default_code = "gn_resource_exception"
     category = "importer"
 
-class ResourceCopyException(APIException):
+class CopyResourceException(APIException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     default_detail = "Error during the copy of the geonode resource"
     default_code = "gn_resource_exception"

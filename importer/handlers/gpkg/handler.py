@@ -17,7 +17,7 @@ from geonode.services.serviceprocessors.base import \
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
-from importer.api.exception import ResourceCopyException
+from importer.api.exception import CopyResourceException
 from importer.celery_app import importer_app
 from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
@@ -130,7 +130,7 @@ class GPKGFileHandler(BaseHandler):
 
     @staticmethod
     def extract_resource_to_publish(files, action, layer_name, alternate):
-        if action == 'copy':
+        if action == exa.COPY.value:
             workspace = get_geoserver_cascading_workspace(create=False)
             full_alternate = alternate if ':' in alternate else f"{workspace.name}:{alternate}"
             return [
@@ -613,5 +613,5 @@ def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handler
 
         import_orchestrator.apply_async(task_params, kwargs)
     except Exception as e:
-        raise ResourceCopyException(detail=e)
+        raise CopyResourceException(detail=e)
     return exec_id, kwargs
