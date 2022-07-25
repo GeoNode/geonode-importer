@@ -1,9 +1,10 @@
 from abc import ABC
 import logging
 from typing import List
-from geonode.base.models import ResourceBase
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 
 logger = logging.getLogger(__name__)
+
 
 class BaseHandler(ABC):
     '''
@@ -19,10 +20,10 @@ class BaseHandler(ABC):
     REGISTRY = []
 
     ACTIONS = {
-        "upload": (),
-        "copy": (),
-        "delete": (),
-        "update": (),
+        exa.IMPORT.value: (),
+        exa.COPY.value: (),
+        exa.DELETE.value: (),
+        exa.UPDATE.value: (),
     }
 
     def __str__(self):

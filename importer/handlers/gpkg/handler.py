@@ -11,6 +11,7 @@ from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geonode.upload.api.exceptions import UploadParallelismLimitException
@@ -29,6 +30,7 @@ from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
 from importer.handlers.utils import should_be_imported
 from osgeo import ogr
 from django.db import connections, transaction
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +42,13 @@ class GPKGFileHandler(BaseHandler):
     '''
 
     ACTIONS = {
-        "upload": (
+        exa.IMPORT.value: (
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
             "importer.create_geonode_resource"
         ),
-        "copy": (
+        exa.COPY.value: (
             "start_copy",
             "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
@@ -521,7 +523,7 @@ def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str,
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, "upload")
+        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, exa.IMPORT.value)
     )
     return "gpkg_next_step", alternate, execution_id
 

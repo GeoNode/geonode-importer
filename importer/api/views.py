@@ -101,7 +101,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 upload_validator.validate_parallelism_limit_per_user()
                 upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
 
-                action = ExecutionRequestAction.upload.value
+                action = ExecutionRequestAction.IMPORT.value
 
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
@@ -158,7 +158,8 @@ class ImporterResource(DynamicModelViewSet):
 
             handler_module_path = resource.resourcehandlerinfo_set.first().handler_module_path
 
-            action = 'copy'
+            action = ExecutionRequestAction.COPY.value
+
             handler = orchestrator.load_handler(handler_module_path)
             step = next(iter(handler.get_task_list(action=action)))
             execution_id = orchestrator.create_execution_request(
