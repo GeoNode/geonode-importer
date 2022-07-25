@@ -5,7 +5,7 @@ from uuid import UUID
 from celery import Task
 from django.utils import timezone
 from django.utils.module_loading import import_string
-
+from django.utils.translation import ugettext
 from importer.api.exception import (InvalidInputFileException,
                                     PublishResourceException, ResourceCopyException,
                                     ResourceCreationException,
@@ -126,7 +126,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="import_resource",
-            step="importer.import_resource",
+            step=ugettext("importer.import_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -193,7 +193,7 @@ def publish_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="publish_resource",
-            step="importer.publish_resource",
+            step=ugettext("importer.publish_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -273,7 +273,7 @@ def create_geonode_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="create_geonode_resource",
-            step="importer.create_geonode_resource",
+            step=ugettext("importer.create_geonode_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)

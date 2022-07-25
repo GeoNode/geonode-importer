@@ -41,7 +41,7 @@ from geonode.upload.utils import UploadLimitValidator
 from importer.api.exception import ImportException
 from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import import_orchestrator
-from importer.orchestrator import ImportOrchestrator, orchestrator
+from importer.orchestrator import orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
@@ -106,7 +106,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name=next(iter(handler.get_task_list(action=action))),
-                    step=next(iter(handler.get_task_list(action=action))),
+                    step=_(next(iter(handler.get_task_list(action=action)))),
                     input_params={**{
                             "files": files,
                             "handler_module_path": str(handler)
