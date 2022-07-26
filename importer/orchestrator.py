@@ -74,6 +74,15 @@ class ImportOrchestrator:
             tasks = self.load_handler(handler_module_path).get_task_list(action=action)
             # getting the index
             _index = tasks.index(step) + 1
+            if _index == 1:
+                '''
+                Means that the first task is available and we set the executions state as running
+                So is updated only at the beginning keeping it in a consistent state
+                '''
+                self.update_execution_request_status(
+                    execution_id=str(_exec_obj.exec_id),
+                    status=ExecutionRequest.STATUS_RUNNING
+                )
             # finding in the task_list the last step done
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
@@ -106,10 +115,6 @@ class ImportOrchestrator:
                         action
                     )
 
-            self.update_execution_request_status(
-                execution_id=str(_exec_obj.exec_id),
-                status=ExecutionRequest.STATUS_RUNNING
-            )
             # continuing to the next step
             importer_app.tasks.get(next_step).apply_async(task_params, kwargs)
             return execution_id
