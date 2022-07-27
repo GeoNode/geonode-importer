@@ -127,7 +127,7 @@ class TestGPKGHandler(TestCase):
             self.assertIsNotNone(dynamic_model)
             self.assertIsInstance(celery_group, group)
             self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual("importer.gpkg_handler", celery_group.tasks[0].name)
+            self.assertEqual("importer.create_dynamic_structure", celery_group.tasks[0].name)
         finally:
             if schema:
                 schema.delete()
@@ -199,7 +199,7 @@ class TestGPKGHandler(TestCase):
 
             self.assertIsInstance(celery_group, group)
             self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual("importer.gpkg_handler", celery_group.tasks[0].name)
+            self.assertEqual("importer.create_dynamic_structure", celery_group.tasks[0].name)
         finally:
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()

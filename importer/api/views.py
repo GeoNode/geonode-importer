@@ -87,6 +87,8 @@ class ImporterViewSet(DynamicModelViewSet):
 
         handler = orchestrator.get_handler(_data)
 
+        storage_manager = None
+
         if _file and handler:
 
             try:
