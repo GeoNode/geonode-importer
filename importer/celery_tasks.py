@@ -3,7 +3,6 @@ from typing import Optional
 from uuid import UUID
 
 from celery import Task
-from django.conf import settings
 from django.db import connections, transaction
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -13,7 +12,6 @@ from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 
-from subprocess import PIPE, Popen
 from importer.api.exception import (CopyResourceException,
                                     InvalidInputFileException,
                                     PublishResourceException,
@@ -22,7 +20,7 @@ from importer.api.exception import (CopyResourceException,
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate
+from importer.handlers.utils import create_alternate, drop_dynamic_model_schema
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher

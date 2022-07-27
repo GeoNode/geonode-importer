@@ -14,7 +14,7 @@ from geonode.layers.models import Dataset
 from importer.celery_tasks import create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.gpkg.utils import GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING, drop_dynamic_model_schema
+from importer.handlers.utils import GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING, drop_dynamic_model_schema
 from geonode.resource.manager import resource_manager
 from geonode.base.models import ResourceBase
 from geonode.resource.models import ExecutionRequest

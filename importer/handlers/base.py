@@ -1,13 +1,8 @@
 from abc import ABC
 import logging
-import os
 from typing import List
-from django.conf import settings
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from rdflib import Dataset
-from geonode.resource.manager import resource_manager
-from geonode.base.models import ResourceBase
-
 logger = logging.getLogger(__name__)
 
 
