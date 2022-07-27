@@ -22,6 +22,7 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
 from importer.utils import error_handler
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
+from celery.exceptions import TaskError
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +40,18 @@ class ErrorBaseTaskClass(Task):
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
         _uuid = self._get_uuid(args)
-
-        logger.error(f"Task FAILED with ID: {_uuid}, reason: {exc}")
-
+        reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
+        logger.error(reason)
         orchestrator.set_as_failed(
             execution_id=_uuid, reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+        )
+        self.update_state(
+            task_id=task_id,
+            state="FAILURE",
+            meta={
+                "exec_id": _uuid,
+                "reason": reason
+            }
         )
 
     def _get_uuid(self, _list):
@@ -95,7 +103,7 @@ def import_orchestrator(
         )
 
     except Exception as e:
-        raise StartImportException(detail=error_handler(e))
+        raise StartImportException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
@@ -150,7 +158,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         return self.name, execution_id
 
     except Exception as e:
-        raise InvalidInputFileException(detail=error_handler(e))
+        raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
@@ -229,7 +237,7 @@ def publish_resource(
         return self.name, execution_id
 
     except Exception as e:
-        raise PublishResourceException(detail=error_handler(e))
+        raise PublishResourceException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
