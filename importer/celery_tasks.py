@@ -332,17 +332,24 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
             raise Exception("The resource requested does not exists")
         resource = resource.first()
 
+        _exec = orchestrator.get_execution_object(exec_id)
+
         new_alternate = create_alternate(resource.title, exec_id)
 
         workspace = resource.alternate.split(':')[0]
 
+        data_to_update = {
+            "alternate": f'{workspace}:{new_alternate}', 
+            'name': new_alternate
+        }
+
+        if _exec.input_params.get("title"):
+            data_to_update['title'] = _exec.input_params.get("title")
+
         new_resource = custom_resource_manager.copy(
             resource,
             owner=resource.owner,
-            defaults={
-                "alternate": f'{workspace}:{new_alternate}', 
-                'name': new_alternate
-            },
+            defaults=data_to_update,
         )
 
         ResourceHandlerInfo.objects.create(
