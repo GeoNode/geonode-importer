@@ -9,6 +9,7 @@ from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import ImportOrchestrator
 from geonode.upload.models import Upload
 from django.utils import timezone
+from django_celery_results.models import TaskResult
 
 from geonode.base import enumerations as enum
 from geonode.resource.models import ExecutionRequest
@@ -21,6 +22,21 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
     def setUpClass(cls):
         super().setUpClass()
         cls.orchestrator = ImportOrchestrator()
+    
+    def test_get_handler(self):
+        _data = {
+            "base_file": "file.gpkg"
+        }
+        actual = self.orchestrator.get_handler(_data)
+        self.assertIsNotNone(actual)
+        self.assertEqual("importer.handlers.gpkg.handler.GPKGFileHandler", str(actual))
+
+    def test_get_handler_should_return_none_if_is_not_available(self):
+        _data = {
+            "base_file": "file.not_supported"
+        }
+        actual = self.orchestrator.get_handler(_data)
+        self.assertIsNone(actual)
 
     def test_load_handler_raise_error_if_not_exists(self):
         with self.assertRaises(ImportException) as _exc:
@@ -75,7 +91,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertIsNotNone(Upload.objects.get(metadata__icontains=exec_id))
 
     @patch("importer.orchestrator.importer_app.tasks.get")
-    def test_perform_next_import_step(self, mock_celery):
+    def test_perform_next_step(self, mock_celery):
         # setup test
         handler = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
         _id = self.orchestrator.create_execution_request(
@@ -225,3 +241,97 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         req.delete()
         legacy.delete()
 
+
+    def test_evaluate_execution_progress_should_continue_if_some_task_is_not_finished(self):
+        # create the celery task result entry
+        try:
+            exec_id = str(self.orchestrator.create_execution_request(
+                user=get_user_model().objects.first(),
+                func_name="test",
+                step="test",
+                legacy_upload_name="test"
+            ))
+        
+            started_entry = TaskResult.objects.create(
+                task_id="task_id_started",
+                status="STARTED",
+                task_args=exec_id
+            )
+            success_entry = TaskResult.objects.create(
+                task_id="task_id_success",
+                status="SUCCESS",
+                task_args=exec_id
+            )
+            with self.assertLogs(level="INFO") as _log:
+                result = self.orchestrator.evaluate_execution_progress(exec_id)
+
+            self.assertIsNone(result)
+            self.assertEqual(
+                f"INFO:importer.orchestrator:Execution progress with id {exec_id} is not finished yet, continuing",
+                _log.output[0]
+            )
+
+        finally:
+            if started_entry:
+                started_entry.delete()
+            if success_entry:
+                success_entry.delete()
+
+    def test_evaluate_execution_progress_should_fail_if_one_task_is_failed(self):
+        '''
+        Should set it fail if all the execution are done and at least 1 is failed
+        '''
+               # create the celery task result entry
+        try:
+            exec_id = str(self.orchestrator.create_execution_request(
+                user=get_user_model().objects.first(),
+                func_name="test",
+                step="test",
+                legacy_upload_name="test"
+            ))
+        
+            FAILED_entry = TaskResult.objects.create(
+                task_id="task_id_FAILED",
+                status="FAILURE",
+                task_args=exec_id
+            )
+            success_entry = TaskResult.objects.create(
+                task_id="task_id_success",
+                status="SUCCESS",
+                task_args=exec_id
+            )
+            with self.assertRaises(ImportException) as e:
+                self.orchestrator.evaluate_execution_progress(exec_id)
+
+            self.assertEqual(
+                f"For the execution ID {exec_id} The following celery task are failed: ['{FAILED_entry.task_id}']",
+                str(e.exception)
+            )
+
+        finally:
+            if FAILED_entry:
+                FAILED_entry.delete()
+            if success_entry:
+                success_entry.delete()
+
+
+    def test_evaluate_execution_progress_should_set_as_completed(self):
+        try:
+            exec_id = str(self.orchestrator.create_execution_request(
+                user=get_user_model().objects.first(),
+                func_name="test",
+                step="test",
+                legacy_upload_name="test"
+            ))
+        
+            success_entry = TaskResult.objects.create(
+                task_id="task_id_success",
+                status="SUCCESS",
+                task_args=exec_id
+            )
+
+            self.orchestrator.evaluate_execution_progress(exec_id)
+
+        finally:
+            if success_entry:
+                success_entry.delete()

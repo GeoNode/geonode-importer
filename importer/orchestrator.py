@@ -174,6 +174,9 @@ class ImportOrchestrator:
             logger.info(f"Execution progress with id {execution_id} is not finished yet, continuing")
             return
         elif exec_result.all().filter(status=states.FAILURE).exists():
+            '''
+            Should set it fail if all the execution are done and at least 1 is failed
+            '''
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
@@ -188,7 +191,7 @@ class ImportOrchestrator:
         user: get_user_model,
         func_name: str,
         step: str,
-        input_params: dict,
+        input_params: dict = {},
         resource=None,
         legacy_upload_name="",
         action=None,
