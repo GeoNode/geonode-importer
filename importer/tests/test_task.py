@@ -291,7 +291,9 @@ class TestDynamicModelSchema(SimpleTestCase):
 
     def test_create_dynamic_structure_should_raise_error_if_field_class_is_none(self):
         try:
-            schema = ModelSchema.objects.create(name="schema2", db_name="datastore")
+            name = str(self.exec_id)
+
+            schema = ModelSchema.objects.create(name=f"schema_{name}", db_name="datastore")
             dynamic_fields = [
                 {"name": "field1", "class_name": None, "null": True},
             ]
@@ -307,12 +309,14 @@ class TestDynamicModelSchema(SimpleTestCase):
             expected_msg = "Error during the field creation. The field or class_name is None {'name': 'field1', 'class_name': None, 'null': True}"
             self.assertEqual(expected_msg, str(_exc.exception))
         finally:
-            if schema:
-                schema.delete()
+            ModelSchema.objects.filter(name=f"schema_{name}").delete()
+
 
     def test_create_dynamic_structure_should_work(self):
         try:
-            schema = ModelSchema.objects.create(name="schema2", db_name="datastore")
+            name = str(self.exec_id)
+
+            schema = ModelSchema.objects.create(name=f"schema_{name}", db_name="datastore")
             dynamic_fields = [
                 {"name": "field1", "class_name": "django.contrib.gis.db.models.fields.LineStringField", "null": True},
             ]
@@ -330,9 +334,8 @@ class TestDynamicModelSchema(SimpleTestCase):
             )
             
         finally:
-            if schema:
-                schema.delete()
-                FieldSchema.objects.filter(name="field1").delete()
+            ModelSchema.objects.filter(name=f"schema_{name}").delete()
+            FieldSchema.objects.filter(name="field1").delete()
 
     def test_copy_dynamic_model_should_work(self):
         try:

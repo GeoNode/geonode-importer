@@ -24,4 +24,4 @@ class TestModelSchemaSignal(TestCase):
         '''
         self.resource.delete()
         self.assertFalse(ModelSchema.objects.filter(name="test_dataset").exists())
-        self.assertFalse(FieldSchema.objects.filter(name="field").exists())
+        self.assertFalse(FieldSchema.objects.filter(model_schema=self.dynamic_model, name="field").exists())
