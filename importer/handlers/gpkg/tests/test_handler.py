@@ -9,10 +9,9 @@ from importer import project_dir
 from importer.orchestrator import orchestrator
 from geonode.upload.models import UploadParallelismLimit
 from geonode.upload.api.exceptions import UploadParallelismLimitException
-from geonode.tests.base import GeoNodeBaseTestSupport
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
-from dynamic_models.models import ModelSchema, FieldSchema
+from dynamic_models.models import ModelSchema
 from osgeo import ogr
 
 

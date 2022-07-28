@@ -142,7 +142,7 @@ class ImporterViewSet(DynamicModelViewSet):
         return UploadViewSet().upload(request)
 
 
-class ImporterResource(DynamicModelViewSet):
+class ResourceImporter(DynamicModelViewSet):
 
     authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
@@ -169,11 +169,17 @@ class ImporterResource(DynamicModelViewSet):
 
             step = next(iter(handler.get_task_list(action=action)))
 
+            extracted_params, _data = handler.extract_params_from_data(request.data, action=action)
+
             execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name=step,
                     step=step,
-                    input_params={"handler_module_path": handler_module_path},
+                    input_params={**{
+                            "handler_module_path": str(handler)
+                        },
+                        **extracted_params
+                    },
                 )
 
             sig = import_orchestrator.s(
