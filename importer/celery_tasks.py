@@ -409,7 +409,7 @@ def create_dynamic_structure(execution_id: str, fields: dict, dynamic_model_sche
     '''
     dynamic_model_schema = ModelSchema.objects.filter(id=dynamic_model_schema_id)
     if not dynamic_model_schema.exists():
-        raise DynamicModelError(f"The model with id {dynamic_model_schema_id} does not exists. It may be deleted from the error callback tasks")
+        raise DynamicModelError(f"The model with id {dynamic_model_schema_id} does not exists.")
 
     dynamic_model_schema = dynamic_model_schema.first()
 

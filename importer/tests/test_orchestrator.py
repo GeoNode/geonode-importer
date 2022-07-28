@@ -302,7 +302,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                 self.orchestrator.evaluate_execution_progress(exec_id)
 
             self.assertEqual(
-                f"For the execution ID {exec_id} The following celery task are failed: ['{FAILED_entry.task_id}']",
+                "One or more dataset raises an error during the import, please check the logs",
                 str(e.exception)
             )
 
