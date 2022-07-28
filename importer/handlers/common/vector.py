@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from subprocess import PIPE, Popen
@@ -65,11 +66,17 @@ class BaseVectorFileHandler(BaseHandler):
         return f"Task: {task_name} raised an error during actions for layer: {args[-1]}: {exc}"
 
     @staticmethod
-    def extract_params_from_data(_data):
+    def extract_params_from_data(_data, action=None):
         '''
         Remove from the _data the params that needs to save into the executionRequest object
         all the other are returned
         '''
+        if action == exa.COPY.value:
+            title = json.loads(_data.get("defaults"))
+            return {
+                "title": title.pop('title')
+            }, _data
+
         return {
             "skip_existing_layers": _data.pop('skip_existing_layers', "False"),
             "override_existing_layer": _data.pop('override_existing_layer', "False"),
