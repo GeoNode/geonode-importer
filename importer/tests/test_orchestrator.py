@@ -4,8 +4,6 @@ from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import ImportException
 from importer.handlers.base import BaseHandler
-from importer.handlers.common.vector import BaseVectorFileHandler
-from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import ImportOrchestrator
 from geonode.upload.models import Upload
 from django.utils import timezone
