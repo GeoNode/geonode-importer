@@ -364,6 +364,14 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
 
         assert f'{workspace}:{new_alternate}' == new_resource.alternate
 
+        orchestrator.update_execution_request_status(
+            execution_id=str(_exec.exec_id),
+            input_params={**_exec.input_params, **{"instance": resource.pk}},
+            output_params={
+                "output": {"uuid": str(new_resource.uuid)}
+            }
+        )
+
         additional_kwargs = {
             "original_dataset_alternate": resource.alternate,
             "new_dataset_alternate": new_resource.alternate
