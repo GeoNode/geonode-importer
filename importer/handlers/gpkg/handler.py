@@ -1,4 +1,4 @@
-import hashlib
+import json
 import logging
 import os
 from subprocess import PIPE, Popen
@@ -12,14 +12,17 @@ from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
 from geopackage_validator.validate import validate
-from pyparsing import Optional
+from importer.api.exception import CopyResourceException
 from importer.celery_app import importer_app
+from importer.celery_tasks import ErrorBaseTaskClass
 from importer.handlers.base import BaseHandler
+from importer.handlers.utils import create_alternate
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
@@ -27,6 +30,8 @@ from importer.handlers.gpkg.utils import (GEOM_TYPE_MAPPING,
                                           drop_dynamic_model_schema)
 from importer.handlers.utils import should_be_imported
 from osgeo import ogr
+from django.db import connections, transaction
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +41,23 @@ class GPKGFileHandler(BaseHandler):
     Handler to import GPK files into GeoNode data db
     It must provide the task_lists required to comple the upload
     '''
-    TASKS_LIST = (
-        "start_import",
-        "importer.import_resource",
-        "importer.publish_resource",
-        "importer.create_geonode_resource",
-        # "importer.validate_upload", last task that will evaluate if there is any error coming from the execution. Maybe a chord?
-    )
+
+    ACTIONS = {
+        exa.IMPORT.value: (
+            "start_import",
+            "importer.import_resource",
+            "importer.publish_resource",
+            "importer.create_geonode_resource"
+        ),
+        exa.COPY.value: (
+            "start_copy",
+            "importer.copy_geonode_resource",
+            "importer.copy_dynamic_model",
+            "importer.copy_geonode_data_table",
+            "importer.publish_resource"
+        ),
+    }
+   
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -103,11 +118,17 @@ class GPKGFileHandler(BaseHandler):
         return True
 
     @staticmethod
-    def extract_params_from_data(_data):
+    def extract_params_from_data(_data, action=None):
         '''
         Remove from the _data the params that needs to save into the executionRequest object
         all the other are returned
         '''
+        if action == exa.COPY.value:
+            title = json.loads(_data.get("defaults"))
+            return {
+                "title": title.pop('title')
+            }, _data
+
         return {
             "skip_existing_layers": _data.pop('skip_existing_layers', "False"),
             "override_existing_layer": _data.pop('override_existing_layer', "False"),
@@ -115,7 +136,17 @@ class GPKGFileHandler(BaseHandler):
         }, _data
 
     @staticmethod
-    def extract_resource_to_publish(files, layer_name, alternate):
+    def extract_resource_to_publish(files, action, layer_name, alternate):
+        if action == exa.COPY.value:
+            workspace = get_geoserver_cascading_workspace(create=False)
+            full_alternate = alternate if ':' in alternate else f"{workspace.name}:{alternate}"
+            return [
+                {
+                    "name": alternate,
+                    "crs": ResourceBase.objects.get(alternate=full_alternate).srid
+                }
+            ]
+
         layers = ogr.Open(files.get("base_file"))
         if not layers:
             return []
@@ -265,7 +296,7 @@ class GPKGFileHandler(BaseHandler):
             it comes here when the layer should not be overrided so we append the UUID
             to the layer to let it proceed to the next steps
             '''
-            layer_name = self._create_alternate(layer_name, execution_id)
+            layer_name = create_alternate(layer_name, execution_id)
             dynamic_schema, _ = ModelSchema.objects.get_or_create(
                 name=layer_name,
                 db_name="datastore",
@@ -340,7 +371,7 @@ class GPKGFileHandler(BaseHandler):
                         dirty_state=True,
                         title=layer_name,
                         owner=_exec.user,
-                        files=_exec.input_params.get("files", {}),
+                        files=list(_exec.input_params.get("files", {}).values()),
                     )
                 )
 
@@ -372,19 +403,6 @@ class GPKGFileHandler(BaseHandler):
         ExecutionRequest.objects.filter(exec_id=execution_id).update(
             status=ExecutionRequest.STATUS_RUNNING, **kwargs
         )
-
-    def _create_alternate(self, layer_name, execution_id):
-        '''
-        Utility to generate the expected alternate for the resource
-        is alternate = layer_name_ + md5(layer_name + uuid)
-        '''
-        _hash = hashlib.md5(
-            f"{layer_name}_{execution_id}".encode('utf-8')
-        ).hexdigest()
-        alternate = f"{layer_name}_{_hash}"
-        if len(alternate) >= 64: # 64 is the max table lengh in postgres
-            return f"{layer_name[:50]}{_hash[:14]}"
-        return alternate
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
@@ -512,7 +530,7 @@ def gpkg_next_step(_, execution_id: str, handlers_module_path, actual_step: str,
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
     import_orchestrator.apply_async(
-        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate)
+        (_files, execution_id, handlers_module_path, actual_step, layer_name, alternate, exa.IMPORT.value)
     )
     return "gpkg_next_step", alternate, execution_id
 
@@ -525,3 +543,82 @@ def error_callback(*args, **kwargs):
     drop_dynamic_model_schema(schema_model)
 
     return 'error'
+
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.copy_dynamic_model",
+    queue="importer.copy_dynamic_model",
+    task_track_started=True
+)
+def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+    '''
+    Once the base resource is copied, is time to copy also the dynamic model
+    '''
+    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
+    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
+
+    from importer.celery_tasks import import_orchestrator
+    try:
+        dynamic_schema = ModelSchema.objects.filter(name=original_dataset_alternate.split(':')[1])
+        alternative_dynamic_schema = ModelSchema.objects.filter(name=new_dataset_alternate.split(':')[1])
+
+        if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
+            # Creating the dynamic schema object
+            new_schema = dynamic_schema.first()
+            new_schema.name = new_dataset_alternate.split(':')[1]
+            new_schema.pk = None
+            new_schema.save()
+            # create the field_schema object
+            fields = []
+            for field in dynamic_schema.first().fields.all():
+                obj = field
+                obj.model_schema=new_schema
+                obj.pk = None
+                fields.append(obj)
+
+            FieldSchema.objects.bulk_create(fields)
+        else:
+            # get the value from the DB and create the schema
+            pass
+
+        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
+        # for some reason celery will always put the kwargs into a key kwargs
+        # so we need to remove it
+        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
+
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        raise CopyResourceException(detail=e)
+    return exec_id, kwargs
+
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.copy_geonode_data_table",
+    queue="importer.copy_geonode_data_table",
+    task_track_started=True
+)
+def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+    '''
+    Once the base resource is copied, is time to copy also the dynamic model
+    '''
+    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate").split(':')[1]
+    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate").split(':')[1]
+
+    from importer.celery_tasks import import_orchestrator
+    try:
+        
+        db_name = ModelSchema.objects.filter(name=new_dataset_alternate).first().db_name
+        with transaction.atomic():
+            with connections[db_name].cursor() as cursor:
+                cursor.execute(
+                    f"CREATE TABLE {new_dataset_alternate} AS TABLE {original_dataset_alternate};"
+                )
+
+        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
+
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        raise CopyResourceException(detail=e)
+    return exec_id, kwargs

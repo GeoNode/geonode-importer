@@ -1,3 +1,5 @@
+import hashlib
+
 from django.contrib.auth import get_user_model
 from geonode.base.models import ResourceBase
 from geonode.services.serviceprocessors.base import \
@@ -24,3 +26,18 @@ def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
         return False
     
     return True
+
+
+def create_alternate(layer_name, execution_id):
+    '''
+    Utility to generate the expected alternate for the resource
+    is alternate = layer_name_ + md5(layer_name + uuid)
+    '''
+    _hash = hashlib.md5(
+        f"{layer_name}_{execution_id}".encode('utf-8')
+    ).hexdigest()
+    alternate = f"{layer_name}_{_hash}"
+    if len(alternate) > 63: # 63 is the max table lengh in postgres
+        return f"{layer_name[:50]}{_hash[:13]}"
+    return alternate
+

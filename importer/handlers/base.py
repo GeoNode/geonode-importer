@@ -1,8 +1,10 @@
 from abc import ABC
 import logging
 from typing import List
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 
 logger = logging.getLogger(__name__)
+
 
 class BaseHandler(ABC):
     '''
@@ -16,6 +18,13 @@ class BaseHandler(ABC):
     '''
 
     REGISTRY = []
+
+    ACTIONS = {
+        exa.IMPORT.value: (),
+        exa.COPY.value: (),
+        exa.DELETE.value: (),
+        exa.UPDATE.value: (),
+    }
 
     def __str__(self):
         return f"{self.__module__}.{self.__class__.__name__}"
@@ -31,6 +40,20 @@ class BaseHandler(ABC):
     def get_registry(cls):
         return BaseHandler.REGISTRY
 
+    
+    @classmethod
+    def get_task_list(cls, action) -> tuple:
+        if action not in cls.ACTIONS:
+            raise Exception("The requested action is not implemented yet")
+        return cls.ACTIONS.get(action)
+
+    @staticmethod
+    def is_valid(files, user):
+        """
+        Define basic validation steps
+        """
+        return NotImplementedError
+    
     @staticmethod
     def can_handle(_data) -> bool:
         '''
@@ -40,12 +63,13 @@ class BaseHandler(ABC):
         return False
 
     @staticmethod
-    def is_valid(files, user):
-        """
-        Define basic validation steps
-        """
-        return NotImplementedError
-    
+    def can_do(action) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        return action in BaseHandler.ACTIONS
+
     @staticmethod
     def extract_params_from_data(_data):
         '''

@@ -40,7 +40,15 @@ class SingleMessageErrorHandler(Task):
             log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
         )
 
-        TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
+        self.update_state(
+            task_id=task_id,
+            state="FAILURE",
+            meta={
+                "exec_id": str(exec_id.exec_id),
+                "reason": _log
+            }
+        )
+        #TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
 
         orchestrator.evaluate_execution_progress(self._get_uuid(args))
 

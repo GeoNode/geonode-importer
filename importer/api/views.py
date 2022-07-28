@@ -17,28 +17,37 @@
 #
 #########################################################################
 import logging
+from urllib.parse import urljoin
+from django.conf import settings
+from django.urls import reverse
 
+from geonode.resource.enumerator import ExecutionRequestAction
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
-from geonode.base.api.filters import DynamicSearchFilter
+from geonode.base.api.filters import (DynamicSearchFilter, ExtentFilter,
+                                      FavoriteFilter)
 from geonode.base.api.pagination import GeoNodeApiPagination
-from geonode.base.api.permissions import IsOwnerOrReadOnly
+from geonode.base.api.permissions import (IsOwnerOrReadOnly,
+                                          ResourceBasePermissionsFilter)
+from geonode.base.api.serializers import ResourceBaseSerializer
+from geonode.base.api.views import ResourceBaseViewSet
+from geonode.base.models import ResourceBase
 from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
 from geonode.upload.api.views import UploadViewSet
 from geonode.upload.models import Upload
-from importer.api.exception import ImportException
+from geonode.upload.utils import UploadLimitValidator
+from importer.api.exception import HandlerException, ImportException
 from importer.api.serializer import ImporterSerializer
+from importer.celery_tasks import import_orchestrator
+from importer.orchestrator import orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from geonode.upload.utils import UploadLimitValidator
-from importer.celery_tasks import import_orchestrator
-from importer.orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -92,23 +101,28 @@ class ImporterViewSet(DynamicModelViewSet):
                 upload_validator.validate_parallelism_limit_per_user()
                 upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
 
+                action = ExecutionRequestAction.IMPORT.value
+
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
-                    func_name=next(iter(handler.TASKS_LIST)),
-                    step=next(iter(handler.TASKS_LIST)),
+                    func_name=next(iter(handler.get_task_list(action=action))),
+                    step=_(next(iter(handler.get_task_list(action=action)))),
                     input_params={**{
                             "files": files,
                             "handler_module_path": str(handler)
                         },
                         **extracted_params
                     },
-                    legacy_upload_name=_file.name
+                    legacy_upload_name=_file.name,
+                    action=action,
+                    name=_file.name
                 )
 
                 sig = import_orchestrator.s(
                         files,
                         str(execution_id),
-                        handler=str(handler)
+                        handler=str(handler),
+                        action=action
                 )
                 sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
@@ -124,3 +138,75 @@ class ImporterViewSet(DynamicModelViewSet):
         # if is a geopackage we just use the new import flow
         request.GET._mutable = True
         return UploadViewSet().upload(request)
+
+
+class ResourceImporter(DynamicModelViewSet):
+
+    authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    filter_backends = [
+        DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
+        ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter
+    ]
+    queryset = ResourceBase.objects.all().order_by('-last_updated')
+    serializer_class = ResourceBaseSerializer
+    pagination_class = GeoNodeApiPagination
+
+    def copy(self, request, *args, **kwargs):
+        resource = self.get_object()
+        if resource.resourcehandlerinfo_set.exists():
+
+            handler_module_path = resource.resourcehandlerinfo_set.first().handler_module_path
+
+            action = ExecutionRequestAction.COPY.value
+
+            handler = orchestrator.load_handler(handler_module_path)
+
+            if not handler.can_do(action):
+                raise HandlerException(detail=f"The handler {handler_module_path} cannot manage the action required: {action}")
+
+            step = next(iter(handler.get_task_list(action=action)))
+
+            extracted_params, _data = handler.extract_params_from_data(request.data, action=action)
+
+            execution_id = orchestrator.create_execution_request(
+                    user=request.user,
+                    func_name=step,
+                    step=step,
+                    input_params={**{
+                            "handler_module_path": str(handler)
+                        },
+                        **extracted_params
+                    },
+                )
+
+            sig = import_orchestrator.s(
+                    {},
+                    str(execution_id),
+                    step=step,
+                    handler=str(handler_module_path),
+                    action=action,
+                    layer_name=resource.title,
+                    alternate=resource.alternate
+            )
+            sig.apply_async()
+
+            # to reduce the work on the FE, the old payload is mantained 
+            return Response(
+                data={
+                    "status": "ready",
+                    "execution_id": execution_id,
+                    "status_url": urljoin(
+                            settings.SITEURL,
+                            reverse('rs-execution-status', kwargs={'execution_id': execution_id})
+                        )
+                },
+                status=200
+            )
+
+        return ResourceBaseViewSet(
+            request=request,
+            format_kwarg=None,
+            args=args,
+            kwargs=kwargs
+        ).resource_service_copy(request, pk=kwargs.get("pk"))

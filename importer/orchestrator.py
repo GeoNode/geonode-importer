@@ -45,6 +45,9 @@ class ImportOrchestrator:
         logger.error("Handler not found, fallback on the legacy upload system")
         return None
 
+    def load_handler(self, module_path):
+        return import_string(module_path)
+
     def get_execution_object(self, exec_id):
         '''
         Returns the ExecutionRequest object with the detail about the 
@@ -55,7 +58,7 @@ class ImportOrchestrator:
             raise ImportException("The selected UUID does not exists")
         return req.first()
 
-    def perform_next_import_step(self, execution_id: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None) -> None:
+    def perform_next_step(self, execution_id: str, action: str, step: str = None, layer_name:str = None, alternate:str = None, handler_module_path: str = None, **kwargs) -> None:
         '''
         It takes the executionRequest detail to extract which was the last step
         and take from the task_lists provided by the ResourceType handler
@@ -68,9 +71,18 @@ class ImportOrchestrator:
                 step = _exec_obj.step
 
             # retrieve the task list for the resource_type
-            tasks = import_string(handler_module_path).TASKS_LIST
+            tasks = self.load_handler(handler_module_path).get_task_list(action=action)
             # getting the index
             _index = tasks.index(step) + 1
+            if _index == 1:
+                '''
+                Means that the first task is available and we set the executions state as running
+                So is updated only at the beginning keeping it in a consistent state
+                '''
+                self.update_execution_request_status(
+                    execution_id=str(_exec_obj.exec_id),
+                    status=ExecutionRequest.STATUS_RUNNING
+                )
             # finding in the task_list the last step done
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
@@ -82,7 +94,7 @@ class ImportOrchestrator:
             # calling the next step for the resource
 
             # defining the tasks parameter for the step
-            task_params = (str(execution_id), handler_module_path)
+            task_params = (str(execution_id), handler_module_path, action)
             logger.info(f"STARTING NEXT STEP {next_step}")
 
             if layer_name and alternate:
@@ -99,11 +111,12 @@ class ImportOrchestrator:
                         next_step,
                         layer_name,
                         alternate,
-                        handler_module_path
+                        handler_module_path,
+                        action
                     )
 
             # continuing to the next step
-            importer_app.tasks.get(next_step).apply_async(task_params)
+            importer_app.tasks.get(next_step).apply_async(task_params, kwargs)
             return execution_id
 
         except StopIteration:
@@ -159,7 +172,7 @@ class ImportOrchestrator:
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
-            raise ImportException(_log_message)
+            raise ImportException("One or more dataset raises an error during the import, please check the logs")
         else:
             logger.info(f"Execution with ID {execution_id} is completed. All tasks are done")
             self.set_as_completed(execution_id)
@@ -172,7 +185,9 @@ class ImportOrchestrator:
         step: str,
         input_params: dict,
         resource=None,
-        legacy_upload_name=""
+        legacy_upload_name="",
+        action=None,
+        name=None,
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
@@ -183,6 +198,8 @@ class ImportOrchestrator:
             func_name=func_name,
             step=step,
             input_params=input_params,
+            action=action,
+            name=name
         )
         if self.enable_legacy_upload_status:
             # getting the package name from the base_filename
@@ -219,4 +236,4 @@ class ImportOrchestrator:
             TaskResult.objects.filter(task_id=celery_task_request.id)\
                 .update(task_args=celery_task_request.args)
 
-orchestrator = ImportOrchestrator()
+orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
