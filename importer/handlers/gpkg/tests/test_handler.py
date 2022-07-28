@@ -39,8 +39,8 @@ class TestGPKGHandler(TestCase):
             "importer.publish_resource",
             "importer.create_geonode_resource"
         )
-        self.assertEqual(len(self.handler.TASKS_LIST), 4)
-        self.assertTupleEqual(expected, self.handler.TASKS_LIST)
+        self.assertEqual(len(self.handler.ACTIONS['import']), 4)
+        self.assertTupleEqual(expected, self.handler.ACTIONS['import'])
 
     def test_is_valid_should_raise_exception_if_the_gpkg_is_invalid(self):
         with self.assertRaises(InvalidGeopackageException) as _exc:
@@ -138,8 +138,7 @@ class TestGPKGHandler(TestCase):
         self._assert_test_result()
 
     def test_setup_dynamic_model_no_dataset_no_modelschema_overwrite_true(self):
-        with self.assertRaises(InvalidGeopackageException):
-            self._assert_test_result(overwrite=True)
+        self._assert_test_result(overwrite=True)
 
     def test_setup_dynamic_model_with_dataset_no_modelschema_overwrite_false(self):
         create_single_dataset(name='stazioni_metropolitana', owner=self.user)
@@ -154,7 +153,7 @@ class TestGPKGHandler(TestCase):
             name="stazioni_metropolitana",
             db_name="datastore"
         )
-        self._assert_test_result(overwrite=False, assert_uuid=True)
+        self._assert_test_result(overwrite=False)
 
     def test_setup_dynamic_model_with_dataset_with_modelschema_overwrite_false(self):
         create_single_dataset(name='stazioni_metropolitana', owner=self.user)
@@ -163,9 +162,9 @@ class TestGPKGHandler(TestCase):
             db_name="datastore",
             managed=True
         )
-        self._assert_test_result(overwrite=False, assert_uuid=True)
+        self._assert_test_result(overwrite=False)
     
-    def _assert_test_result(self, overwrite=False, assert_uuid=False):
+    def _assert_test_result(self, overwrite=False):
         try:
             # Prepare the test
             exec_id = orchestrator.create_execution_request(
@@ -181,7 +180,7 @@ class TestGPKGHandler(TestCase):
             layers = ogr.Open(self.valid_gpkg)
 
             # starting the tests
-            dynamic_model, use_uuid, celery_group = self.handler.setup_dynamic_model(
+            dynamic_model, layer_name, celery_group = self.handler.setup_dynamic_model(
                 layer=[x for x in layers][0],
                 execution_id=str(exec_id),
                 should_be_overrided=overwrite,
@@ -190,12 +189,8 @@ class TestGPKGHandler(TestCase):
 
             self.assertIsNotNone(dynamic_model)
 
-            if not assert_uuid:
-                self.assertFalse(use_uuid)
-            else:
-                self.assertTrue(use_uuid)
-                #check if the uuid has been added to the model name
-                self.assertTrue(str(exec_id).replace('-', '_').lower() in str(dynamic_model).lower())
+            #check if the uuid has been added to the model name
+            self.assertIsNotNone(layer_name)
 
             self.assertIsInstance(celery_group, group)
             self.assertEqual(1, len(celery_group.tasks))
@@ -204,7 +199,7 @@ class TestGPKGHandler(TestCase):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
-    @patch("importer.handlers.gpkg.handler.chord")
+    @patch("importer.handlers.common.vector.chord")
     def test_import_resource_should_not_be_imported(self, celery_chord):
         '''
         If the resource exists and should be skept, the celery task
@@ -234,7 +229,7 @@ class TestGPKGHandler(TestCase):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
-    @patch("importer.handlers.gpkg.handler.chord")
+    @patch("importer.handlers.common.vector.chord")
     def test_import_resource_should_work(self, celery_chord):
         try:
             exec_id = orchestrator.create_execution_request(
