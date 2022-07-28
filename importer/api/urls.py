@@ -1,5 +1,5 @@
 from geonode.upload.api.urls import urlpatterns
-from importer.api.views import ImporterResource, ImporterViewSet
+from importer.api.views import ResourceImporter, ImporterViewSet
 from django.conf.urls import url
 
 urlpatterns.insert(
@@ -9,5 +9,5 @@ urlpatterns.insert(
 
 urlpatterns.insert(
     1,
-    url(r'resources/(?P<pk>\w+)/copy', ImporterResource.as_view({"put": "copy"}), name="importer_resource_copy")
+    url(r'resources/(?P<pk>\w+)/copy', ResourceImporter.as_view({"put": "copy"}), name="importer_resource_copy")
 )

@@ -140,7 +140,7 @@ class ImporterViewSet(DynamicModelViewSet):
         return UploadViewSet().upload(request)
 
 
-class ImporterResource(DynamicModelViewSet):
+class ResourceImporter(DynamicModelViewSet):
 
     authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
