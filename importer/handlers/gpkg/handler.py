@@ -62,7 +62,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
             RQ13: It is required to give all GEOMETRY features the same default spatial reference system
             RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
             RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
-            RC2: It is recommended to give all GEOMETRY type columns the same name.
+            RC18: It is recommended to give all GEOMETRY type columns the same name.
         """
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
@@ -70,8 +70,10 @@ class GPKGFileHandler(BaseVectorFileHandler):
         actual_upload = upload_validator._get_parallel_uploads_count()
         max_upload = upload_validator._get_max_parallel_uploads()
 
-        layers = ogr.Open(files.get("base_file"))
-        # for the moment we skip the dyanamic model creation
+        layers = ogr.GetDriverByName("GPKG").Open(files.get("base_file"))
+        if not layers:
+            raise InvalidGeopackageException("The geopackage provided is invalid")
+
         layers_count = len(layers)
 
         if layers_count >= max_upload:
@@ -87,7 +89,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
 
         validator = validate(
             gpkg_path=files.get("base_file"),
-            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC2'
+            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC18'
         )
         if not validator[-1]:
             raise InvalidGeopackageException(validator[0])
