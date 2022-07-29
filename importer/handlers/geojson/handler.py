@@ -1,8 +1,9 @@
 import logging
+from django.conf import settings
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.vector import BaseVectorFileHandler
-
+from osgeo import ogr
 
 logger = logging.getLogger(__name__)
 
@@ -52,3 +53,16 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         upload_validator.validate_parallelism_limit_per_user()
 
         return True
+
+    def get_ogr2ogr_driver(self):
+        return ogr.GetDriverByName("GeoJSON")
+    
+    @staticmethod
+    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+        '''
+        Define the ogr2ogr command to be executed.
+        This is a default command that is needed to import a vector file
+        '''
+        
+        base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
+        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}" 

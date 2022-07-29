@@ -34,6 +34,10 @@ class BaseVectorFileHandler(BaseHandler):
     It must provide the task_lists required to comple the upload
     '''
 
+    @property
+    def default_geometry_column_name(self):
+        return "geometry"
+
     @staticmethod
     def is_valid(files, user):
         """
@@ -83,8 +87,7 @@ class BaseVectorFileHandler(BaseHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
-    @staticmethod
-    def extract_resource_to_publish(files, action, layer_name, alternate):
+    def extract_resource_to_publish(self, files, action, layer_name, alternate):
         if action == exa.COPY.value:
             workspace = get_geoserver_cascading_workspace(create=False)
             full_alternate = alternate if ':' in alternate else f"{workspace.name}:{alternate}"
@@ -95,7 +98,7 @@ class BaseVectorFileHandler(BaseHandler):
                 }
             ]
 
-        layers = ogr.Open(files.get("base_file"))
+        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
         if not layers:
             return []
         return [
@@ -107,8 +110,38 @@ class BaseVectorFileHandler(BaseHandler):
                 )
             } 
             for _l in layers
-            if _l.GetName() == layer_name
+            if self.fixup_name(_l.GetName()) == layer_name
         ]
+
+    def get_ogr2ogr_driver(self):
+        '''
+        Should return the Driver object that is used to open the layers via OGR2OGR
+        '''
+        return None
+
+    @staticmethod
+    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+        '''
+        Define the ogr2ogr command to be executed.
+        This is a default command that is needed to import a vector file
+        '''
+        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
+        db_user, db_password = _uri.split('@')[0].split(":")
+        db_host, db_port = _uri.split('@')[1].split('/')[0].split(":")
+        db_name = _uri.split('@')[1].split("/")[1]
+
+        options = '--config PG_USE_COPY YES '
+        options += '-f PostgreSQL PG:" dbname=\'%s\' host=%s port=%s user=\'%s\' password=\'%s\' " ' \
+                    % (db_name, db_host, db_port, db_user, db_password)
+        options += files.get("base_file") + " "
+        options += '-lco DIM=2 '
+        options += f"-nln {alternate} {original_name}"
+
+        if override_layer:
+            options += " -overwrite"
+
+        return options
+
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         '''
@@ -116,7 +149,7 @@ class BaseVectorFileHandler(BaseHandler):
         Internally will call the steps required to import the 
         data inside the geonode_data database
         '''
-        layers = ogr.Open(files.get("base_file"))
+        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
@@ -126,7 +159,7 @@ class BaseVectorFileHandler(BaseHandler):
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
 
-                layer_name = layer.GetName().lower()
+                layer_name = self.fixup_name(layer.GetName())
 
                 should_be_overrided = _exec.input_params.get("override_existing_layer")
                 # should_be_imported check if the user+layername already exists or not
@@ -172,7 +205,7 @@ class BaseVectorFileHandler(BaseHandler):
             - celery_group -> the celery group of the field creation
         '''
 
-        layer_name = layer.GetName().lower()
+        layer_name = self.fixup_name(layer.GetName())
         workspace = get_geoserver_cascading_workspace(create=False)
         user_datasets = Dataset.objects.filter(owner=username, alternate=f'{workspace.name}:{layer_name}')
         dynamic_schema = ModelSchema.objects.filter(name=layer_name)
@@ -236,11 +269,11 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn():
+        if layer.GetGeometryColumn() or self.default_geometry_column_name:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
-                    "name": layer.GetGeometryColumn(),
+                    "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
                     "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
                 }
             ]
@@ -339,7 +372,8 @@ class BaseVectorFileHandler(BaseHandler):
         In case the OGR2OGR is different from the default one, is enough to ovverride this method
         and return the celery task object needed
         '''
-        return import_with_ogr2ogr.s(execution_id, files, layer.lower(), should_be_overrided, alternate)
+        handler_module_path = str(self)
+        return import_with_ogr2ogr.s(execution_id, files, layer.lower(), handler_module_path, should_be_overrided, alternate)
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
@@ -381,27 +415,17 @@ def import_next_step(_, execution_id: str, handlers_module_path, actual_step: st
     ignore_result=False,
     task_track_started=True
 )
-def import_with_ogr2ogr(execution_id: str, files: dict, original_name:str, override_layer=False, alternate=None):
+def import_with_ogr2ogr(execution_id: str, files: dict, original_name:str, handler_module_path, override_layer=False, alternate=None):
     '''
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically
     ''' 
+    from importer.celery_tasks import orchestrator
 
     ogr_exe = "/usr/bin/ogr2ogr"
-    _uri = settings.GEODATABASE_URL.replace("postgis://", "")
-    db_user, db_password = _uri.split('@')[0].split(":")
-    db_host, db_port = _uri.split('@')[1].split('/')[0].split(":")
-    db_name = _uri.split('@')[1].split("/")[1]
 
-    options = '--config PG_USE_COPY YES '
-    options += '-f PostgreSQL PG:" dbname=\'%s\' host=%s port=%s user=\'%s\' password=\'%s\' " ' \
-                % (db_name, db_host, db_port, db_user, db_password)
-    options += files.get("base_file") + " "
-    options += '-lco DIM=2 '
-    options += f"-nln {alternate} {original_name}"
-
-    if override_layer:
-        options += " -overwrite"
+    options = orchestrator.load_handler(handler_module_path)\
+        .create_ogr2ogr_command(files, original_name, override_layer, alternate)
 
     commands = [ogr_exe] + options.split(" ")
     
@@ -410,4 +434,3 @@ def import_with_ogr2ogr(execution_id: str, files: dict, original_name:str, overr
     if stderr is not None and stderr != b'' and b'Warning' not in stderr:
         raise Exception(stderr)
     return "ogr2ogr", alternate, execution_id
-

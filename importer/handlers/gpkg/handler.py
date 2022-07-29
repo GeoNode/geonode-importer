@@ -70,7 +70,8 @@ class GPKGFileHandler(BaseVectorFileHandler):
         actual_upload = upload_validator._get_parallel_uploads_count()
         max_upload = upload_validator._get_max_parallel_uploads()
 
-        layers = ogr.GetDriverByName("GPKG").Open(files.get("base_file"))
+        layers = GPKGFileHandler().get_ogr2ogr_driver().Open(files.get("base_file"))
+
         if not layers:
             raise InvalidGeopackageException("The geopackage provided is invalid")
 
@@ -95,3 +96,6 @@ class GPKGFileHandler(BaseVectorFileHandler):
             raise InvalidGeopackageException(validator[0])
 
         return True
+
+    def get_ogr2ogr_driver(self):
+        return ogr.GetDriverByName("GPKG")

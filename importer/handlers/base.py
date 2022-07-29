@@ -77,9 +77,11 @@ class BaseHandler(ABC):
         all the other are returned
         '''
         return []
+    
+    def fixup_name(self, name):
+        return name.lower().replace('-', '_')
 
-    @staticmethod
-    def extract_resource_to_publish(files, layer_name, alternate):
+    def extract_resource_to_publish(self, files, layer_name, alternate):
         '''
         Function to extract the layer name and the CRS from needed in the 
         publishing phase
