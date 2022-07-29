@@ -1,12 +1,17 @@
 # geonode-importer
 ### C256-METAMEDIA-2022-GEOPACKAGE
 
+Dependencies:
+```
+GDAL >= 3.2.2.1
+```
+
 installation: 
 ```
 pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@master#egg=geonode_importer
 ```
 
-Add to settings:
+Add to settings.py:
 
 ```
 
@@ -39,6 +44,7 @@ Is possible to define the rate limit for celery to handle the tasks by updating 
 IMPORTER_GLOBAL_RATE_LIMIT= # default 5
 IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
 IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
+IMPORTER_RESOURCE_COPY_RATE_LIMIT = os.getenv("IMPORTER_RESOURCE_COPY_RATE_LIMIT", 10)
 ```
 
 

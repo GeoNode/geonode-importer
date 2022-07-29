@@ -85,7 +85,7 @@ class GPKGFileHandler(BaseHandler):
             RQ13: It is required to give all GEOMETRY features the same default spatial reference system
             RQ14: The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON
             RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
-            RC2: It is recommended to give all GEOMETRY type columns the same name.
+            RC18: It is recommended to give all GEOMETRY type columns the same name.
         """
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
@@ -112,7 +112,7 @@ class GPKGFileHandler(BaseHandler):
 
         validator = validate(
             gpkg_path=files.get("base_file"),
-            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC2'
+            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC18'
         )
         if not validator[-1]:
             raise InvalidGeopackageException(validator[0])
