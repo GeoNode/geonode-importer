@@ -1,9 +1,12 @@
 import logging
+import os
 from django.conf import settings
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.vector import BaseVectorFileHandler
 from osgeo import ogr
+
+from importer.handlers.geojson.exceptions import InvalidGeoJsonException
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,17 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
         upload_validator.validate_parallelism_limit_per_user()
+        
+        _file = files.get('base_file')
+        if not _file:
+            raise InvalidGeoJsonException("base file is not provided")
+
+        filename = os.path.basename(_file)
+
+        if len(filename.split('.')) > 2:
+            # means that there is a dot other than the one needed for the extension
+            # if we keep it ogr2ogr raise an error, better to remove it
+            raise InvalidGeoJsonException("Please remove the additional dots in the filename")
 
         return True
 

@@ -343,22 +343,8 @@ class BaseVectorFileHandler(BaseHandler):
                     )
                 )
 
-        if _exec.input_params.get("metadata_uploaded", False):
-            resource_manager.update(None,
-                    instance=saved_dataset,
-                    xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
-                    metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
-                    vals={"dirty_state": True}
-                )
-
-        resource_manager.exec(
-                'set_style',
-                None,
-                instance=saved_dataset,
-                sld_uploaded=_exec.input_params.get("sld_uploaded", False),
-                sld_file=_exec.input_params.get("files", {}).get("xml_file", ""),
-                vals={"dirty_state": True}
-            )
+        self.handle_xml_file(saved_dataset, _exec)
+        self.handle_sld_file(saved_dataset, _exec)
 
         resource_manager.set_thumbnail(None, instance=saved_dataset)
 
@@ -366,6 +352,24 @@ class BaseVectorFileHandler(BaseHandler):
 
         saved_dataset.refresh_from_db()
         return saved_dataset
+
+    def handle_xml_file(self, saved_dataset, _exec):
+        resource_manager.update(None,
+                    instance=saved_dataset,
+                    xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
+                    metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
+                    vals={"dirty_state": True}
+                )
+
+    def handle_sld_file(self, saved_dataset, _exec):
+        resource_manager.exec(
+                'set_style',
+                None,
+                instance=saved_dataset,
+                sld_file=_exec.input_params.get("files", {}).get("sld_file", ""),
+                sld_uploaded=_exec.input_params.get("sld_uploaded", False),
+                vals={"dirty_state": True}
+            )
 
     def get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
         '''

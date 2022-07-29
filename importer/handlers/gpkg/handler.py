@@ -99,3 +99,15 @@ class GPKGFileHandler(BaseVectorFileHandler):
 
     def get_ogr2ogr_driver(self):
         return ogr.GetDriverByName("GPKG")
+
+    def handle_xml_file(self, saved_dataset, _exec):
+        '''
+        Not implemented for GPKG, skipping
+        '''
+        pass
+
+    def handle_sld_file(self, saved_dataset, _exec):
+        '''
+        Not implemented for GPKG, skipping
+        '''
+        pass
