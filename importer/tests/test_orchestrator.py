@@ -96,7 +96,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             },
         )
         # test under tests
-        self.orchestrator.perform_next_import_step("gpkg", _id)
+        self.orchestrator.perform_next_step("gpkg", _id)
         mock_celery.assert_called_once()
         mock_celery.assert_called_with("importer.import_resource")
 
@@ -114,7 +114,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             },
         )
         # test under tests
-        self.orchestrator.perform_next_import_step("gpkg", _id)
+        self.orchestrator.perform_next_step("gpkg", _id)
         mock_celery.assert_not_called()
 
     @patch("importer.orchestrator.importer_app.tasks.get")
@@ -133,7 +133,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         )
         # test under tests
         with self.assertRaises(Exception):
-            self.orchestrator.perform_next_import_step("gpkg", _id)
+            self.orchestrator.perform_next_step("gpkg", _id)
 
         _excec = ExecutionRequest.objects.filter(exec_id=_id).first()
         self.assertIsNotNone(_excec)

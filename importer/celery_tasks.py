@@ -1,18 +1,18 @@
 import logging
-import os
 from typing import Optional
 from uuid import UUID
 
 from celery import Task
 from django.utils import timezone
 from django.utils.module_loading import import_string
-
+from django.utils.translation import ugettext
 from importer.api.exception import (InvalidInputFileException,
-                                    PublishResourceException,
+                                    PublishResourceException, CopyResourceException,
                                     ResourceCreationException,
                                     StartImportException)
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
+from importer.handlers.utils import create_alternate
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
@@ -20,6 +20,9 @@ from importer.settings import (IMPORTER_GLOBAL_RATE_LIMIT,
                                IMPORTER_PUBLISHING_RATE_LIMIT,
                                IMPORTER_RESOURCE_CREATION_RATE_LIMIT)
 from importer.utils import error_handler
+from geonode.base.models import ResourceBase
+from geonode.resource.enumerator import ExecutionRequestAction as exa
+from celery.exceptions import TaskError
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +40,18 @@ class ErrorBaseTaskClass(Task):
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
         _uuid = self._get_uuid(args)
-
-        logger.error(f"Task FAILED with ID: {_uuid}, reason: {exc}")
-
+        reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
+        logger.error(reason)
         orchestrator.set_as_failed(
             execution_id=_uuid, reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+        )
+        self.update_state(
+            task_id=task_id,
+            state="FAILURE",
+            meta={
+                "exec_id": _uuid,
+                "reason": reason
+            }
         )
 
     def _get_uuid(self, _list):
@@ -63,7 +73,7 @@ class ErrorBaseTaskClass(Task):
     task_track_started=True
 )
 def import_orchestrator(
-    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None
+    self, files: dict, execution_id: str, handler=None, step='start_import', layer_name=None, alternate=None, action=exa.IMPORT.value, **kwargs
 ):
 
     '''
@@ -71,8 +81,6 @@ def import_orchestrator(
     mainly is a wrapper for the Orchestrator object.
 
             Parameters:
-                    files (dict): dictionary with the files needed for the import. it expect that there is always a base_file
-                                  example: {"base_file": "/path/to/the/local/file/to/be/importerd.gpkg"}
                     user (UserModel): user that is performing the request
                     execution_id (UUID): unique ID used to keep track of the execution request
                     step (str): last step performed from the tasks
@@ -84,16 +92,18 @@ def import_orchestrator(
     try:
        # extract the resource_type of the layer and retrieve the expected handler
 
-        orchestrator.perform_next_import_step(
+        orchestrator.perform_next_step(
             execution_id=execution_id,
             step=step,
             layer_name=layer_name,
             alternate=alternate,
-            handler_module_path=handler
+            handler_module_path=handler,
+            action=action,
+            kwargs=kwargs
         )
 
     except Exception as e:
-        raise StartImportException(detail=error_handler(e))
+        raise StartImportException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
@@ -101,12 +111,12 @@ def import_orchestrator(
     base=ErrorBaseTaskClass,    
     name="importer.import_resource",
     queue="importer.import_resource",
-    max_retries=2,
+    max_retries=1,
     rate_limit=IMPORTER_GLOBAL_RATE_LIMIT,
     ignore_result=False,
     task_track_started=True
 )
-def import_resource(self, execution_id, /, handler_module_path):  
+def import_resource(self, execution_id, /, handler_module_path, action, **kwargs):  
     '''
     Task to import the resources.
     NOTE: A validation if done before acutally start the import
@@ -124,7 +134,7 @@ def import_resource(self, execution_id, /, handler_module_path):
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="import_resource",
-            step="importer.import_resource",
+            step=ugettext("importer.import_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -148,7 +158,7 @@ def import_resource(self, execution_id, /, handler_module_path):
         return self.name, execution_id
 
     except Exception as e:
-        raise InvalidInputFileException(detail=error_handler(e))
+        raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
@@ -168,7 +178,9 @@ def publish_resource(
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
-    handler_module_path: str = None
+    handler_module_path: str = None,
+    action: str = None,
+    **kwargs
 ):
     '''
     Task to publish a single resource in geoserver.
@@ -189,7 +201,7 @@ def publish_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="publish_resource",
-            step="importer.publish_resource",
+            step=ugettext("importer.publish_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -201,7 +213,7 @@ def publish_resource(
             _publisher = DataPublisher(handler_module_path)
 
             # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_to_publish(_files, layer_name, alternate)
+            _metadata = _publisher.extract_resource_to_publish(_files, action, layer_name, alternate)
             if _metadata:
                 # we should not publish resource without a crs
 
@@ -220,12 +232,12 @@ def publish_resource(
         # at the end recall the import_orchestrator for the next step
 
         import_orchestrator.apply_async(
-            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate, action)
         )
         return self.name, execution_id
 
     except Exception as e:
-        raise PublishResourceException(detail=error_handler(e))
+        raise PublishResourceException(detail=error_handler(e, execution_id))
 
 
 @importer_app.task(
@@ -245,7 +257,9 @@ def create_geonode_resource(
     step_name: str,
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
-    handler_module_path: str = None
+    handler_module_path: str = None,
+    action: str = None,
+    **kwargs
 ):
     '''
     Create the GeoNode resource and the relatives information associated
@@ -267,7 +281,7 @@ def create_geonode_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="create_geonode_resource",
-            step="importer.create_geonode_resource",
+            step=ugettext("importer.create_geonode_resource"),
             celery_task_request=self.request
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -288,9 +302,80 @@ def create_geonode_resource(
         )
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
-            (_files, execution_id, handler_module_path, step_name, layer_name, alternate)
+            (_files, execution_id, handler_module_path, step_name, layer_name, alternate, action)
         )
         return self.name, execution_id
 
     except Exception as e:
         raise ResourceCreationException(detail=error_handler(e))
+
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.copy_geonode_resource",
+    queue="importer.copy_geonode_resource",
+    max_retries=1,
+    rate_limit=IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
+    ignore_result=False,
+    task_track_started=True
+)
+def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_module_path, action, **kwargs):
+    '''
+    Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
+    have the new generated alternate
+    '''
+    from importer.celery_tasks import import_orchestrator
+    from importer.utils import custom_resource_manager
+    try:
+        resource = ResourceBase.objects.filter(alternate=alternate)
+        if not resource.exists():
+            raise Exception("The resource requested does not exists")
+        resource = resource.first()
+
+        _exec = orchestrator.get_execution_object(exec_id)
+
+        new_alternate = create_alternate(resource.title, exec_id)
+
+        workspace = resource.alternate.split(':')[0]
+
+        data_to_update = {
+            "alternate": f'{workspace}:{new_alternate}', 
+            'name': new_alternate
+        }
+
+        if _exec.input_params.get("title"):
+            data_to_update['title'] = _exec.input_params.get("title")
+
+        new_resource = custom_resource_manager.copy(
+            resource,
+            owner=resource.owner,
+            defaults=data_to_update,
+        )
+
+        ResourceHandlerInfo.objects.create(
+            resource=new_resource,
+            handler_module_path=handler_module_path
+        )
+
+        assert f'{workspace}:{new_alternate}' == new_resource.alternate
+
+        orchestrator.update_execution_request_status(
+            execution_id=str(_exec.exec_id),
+            input_params={**_exec.input_params, **{"instance": resource.pk}},
+            output_params={
+                "output": {"uuid": str(new_resource.uuid)}
+            }
+        )
+
+        additional_kwargs = {
+            "original_dataset_alternate": resource.alternate,
+            "new_dataset_alternate": new_resource.alternate
+        }
+
+        task_params = ({}, exec_id, handler_module_path, actual_step, layer_name, new_alternate, action)
+
+        import_orchestrator.apply_async(task_params, additional_kwargs)
+
+    except Exception as e:
+        raise CopyResourceException(detail=e)
+    return exec_id, new_alternate
