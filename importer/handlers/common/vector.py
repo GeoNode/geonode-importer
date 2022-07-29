@@ -354,20 +354,22 @@ class BaseVectorFileHandler(BaseHandler):
         return saved_dataset
 
     def handle_xml_file(self, saved_dataset, _exec):
+        _path = _exec.input_params.get("files", {}).get("xml_file", "")
         resource_manager.update(None,
                     instance=saved_dataset,
-                    xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
-                    metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
+                    xml_file=_path,
+                    metadata_uploaded=True if _path else False,
                     vals={"dirty_state": True}
                 )
 
     def handle_sld_file(self, saved_dataset, _exec):
+        _path = _exec.input_params.get("files", {}).get("sld_file", "")
         resource_manager.exec(
                 'set_style',
                 None,
                 instance=saved_dataset,
                 sld_file=_exec.input_params.get("files", {}).get("sld_file", ""),
-                sld_uploaded=_exec.input_params.get("sld_uploaded", False),
+                sld_uploaded=True if _path else False,
                 vals={"dirty_state": True}
             )
 

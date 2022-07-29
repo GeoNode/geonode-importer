@@ -83,7 +83,10 @@ class ImporterViewSet(DynamicModelViewSet):
         data = self.serializer_class(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
-        _data = {**data.data.copy(), **{"base_file": request.data.get('base_file')}}
+        _data = {
+            **data.data.copy(),
+            **{key: value[0] if isinstance(value, list) else value for key, value in request.FILES.items()}
+        }
 
         handler = orchestrator.get_handler(_data)
 
