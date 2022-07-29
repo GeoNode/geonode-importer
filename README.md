@@ -11,7 +11,6 @@ The binary for installing gdal is available [here](https://gdal.org/download.htm
 
 -----
 ## Installation: 
-<br>
 
 ```
 pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@master#egg=geonode_importer
@@ -48,7 +47,6 @@ python manage.py migrate
 python manage.py migrate --database datastore
 ```
 ---
-<br>
 
 ## Environment variables:
 
@@ -61,7 +59,6 @@ IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
 IMPORTER_RESOURCE_COPY_RATE_LIMIT = # default 10
 ```
 ---
-<br>
 
 ## Supported file format
 
@@ -71,14 +68,13 @@ The importer will accept only:
 ## Limitation
 
 - The XML file and the SLD file uploaded along with the GPKG are ignored
-- Every upload will create a new layer. There is no option for overwriting/skip the existing layer
+- Every upload will create a new layer. There is no option for overwriting/skipping the existing layer
 ---
-<br>
 
 ## Troubleshooting
 
-Validation is perfomed on the gpkg provided. 
-Below is possible to find the schema that exmplain the error codes returned by the webapp
+Validation is performed on the gpkg provided. 
+Below is possible to find the schema that explains the error codes returned by the web app
 
 | Code   |   Description |
 |----------|:-------------|
@@ -87,5 +83,4 @@ Below is possible to find the schema that exmplain the error codes returned by t
 | RQ13 | It is required to give all GEOMETRY features the same default spatial reference system|
 | RQ14 | The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON|
 | RQ15 | All table geometries must match the geometry_type_name from the gpkg_geometry_columns table|
-| RC18 | It recommended to give all GEOMETRY type columns the same name.|
-
+| RC18 | It is recommended to give all GEOMETRY type columns the same name.|
