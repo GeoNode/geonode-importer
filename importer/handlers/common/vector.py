@@ -173,7 +173,7 @@ class BaseVectorFileHandler(BaseHandler):
                     dynamic_model, alternate, celery_group = self.setup_dynamic_model(layer, execution_id, should_be_overrided, username=_exec.user)
                     # evaluate if a new alternate is created by the previous flow
                     # create the async task for create the resource into geonode_data with ogr2ogr
-                    ogr_res = self._get_ogr2ogr_task_group(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
+                    ogr_res = self.get_ogr2ogr_task_group(execution_id, files, layer.GetName().lower(), should_be_overrided, alternate)
                     # prepare the async chord workflow with the on_success and on_fail methods
                     workflow = chord(
                         group(celery_group.set(link_error=['dynamic_model_error_callback']), ogr_res.set(link_error=['dynamic_model_error_callback']))
@@ -367,7 +367,7 @@ class BaseVectorFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
-    def _get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
+    def get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
         '''
         In case the OGR2OGR is different from the default one, is enough to ovverride this method
         and return the celery task object needed
