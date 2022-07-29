@@ -1,20 +1,25 @@
 # geonode-importer
-### C256-METAMEDIA-2022-GEOPACKAGE
+## C256-METAMEDIA-2022-GEOPACKAGE
 
-Dependencies:
+### Dependencies:
 ```
 GDAL >= 3.2.2.1
 ```
+To check your version please run: `gdalinfo --version`
 
-installation: 
+The binary for installing gdal is available [here](https://gdal.org/download.html)
+
+-----
+## Installation: 
+<br>
+
 ```
 pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@master#egg=geonode_importer
 ```
 
 Add to settings.py:
 
-```
-
+```python
 INSTALLED_APPS += ('dynamic_models', 'importer', 'importer.handlers',)
 
 CELERY_TASK_QUEUES += (
@@ -36,21 +41,51 @@ SIZE_RESTRICTED_FILE_UPLOAD_ELEGIBLE_URL_NAMES += ('importer_upload',)
 
 ```
 
-Evironment Variables:
-
-Is possible to define the rate limit for celery to handle the tasks by updating the following evironment variables:
-
-```
-IMPORTER_GLOBAL_RATE_LIMIT= # default 5
-IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
-IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
-IMPORTER_RESOURCE_COPY_RATE_LIMIT = os.getenv("IMPORTER_RESOURCE_COPY_RATE_LIMIT", 10)
-```
-
-
 Run migrations:
 
 ```
 python manage.py migrate
 python manage.py migrate --database datastore
 ```
+---
+<br>
+
+## Environment variables:
+
+To change the task rate limit, please update the following env_variables:
+
+```
+IMPORTER_GLOBAL_RATE_LIMIT= # default 5
+IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
+IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
+IMPORTER_RESOURCE_COPY_RATE_LIMIT = # default 10
+```
+---
+<br>
+
+## Supported file format
+
+The importer will accept only:
+- Vector GPKG
+
+## Limitation
+
+- The XML file and the SLD file uploaded along with the GPKG are ignored
+- Every upload will create a new layer. There is no option for overwriting/skip the existing layer
+---
+<br>
+
+## Troubleshooting
+
+Validation is perfomed on the gpkg provided. 
+Below is possible to find the schema that exmplain the error codes returned by the webapp
+
+| Code   |   Description |
+|----------|:-------------|
+| RQ1 | Layer names must start with a letter, and valid characters are lowercase a-z, numbers, or underscores.|
+| RQ2 | Layers must have at least one feature.|
+| RQ13 | It is required to give all GEOMETRY features the same default spatial reference system|
+| RQ14 | The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON|
+| RQ15 | All table geometries must match the geometry_type_name from the gpkg_geometry_columns table|
+| RC18 | It recommended to give all GEOMETRY type columns the same name.|
+
