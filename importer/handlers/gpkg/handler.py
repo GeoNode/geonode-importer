@@ -377,22 +377,22 @@ class GPKGFileHandler(BaseHandler):
                     )
                 )
 
-        if _exec.input_params.get("metadata_uploaded", False):
-            resource_manager.update(None,
-                    instance=saved_dataset,
-                    xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
-                    metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
-                    vals={"dirty_state": True}
-                )
-
-        resource_manager.exec(
-                'set_style',
-                None,
-                instance=saved_dataset,
-                sld_uploaded=_exec.input_params.get("sld_uploaded", False),
-                sld_file=_exec.input_params.get("files", {}).get("xml_file", ""),
-                vals={"dirty_state": True}
-            )
+        #if _exec.input_params.get("metadata_uploaded", False):
+        #    resource_manager.update(None,
+        #            instance=saved_dataset,
+        #            xml_file=_exec.input_params.get("files", {}).get("xml_file", ""),
+        #            metadata_uploaded=_exec.input_params.get("metadata_uploaded", False),
+        #            vals={"dirty_state": True}
+        #        )
+#
+        #resource_manager.exec(
+        #        'set_style',
+        #        None,
+        #        instance=saved_dataset,
+        #        sld_uploaded=_exec.input_params.get("sld_uploaded", False),
+        #        sld_file=_exec.input_params.get("files", {}).get("xml_file", ""),
+        #        vals={"dirty_state": True}
+        #    )
 
         resource_manager.set_thumbnail(None, instance=saved_dataset)
 
