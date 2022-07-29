@@ -16,7 +16,7 @@ The binary for installing gdal is available [here](https://gdal.org/download.htm
 pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@master#egg=geonode_importer
 ```
 
-Add to settings.py:
+Add to geonode settings.py:
 
 ```python
 INSTALLED_APPS += ('dynamic_models', 'importer', 'importer.handlers',)
@@ -69,6 +69,7 @@ The importer will accept only:
 
 - The XML file and the SLD file uploaded along with the GPKG are ignored
 - Every upload will create a new layer. There is no option for overwriting/skipping the existing layer
+- The number of the layer in the GPKG should be lower than the max_parallel_upload configuration
 ---
 
 ## Troubleshooting
