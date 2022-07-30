@@ -2,7 +2,7 @@ from abc import ABC
 import logging
 from typing import List
 from geonode.resource.enumerator import ExecutionRequestAction as exa
-from rdflib import Dataset
+from geonode.layers.models import Dataset
 logger = logging.getLogger(__name__)
 
 
