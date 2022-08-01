@@ -1,13 +1,19 @@
 
 from django.test import TestCase
+from importer.api.exception import ImportException
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from django.contrib.auth import get_user_model
 from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer import project_dir
+from importer.orchestrator import orchestrator
 from geonode.upload.models import UploadParallelismLimit
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.base.populate_test_data import create_single_dataset
 from osgeo import ogr
+from django_celery_results.models import TaskResult
+
+from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
+import uuid
 
 class TestGPKGHandler(TestCase):
     databases = ("default", "datastore")
@@ -101,3 +107,37 @@ class TestGPKGHandler(TestCase):
     def test_can_handle_should_return_false_for_other_files(self):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
+
+    def test_single_message_error_handler(self):
+        
+        exec_id = orchestrator.create_execution_request(
+                user=get_user_model().objects.first(),
+                func_name="funct1",
+                step="step",
+                input_params={
+                    "files": self.valid_files,
+                    "skip_existing_layer": True,
+                    "handler_module_path": str(self.handler)
+                },
+            )
+
+        started_entry = TaskResult.objects.create(
+            task_id=str(exec_id),
+            status="STARTED",
+            task_args=str(exec_id)
+        )
+        
+        celery_task_handler = SingleMessageErrorHandler()
+        with self.assertRaises(ImportException):
+            '''
+            The progress evaluation will raise and exception
+            '''
+            celery_task_handler.on_failure(
+                exc=Exception("exception raised"),
+                task_id=started_entry.task_id,
+                args=[str(exec_id), "other_args"],
+                kwargs={},
+                einfo=None
+            )
+
+        self.assertEqual('FAILURE', TaskResult.objects.get(task_id=str(exec_id)).status)
