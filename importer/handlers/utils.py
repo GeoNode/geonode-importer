@@ -75,7 +75,7 @@ def drop_dynamic_model_schema(schema_model):
             db_name="datastore"
         )
         try:
-            schema_model.delete()
             schema.drop_table(schema_model.as_model())
+            schema_model.delete()
         except Exception as e:
             logger.warning(e.args[0])
