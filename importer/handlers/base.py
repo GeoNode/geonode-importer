@@ -39,7 +39,6 @@ class BaseHandler(ABC):
     @classmethod
     def get_registry(cls):
         return BaseHandler.REGISTRY
-
     
     @classmethod
     def get_task_list(cls, action) -> tuple:
