@@ -1,28 +1,26 @@
 
+import uuid
+from celery.canvas import Signature
 from celery import group
 from django.test import TestCase
-from mock import patch
-from importer.handlers.gpkg.exceptions import InvalidGeopackageException
+from mock import MagicMock, patch
+from importer.handlers.common.vector import BaseVectorFileHandler, import_with_ogr2ogr
 from django.contrib.auth import get_user_model
-from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer import project_dir
 from importer.orchestrator import orchestrator
-from geonode.upload.models import UploadParallelismLimit
-from geonode.upload.api.exceptions import UploadParallelismLimitException
-from geonode.tests.base import GeoNodeBaseTestSupport
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
-from dynamic_models.models import ModelSchema, FieldSchema
+from dynamic_models.models import ModelSchema
 from osgeo import ogr
 
 
-class TestGPKGHandler(TestCase):
+class TestBaseVectorFileHandler(TestCase):
     databases = ("default", "datastore")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.handler = GPKGFileHandler()
+        cls.handler = BaseVectorFileHandler()
         cls.valid_gpkg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.invalid_gpkg = f"{project_dir}/tests/fixture/invalid.gpkg"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
@@ -30,60 +28,6 @@ class TestGPKGHandler(TestCase):
         cls.valid_files = {"base_file": cls.valid_gpkg}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name='stazioni_metropolitana', owner=cls.owner)
-
-
-    def test_task_list_is_the_expected_one(self):
-        expected = (
-            "start_import",
-            "importer.import_resource",
-            "importer.publish_resource",
-            "importer.create_geonode_resource"
-        )
-        self.assertEqual(len(self.handler.TASKS_LIST), 4)
-        self.assertTupleEqual(expected, self.handler.TASKS_LIST)
-
-    def test_is_valid_should_raise_exception_if_the_gpkg_is_invalid(self):
-        with self.assertRaises(InvalidGeopackageException) as _exc:
-            self.handler.is_valid(files=self.invalid_files, user=self.user)
-        
-        self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores" in str(_exc.exception.detail)
-        )
-
-    def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
-        parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
-        old_value = parallelism.max_number
-        try:
-            if not created:
-                UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
-
-            with self.assertRaises(UploadParallelismLimitException) as _exc:
-                self.handler.is_valid(files=self.valid_files, user=self.user)
-            
-        finally:
-            parallelism.max_number = old_value
-            parallelism.save()
-
-
-    def test_is_valid_should_raise_exception_if_layer_are_greater_than_max_parallel_upload(self):
-        parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
-        old_value = parallelism.max_number
-        try:
-            if not created:
-                UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=1)
-
-            with self.assertRaises(UploadParallelismLimitException) as _exc:
-                self.handler.is_valid(files=self.valid_files, user=self.user)
-            
-        finally:
-            parallelism.max_number = old_value
-            parallelism.save()
-
-
-    def test_is_valid_should_pass_with_valid_gpkg(self):
-        self.handler.is_valid(files=self.valid_files, user=self.user)
-
 
     def test_create_error_log(self):
         '''
@@ -127,7 +71,7 @@ class TestGPKGHandler(TestCase):
             self.assertIsNotNone(dynamic_model)
             self.assertIsInstance(celery_group, group)
             self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual("importer.gpkg_handler", celery_group.tasks[0].name)
+            self.assertEqual("importer.create_dynamic_structure", celery_group.tasks[0].name)
         finally:
             if schema:
                 schema.delete()
@@ -138,8 +82,7 @@ class TestGPKGHandler(TestCase):
         self._assert_test_result()
 
     def test_setup_dynamic_model_no_dataset_no_modelschema_overwrite_true(self):
-        with self.assertRaises(InvalidGeopackageException):
-            self._assert_test_result(overwrite=True)
+        self._assert_test_result(overwrite=True)
 
     def test_setup_dynamic_model_with_dataset_no_modelschema_overwrite_false(self):
         create_single_dataset(name='stazioni_metropolitana', owner=self.user)
@@ -154,7 +97,7 @@ class TestGPKGHandler(TestCase):
             name="stazioni_metropolitana",
             db_name="datastore"
         )
-        self._assert_test_result(overwrite=False, assert_uuid=True)
+        self._assert_test_result(overwrite=False)
 
     def test_setup_dynamic_model_with_dataset_with_modelschema_overwrite_false(self):
         create_single_dataset(name='stazioni_metropolitana', owner=self.user)
@@ -163,9 +106,9 @@ class TestGPKGHandler(TestCase):
             db_name="datastore",
             managed=True
         )
-        self._assert_test_result(overwrite=False, assert_uuid=True)
+        self._assert_test_result(overwrite=False)
     
-    def _assert_test_result(self, overwrite=False, assert_uuid=False):
+    def _assert_test_result(self, overwrite=False):
         try:
             # Prepare the test
             exec_id = orchestrator.create_execution_request(
@@ -181,7 +124,7 @@ class TestGPKGHandler(TestCase):
             layers = ogr.Open(self.valid_gpkg)
 
             # starting the tests
-            dynamic_model, use_uuid, celery_group = self.handler.setup_dynamic_model(
+            dynamic_model, layer_name, celery_group = self.handler.setup_dynamic_model(
                 layer=[x for x in layers][0],
                 execution_id=str(exec_id),
                 should_be_overrided=overwrite,
@@ -190,22 +133,19 @@ class TestGPKGHandler(TestCase):
 
             self.assertIsNotNone(dynamic_model)
 
-            if not assert_uuid:
-                self.assertFalse(use_uuid)
-            else:
-                self.assertTrue(use_uuid)
-                #check if the uuid has been added to the model name
-                self.assertTrue(str(exec_id).replace('-', '_').lower() in str(dynamic_model).lower())
+            #check if the uuid has been added to the model name
+            self.assertIsNotNone(layer_name)
 
             self.assertIsInstance(celery_group, group)
             self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual("importer.gpkg_handler", celery_group.tasks[0].name)
+            self.assertEqual("importer.create_dynamic_structure", celery_group.tasks[0].name)
         finally:
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
-    @patch("importer.handlers.gpkg.handler.chord")
-    def test_import_resource_should_not_be_imported(self, celery_chord):
+    @patch("importer.handlers.common.vector.BaseVectorFileHandler.get_ogr2ogr_driver")
+    @patch("importer.handlers.common.vector.chord")
+    def test_import_resource_should_not_be_imported(self, celery_chord, ogr2ogr_driver):
         '''
         If the resource exists and should be skept, the celery task
         is not going to be called and the layer is skipped
@@ -234,9 +174,11 @@ class TestGPKGHandler(TestCase):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
-    @patch("importer.handlers.gpkg.handler.chord")
-    def test_import_resource_should_work(self, celery_chord):
+    @patch("importer.handlers.common.vector.BaseVectorFileHandler.get_ogr2ogr_driver")
+    @patch("importer.handlers.common.vector.chord")
+    def test_import_resource_should_work(self, celery_chord, ogr2ogr_driver):
         try:
+            ogr2ogr_driver.return_value = ogr.GetDriverByName("GPKG")
             exec_id = orchestrator.create_execution_request(
                 user=get_user_model().objects.first(),
                 func_name="funct1",
@@ -256,3 +198,65 @@ class TestGPKGHandler(TestCase):
         finally:
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
+
+    def test_get_ogr2ogr_task_group(self):
+        _uuid = uuid.uuid4()
+
+        actual = self.handler.get_ogr2ogr_task_group(
+            str(_uuid),
+            files=self.valid_files,
+            layer="dataset",
+            should_be_overrided=True,
+            alternate="abc"
+        )
+        self.assertIsInstance(actual, (Signature,))
+        self.assertEqual('importer.import_with_ogr2ogr', actual.task)
+
+    @patch('importer.handlers.common.vector.Popen')
+    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(self, _open):
+        _uuid = uuid.uuid4()
+
+        comm = MagicMock()
+        comm.communicate.return_value = b"", b"" 
+        _open.return_value = comm
+
+        _task, alternate, execution_id = import_with_ogr2ogr(
+            execution_id=str(_uuid),
+            files=self.valid_files,
+            original_name="dataset",
+            handler_module_path=str(self.handler),
+            override_layer=False,
+            alternate="alternate"
+        )
+
+        self.assertEqual('ogr2ogr', _task)
+        self.assertEqual(alternate, "alternate")
+        self.assertEqual(str(_uuid), execution_id)
+
+        _open.assert_called_once()
+        _open.assert_called_with(
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " {self.valid_files.get("base_file")} -lco DIM=2 -nln alternate dataset', stdout=-1, stderr=-1, shell=True
+        )
+
+    @patch('importer.handlers.common.vector.Popen')
+    def test_import_with_ogr2ogr_with_errors_should_raise_exception(self, _open):
+        _uuid = uuid.uuid4()
+
+        comm = MagicMock()
+        comm.communicate.return_value = b"", b"some error here" 
+        _open.return_value = comm
+
+        with self.assertRaises(Exception):
+            import_with_ogr2ogr(
+                execution_id=str(_uuid),
+                files=self.valid_files,
+                original_name="dataset",
+                handler_module_path=str(self.handler),
+                override_layer=False,
+                alternate="alternate"
+            )
+
+        _open.assert_called_once()
+        _open.assert_called_with(
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " {self.valid_files.get("base_file")} -lco DIM=2 -nln alternate dataset', stdout=-1, stderr=-1, shell=True
+        )
