@@ -105,7 +105,7 @@ class BaseVectorFileHandler(BaseHandler):
             {
                 "name": alternate or layer_name,
                 "crs" : (
-                    f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS')}"
+                    f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS') or _l.GetSpatialRef().GetAuthorityCode('GEOGCS')}"
                     if _l.GetSpatialRef() else None
                 )
             } 
