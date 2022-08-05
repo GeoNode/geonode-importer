@@ -1,6 +1,6 @@
 # geonode-importer
 
-A GeoNode app that implements a brand new upload/import flow.  
+A GeoNode 4.0 app that implements a brand new upload/import flow.  
 The logic which adapts to different file types is modular.  
 The implemented file type handlers so far are:
 - GeoPackage
