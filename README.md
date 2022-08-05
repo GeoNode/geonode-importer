@@ -64,6 +64,7 @@ IMPORTER_RESOURCE_COPY_RATE_LIMIT = # default 10
 
 The importer will accept only:
 - Vector GPKG
+- Vector GeoJson
 
 ## Limitation
 
@@ -74,7 +75,7 @@ The importer will accept only:
 
 ## Troubleshooting
 
-Validation is performed on the gpkg provided. 
+GPKG: 
 Below is possible to find the schema that explains the error codes returned by the web app
 
 | Code   |   Description |
