@@ -75,6 +75,15 @@ class TestGeoJsonFileHandler(TestCase):
             "Please remove the additional dots in the filename" in str(_exc.exception.detail)
         )
 
+    def test_is_valid_should_raise_exception_if_the_geojson_is_invalid_format(self):
+        with self.assertRaises(InvalidGeoJsonException) as _exc:
+            self.handler.is_valid(files=self.invalid_files, user=self.user)
+        
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "The provided GeoJson is not valid" in str(_exc.exception.detail)
+        )
+
     def test_get_ogr2ogr_driver_should_return_the_expected_driver(self):
         expected = ogr.GetDriverByName("GEOJSON")
         actual = self.handler.get_ogr2ogr_driver()
