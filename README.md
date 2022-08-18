@@ -1,6 +1,6 @@
 # geonode-importer
 
-A GeoNode app that implements a brand new upload/import flow.  
+A GeoNode 4.0 app that implements a brand new upload/import flow.  
 The logic which adapts to different file types is modular.  
 The implemented file type handlers so far are:
 - GeoPackage
@@ -102,3 +102,9 @@ Here a description of the various codes:
 | `RQ14`  | Unknown geometry type  | The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON|
 | `RQ15`  | Geometry type mismatch | All table geometries must match the geometry_type_name from the gpkg_geometry_columns table|
 | `RC18`  | Geometry attr mismatch | It is recommended to give all GEOMETRY type columns the same name.|
+
+
+### GeoJson
+
+- Filename should not contains spaces, for example "This is my file.geojson" should be "This_is_my_file.geojson"
+- Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
