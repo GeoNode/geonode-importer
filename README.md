@@ -106,5 +106,5 @@ Here a description of the various codes:
 
 ### GeoJson
 
-- should not contains spaces, for example "This is my file.geojson" should be "This_is_my_file.geojson"
-- should not contain dots in the filename, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
+- Filename should not contains spaces, for example "This is my file.geojson" should be "This_is_my_file.geojson"
+- Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
