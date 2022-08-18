@@ -93,7 +93,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
             validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC18'
         )
         if not validator[-1]:
-            raise InvalidGeopackageException(validator[0])
+            raise InvalidGeopackageException([x.get("validation_description") for x in validator[0]])
 
         return True
 
