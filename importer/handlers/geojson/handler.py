@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from django.conf import settings
@@ -65,6 +66,12 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
             # means that there is a dot other than the one needed for the extension
             # if we keep it ogr2ogr raise an error, better to remove it
             raise InvalidGeoJsonException("Please remove the additional dots in the filename")
+
+        try:
+            with open(_file, 'r') as _readed_file:
+                json.loads(_readed_file.read())
+        except Exception as e:
+            raise InvalidGeoJsonException("The provided GeoJson is not valid")
 
         return True
 
