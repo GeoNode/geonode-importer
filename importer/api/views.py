@@ -80,6 +80,9 @@ class ImporterViewSet(DynamicModelViewSet):
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
         execution_id = None
+
+        specific_serializer = orchestrator.get_serializer(request.data)
+
         data = self.serializer_class(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
@@ -134,7 +137,8 @@ class ImporterViewSet(DynamicModelViewSet):
             except Exception as e:
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control
-                storage_manager.delete_retrieved_paths(force=True)
+                if storage_manager is not None:
+                    storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
                 logger.exception(e)

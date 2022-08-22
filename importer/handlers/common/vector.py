@@ -12,6 +12,7 @@ from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
+from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
@@ -47,6 +48,14 @@ class BaseVectorFileHandler(BaseHandler):
     
     @staticmethod
     def can_handle(_data) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
+        return False
+
+    @staticmethod
+    def has_serializer(_data) -> bool:
         '''
         This endpoint will return True or False if with the info provided
         the handler is able to handle the file or not
