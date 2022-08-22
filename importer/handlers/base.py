@@ -86,7 +86,7 @@ class BaseHandler(ABC):
         return []
     
     def fixup_name(self, name):
-        return name.lower().replace('-', '_')
+        return name.lower().replace('-', '_').replace(" ", "_")
 
     def extract_resource_to_publish(self, files, layer_name, alternate):
         '''

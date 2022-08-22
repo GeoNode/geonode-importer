@@ -6,6 +6,7 @@ from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.vector import BaseVectorFileHandler
 from osgeo import ogr
+from pathlib import Path
 
 from importer.handlers.shapefile.exceptions import InvalidShapeFileException
 from importer.handlers.shapefile.serializer import ShapeFileSerializer
@@ -64,35 +65,12 @@ class ShapeFileHandler(BaseVectorFileHandler):
             title = json.loads(_data.get("defaults"))
             return {"title": title.pop("title")}, _data
 
-        _shp_ext_needed = [
-            x["requires"]
-            for x in get_supported_datasets_file_types()
-            if x["id"] == "shp"
-        ][0]
-
         additional_params = {
             "skip_existing_layers": _data.pop("skip_existing_layers", "False"),
             "override_existing_layer": _data.pop("override_existing_layer", "False"),
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }
 
-        '''
-        Check if the ext required for the shape file are available in the files uploaded
-        by the user
-        '''
-        is_valid = all(
-            map(
-                lambda x: any(
-                    _ext.endswith(x) if isinstance(_ext, str) else _ext.name.endswith(x)
-                    for _ext in _data.values()
-                ),
-                _shp_ext_needed,
-            )
-        )
-        if not is_valid:
-            raise InvalidShapeFileException(
-                detail=f"One or more ext required for the shapefile are missing. Files with the following ext are needed: {_shp_ext_needed}"
-            )
         return additional_params, _data
 
     @staticmethod
@@ -108,17 +86,43 @@ class ShapeFileHandler(BaseVectorFileHandler):
         if not _file:
             raise InvalidShapeFileException("base file is not provided")
 
+        _filename = Path(_file).stem
+
+        _shp_ext_needed = [
+            x["requires"]
+            for x in get_supported_datasets_file_types()
+            if x["id"] == "shp"
+        ][0]
+
+        '''
+        Check if the ext required for the shape file are available in the files uploaded
+        by the user
+        '''
+        is_valid = all(
+            map(
+                lambda x: any(
+                    _ext.endswith(f"{_filename}.{x}") if isinstance(_ext, str) else _ext.name.endswith(f"{_filename}.{x}")
+                    for _ext in files.values()
+                ),
+                _shp_ext_needed,
+            )
+        )
+        if not is_valid:
+            raise InvalidShapeFileException(
+                detail=f"Some file is missing files with the same name and with the following extension are required: {_shp_ext_needed}"
+            )
+
         return True
 
     def get_ogr2ogr_driver(self):
         return ogr.GetDriverByName("ESRI Shapefile")
 
-    # @staticmethod
-    # def create_ogr2ogr_command(files, original_name, override_layer, alternate):
-    #    '''
-    #    Define the ogr2ogr command to be executed.
-    #    This is a default command that is needed to import a vector file
-    #    '''
-    #
-    #    base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
-    #    return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}"
+    @staticmethod
+    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+        '''
+        Define the ogr2ogr command to be executed.
+        This is a default command that is needed to import a vector file
+        '''
+    
+        base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
+        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}"

@@ -69,6 +69,10 @@ class ImporterViewSet(DynamicModelViewSet):
     pagination_class = GeoNodeApiPagination
     http_method_names = ['get', 'post']
 
+    def get_serializer_class(self):
+        specific_serializer = orchestrator.get_serializer(self.request.data)
+        return specific_serializer or ImporterSerializer
+
     def create(self, request, *args, **kwargs):
 
         '''
@@ -81,9 +85,8 @@ class ImporterViewSet(DynamicModelViewSet):
         _file = request.FILES.get('base_file') or request.data.get('base_file')
         execution_id = None
 
-        specific_serializer = orchestrator.get_serializer(request.data)
-
-        data = self.serializer_class(data=request.data)
+        serializer = self.get_serializer_class()
+        data = serializer(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
         _data = {

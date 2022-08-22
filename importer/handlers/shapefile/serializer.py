@@ -10,10 +10,10 @@ class ShapeFileSerializer(serializers.Serializer):
             "skip_existing_layers"
         )
 
-    base_file = serializers.CharField()
-    dbf_file = serializers.CharField(required=False)
-    shx_file = serializers.CharField(required=False)
-    prj_file = serializers.CharField(required=False)
+    base_file = serializers.FileField()
+    dbf_file = serializers.FileField()
+    shx_file = serializers.FileField()
+    prj_file = serializers.FileField()
     xml_file = serializers.FileField(required=False)
     sld_file = serializers.FileField(required=False)
     store_spatial_files = serializers.BooleanField(required=False, default=True)
