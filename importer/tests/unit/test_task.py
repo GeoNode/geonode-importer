@@ -337,7 +337,8 @@ class TestDynamicModelSchema(SimpleTestCase):
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
             FieldSchema.objects.filter(name="field1").delete()
 
-    def test_copy_dynamic_model_should_work(self):
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    def test_copy_dynamic_model_should_work(self, async_call):
         try:
             name = str(self.exec_id)
             # setup model schema to be copied
@@ -370,14 +371,15 @@ class TestDynamicModelSchema(SimpleTestCase):
             self.assertTrue(
                 FieldSchema.objects.filter(model_schema=ModelSchema.objects.get(name=f"schema_copy_{name}")).exists()
             )
-            
+            async_call.assert_called_once()
         finally:
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
             ModelSchema.objects.filter(name=f"geonode:schema_copy_{name}").delete()
             FieldSchema.objects.filter(name=f"field_{name}").delete()
 
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
     @patch("importer.celery_tasks.connections")
-    def test_copy_geonode_data_table_should_work(self, mock_connection):
+    def test_copy_geonode_data_table_should_work(self, mock_connection, async_call):
         mock_cursor = mock_connection.__getitem__("datastore").cursor.return_value.__enter__.return_value
         ModelSchema.objects.create(name=f"schema_copy_{str(self.exec_id)}", db_name="datastore")
 
@@ -395,3 +397,4 @@ class TestDynamicModelSchema(SimpleTestCase):
         )
         mock_cursor.execute.assert_called_once()
         mock_cursor.execute.assert_called()
+        async_call.assert_called_once()

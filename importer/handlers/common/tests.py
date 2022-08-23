@@ -243,7 +243,7 @@ class TestBaseVectorFileHandler(TestCase):
         _uuid = uuid.uuid4()
 
         comm = MagicMock()
-        comm.communicate.return_value = b"", b"some error here" 
+        comm.communicate.return_value = b"", b"ERROR: some error here" 
         _open.return_value = comm
 
         with self.assertRaises(Exception):
