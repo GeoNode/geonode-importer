@@ -20,7 +20,7 @@ from importer.handlers.utils import GEOM_TYPE_MAPPING, STANDARD_TYPE_MAPPING, dr
 from geonode.resource.manager import resource_manager
 from geonode.base.models import ResourceBase
 from geonode.resource.models import ExecutionRequest
-from osgeo import ogr
+from osgeo import ogr, osr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 
@@ -113,14 +113,18 @@ class BaseVectorFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs" : (
-                    f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS') or _l.GetSpatialRef().GetAuthorityCode('GEOGCS')}"
-                    if _l.GetSpatialRef() else None
-                )
+                "crs" : self.identify_authority(_l) if _l.GetSpatialRef() else None
             } 
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name
         ]
+
+    def identify_authority(self, layer):
+        spatial_ref = layer.GetSpatialRef()
+        spatial_ref.AutoIdentifyEPSG()
+        _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
+        _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
+        return f"{_name}:{_code}"
 
     def get_ogr2ogr_driver(self):
         '''
@@ -228,15 +232,12 @@ class BaseVectorFileHandler(BaseHandler):
             we just take the dynamic_model to override the existing one
             '''
             dynamic_schema = dynamic_schema.get()
-        elif (
-                dataset_exists and not dynamic_schema_exists
-            ) or (
-                not dataset_exists and not dynamic_schema_exists
-            ):
+        elif not dataset_exists and not dynamic_schema_exists:
             '''
             cames here when is a new brand upload or when (for any reasons) the dataset exists but the
             dynamic model has not been created before
             '''
+            layer_name = create_alternate(layer_name, execution_id)
             dynamic_schema = ModelSchema.objects.create(
                 name=layer_name,
                 db_name="datastore",
@@ -247,6 +248,8 @@ class BaseVectorFileHandler(BaseHandler):
             not dataset_exists and dynamic_schema_exists
         ) or (
             dataset_exists and dynamic_schema_exists and not should_be_overrided
+        ) or (
+            dataset_exists and not dynamic_schema_exists
         ):
             '''
             it comes here when the layer should not be overrided so we append the UUID
