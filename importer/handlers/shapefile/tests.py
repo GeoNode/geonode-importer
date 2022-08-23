@@ -1,12 +1,15 @@
 
 import os
+import uuid
 
 import gisdata
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.models import UploadParallelismLimit
+from mock import MagicMock, patch
 from importer import project_dir
+from importer.handlers.common.vector import import_with_ogr2ogr
 from importer.handlers.shapefile.handler import ShapeFileHandler
 from osgeo import ogr
 
@@ -93,3 +96,29 @@ class TestShapeFileFileHandler(TestCase):
     def test_should_NOT_get_the_specific_serializer(self):
         actual = self.handler.has_serializer(self.invalid_files)
         self.assertFalse(actual)
+
+    @patch('importer.handlers.common.vector.Popen')
+    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(self, _open):
+        _uuid = uuid.uuid4()
+
+        comm = MagicMock()
+        comm.communicate.return_value = b"", b"" 
+        _open.return_value = comm
+
+        _task, alternate, execution_id = import_with_ogr2ogr(
+            execution_id=str(_uuid),
+            files=self.valid_shp,
+            original_name="dataset",
+            handler_module_path=str(self.handler),
+            override_layer=False,
+            alternate="alternate"
+        )
+
+        self.assertEqual('ogr2ogr', _task)
+        self.assertEqual(alternate, "alternate")
+        self.assertEqual(str(_uuid), execution_id)
+
+        _open.assert_called_once()
+        _open.assert_called_with(
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry', stdout=-1, stderr=-1, shell=True
+        )

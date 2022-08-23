@@ -235,7 +235,7 @@ class TestBaseVectorFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " {self.valid_files.get("base_file")} -lco DIM=2 -nln alternate dataset', stdout=-1, stderr=-1, shell=True
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -lco DIM=2 -nln alternate "dataset"', stdout=-1, stderr=-1, shell=True
         )
 
     @patch('importer.handlers.common.vector.Popen')
@@ -258,5 +258,5 @@ class TestBaseVectorFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " {self.valid_files.get("base_file")} -lco DIM=2 -nln alternate dataset', stdout=-1, stderr=-1, shell=True
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -lco DIM=2 -nln alternate "dataset"', stdout=-1, stderr=-1, shell=True
         )
