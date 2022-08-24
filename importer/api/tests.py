@@ -89,3 +89,20 @@ class TestImporterViewSet(GeoNodeBaseTestSupport):
         response = self.client.post(self.url, data=payload)
         
         self.assertTrue(201, response.status_code)
+
+
+    @patch('importer.api.views.import_orchestrator')
+    def test_zip_file_is_unzip_and_the_handler_is_found(self, patch_upload):
+        patch_upload.apply_async.side_effect = MagicMock()
+
+        self.client.login(username="admin", password="admin")
+        payload = {
+            "base_file": open(f"{project_dir}/tests/fixture/valid.zip", 'rb'),
+            "zip_file": open(f"{project_dir}/tests/fixture/valid.zip", 'rb'),
+            "store_spatial_files": True
+        }
+
+        response = self.client.post(self.url, data=payload)
+        
+        self.assertTrue(201, response.status_code)
+
