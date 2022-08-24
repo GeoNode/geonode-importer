@@ -87,6 +87,7 @@ class ImporterViewSet(DynamicModelViewSet):
 
         serializer = self.get_serializer_class()
         data = serializer(data=request.data)
+        storage_manager = None
         # serializer data validation
         data.is_valid(raise_exception=True)
         _data = {
@@ -94,17 +95,26 @@ class ImporterViewSet(DynamicModelViewSet):
             **{key: value[0] if isinstance(value, list) else value for key, value in request.FILES.items()}
         }
 
-        handler = orchestrator.get_handler(_data)
+        if 'zip_file' in _data:
+            # if a zipfile is provided, we need to unzip it before searching for an handler
+            storage_manager = StorageManager(remote_files={"base_file": _data.get("zip_file")})
+            # cloning and unzip the base_file
+            storage_manager.clone_remote_files()
+            # update the payload with the unziped paths
+            _data.update(storage_manager.get_retrieved_paths())
 
-        storage_manager = None
+        handler = orchestrator.get_handler(_data)
 
         if _file and handler:
 
             try:
-                extracted_params, _data = handler.extract_params_from_data(_data)
-                storage_manager = StorageManager(remote_files=_data)
                 # cloning data into a local folder
-                storage_manager.clone_remote_files()
+                extracted_params, _data = handler.extract_params_from_data(_data)
+                if storage_manager is None:
+                    # means that the storage manager is not initialized yet, so
+                    # the file is not a zip
+                    storage_manager = StorageManager(remote_files=_data)
+                    storage_manager.clone_remote_files()
                 # get filepath
                 files = storage_manager.get_retrieved_paths()
 
