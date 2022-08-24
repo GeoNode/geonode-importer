@@ -4,6 +4,7 @@ from geonode.tests.base import GeoNodeBaseTestSupport
 from django.urls import reverse
 from unittest.mock import MagicMock, patch
 # Create your tests here.
+from importer import project_dir
 
 
 class TestImporterViewSet(GeoNodeBaseTestSupport):
@@ -68,6 +69,20 @@ class TestImporterViewSet(GeoNodeBaseTestSupport):
         self.client.login(username="admin", password="admin")
         payload = {
             "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),
+            "store_spatial_files": True
+        }
+        
+        response = self.client.post(self.url, data=payload)
+        
+        self.assertTrue(201, response.status_code)
+
+    @patch('importer.api.views.import_orchestrator')
+    def test_geojson_task_is_called(self, patch_upload):
+        patch_upload.apply_async.side_effect = MagicMock()
+
+        self.client.login(username="admin", password="admin")
+        payload = {
+            "base_file": SimpleUploadedFile(name="test.geojson", content=b"some-content"),
             "store_spatial_files": True
         }
         

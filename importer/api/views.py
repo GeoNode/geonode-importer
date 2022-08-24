@@ -80,6 +80,7 @@ class ImporterViewSet(DynamicModelViewSet):
         '''
         _file = request.FILES.get('base_file') or request.data.get('base_file')
         execution_id = None
+        storage_manager = None
         data = self.serializer_class(data=request.data)
         # serializer data validation
         data.is_valid(raise_exception=True)
@@ -88,17 +89,26 @@ class ImporterViewSet(DynamicModelViewSet):
             **{key: value[0] if isinstance(value, list) else value for key, value in request.FILES.items()}
         }
 
-        handler = orchestrator.get_handler(_data)
+        if 'zip_file' in _data:
+            # if a zipfile is provided, we need to unzip it before searching for an handler
+            storage_manager = StorageManager(remote_files={"base_file": _data.get("zip_file")})
+            # cloning and unzip the base_file
+            storage_manager.clone_remote_files()
+            # update the payload with the unziped paths
+            _data.update(storage_manager.get_retrieved_paths())
 
-        storage_manager = None
+        handler = orchestrator.get_handler(_data)
 
         if _file and handler:
 
             try:
-                extracted_params, _data = handler.extract_params_from_data(_data)
-                storage_manager = StorageManager(remote_files=_data)
                 # cloning data into a local folder
-                storage_manager.clone_remote_files()
+                extracted_params, _data = handler.extract_params_from_data(_data)
+                if storage_manager is None:
+                    # means that the storage manager is not initialized yet, so
+                    # the file is not a zip
+                    storage_manager = StorageManager(remote_files=_data)
+                    storage_manager.clone_remote_files()
                 # get filepath
                 files = storage_manager.get_retrieved_paths()
 
@@ -134,7 +144,8 @@ class ImporterViewSet(DynamicModelViewSet):
             except Exception as e:
                 # in case of any exception, is better to delete the 
                 # cloned files to keep the storage under control
-                storage_manager.delete_retrieved_paths(force=True)
+                if storage_manager is not None:
+                    storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
                 logger.exception(e)
