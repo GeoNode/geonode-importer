@@ -66,8 +66,7 @@ class TestGPKGHandler(TestCase):
         parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
         old_value = parallelism.max_number
         try:
-            if not created:
-                UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
+            UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
 
             with self.assertRaises(UploadParallelismLimitException) as _exc:
                 self.handler.is_valid(files=self.valid_files, user=self.user)
@@ -81,8 +80,7 @@ class TestGPKGHandler(TestCase):
         parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
         old_value = parallelism.max_number
         try:
-            if not created:
-                UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=1)
+            UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=1)
 
             with self.assertRaises(UploadParallelismLimitException) as _exc:
                 self.handler.is_valid(files=self.valid_files, user=self.user)
