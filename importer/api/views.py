@@ -59,7 +59,7 @@ class ImporterViewSet(DynamicModelViewSet):
     parser_class = [FileUploadParser, MultiPartParser]
 
     authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, UserHasPerms]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
