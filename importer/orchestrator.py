@@ -180,9 +180,10 @@ class ImportOrchestrator:
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
-            self.set_as_failed(
-                execution_id=execution_id, reason=_log or _log_message
-            )
+            if _log is not None:
+                self.set_as_failed(
+                    execution_id=execution_id, reason=_log or _log_message
+                )
             raise ImportException("One or more dataset raises an error during the import, please check the logs")
         else:
             logger.info(f"Execution with ID {execution_id} is completed. All tasks are done")
