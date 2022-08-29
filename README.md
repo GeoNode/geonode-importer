@@ -11,9 +11,10 @@ The implemented file type handlers so far are:
 
 ### gdal-bin
 
-The importer relies on the gdal utilities to perform format conversions and manipulations.  
-You need to install the `gdal-bin` package in your system (be it a base system or a docker environment).  
-For instance, for a ubuntu/debian system you can install it with:
+The importer relies on the gdal utilities to perform format conversions and manipulations. 
+
+You need to install the `gdal-bin` package in your system, be it a base system or a docker environment; in the latter case, make sure it is installed in the `celery` and in the `django` services.  
+In a ubuntu/debian system you can install `gdal-bin` with the command:
 
     apt install gdal-bin
 
