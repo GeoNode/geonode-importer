@@ -50,7 +50,7 @@ class SingleMessageErrorHandler(Task):
         )
         #TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
 
-        orchestrator.evaluate_execution_progress(self._get_uuid(args))
+        orchestrator.evaluate_execution_progress(self._get_uuid(args), _log=_log)
 
     def _get_uuid(self, _list):
         for el in _list:
