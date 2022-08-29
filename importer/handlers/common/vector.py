@@ -133,9 +133,9 @@ class BaseVectorFileHandler(BaseHandler):
         options = '--config PG_USE_COPY YES '
         options += '-f PostgreSQL PG:" dbname=\'%s\' host=%s port=%s user=\'%s\' password=\'%s\' " ' \
                     % (db_name, db_host, db_port, db_user, db_password)
-        options += files.get("base_file") + " "
+        options += f'"{files.get("base_file")}"' + " "
         options += '-lco DIM=2 '
-        options += f"-nln {alternate} {original_name}"
+        options += f'-nln {alternate} "{original_name}"'
 
         if override_layer:
             options += " -overwrite"
@@ -437,6 +437,6 @@ def import_with_ogr2ogr(execution_id: str, files: dict, original_name:str, handl
     
     process = Popen(' '.join(commands), stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = process.communicate()
-    if stderr is not None and stderr != b'' and b'Warning' not in stderr:
+    if stderr is not None and stderr != b'' and b'ERROR' in stderr:
         raise Exception(stderr)
     return "ogr2ogr", alternate, execution_id
