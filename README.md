@@ -9,13 +9,27 @@ The implemented file type handlers so far are:
 
 ## System dependencies
 
-### GDAL
-```
-GDAL >= 3.2.2.1
-```
-To check your version please run: `gdalinfo --version`
+### gdal-bin
 
-The binaries for installing gdal are available [here](https://gdal.org/download.html)
+The importer relies on the gdal utilities to perform format conversions and manipulations. 
+
+You need to install the `gdal-bin` package in your system, be it a base system or a docker environment; in the latter case, make sure it is installed in the `celery` and in the `django` services.  
+In a ubuntu/debian system you can install `gdal-bin` with the command:
+
+    apt install gdal-bin
+
+You need at least version `3.2.2` (this is the version that has been tested).  
+To check your version please run either:
+
+    $ gdalinfo --version
+    GDAL 3.3.2, released 2021/09/01   
+
+or
+
+    $ ogrinfo --version
+    GDAL 3.3.2, released 2021/09/01
+
+To install `gdal-bin` on other platforms please refer to https://gdal.org/download.html.
 
 
 ## Installation
@@ -106,5 +120,4 @@ Here a description of the various codes:
 
 ### GeoJson
 
-- Filename should not contains spaces, for example "This is my file.geojson" should be "This_is_my_file.geojson"
 - Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
