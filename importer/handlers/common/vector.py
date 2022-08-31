@@ -44,8 +44,12 @@ class BaseVectorFileHandler(BaseHandler):
         """
         Define basic validation steps
         """
-        return NotImplementedError
-    
+        result = Popen("ogr2ogr --version", stdout=PIPE, stderr=PIPE, shell=True)
+        _, stderr = result.communicate()
+        if stderr:
+            raise ImportException(stderr)
+        return True
+
     @staticmethod
     def can_handle(_data) -> bool:
         '''
