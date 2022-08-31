@@ -286,7 +286,7 @@ class BaseVectorFileHandler(BaseHandler):
             layer_schema += [
                 {
                     "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
-                    "class_name": GEOM_TYPE_MAPPING.get(self._promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType()))),
+                    "class_name": GEOM_TYPE_MAPPING.get(self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType()))),
                     "dim": 2 if not ogr.GeometryTypeToName(layer.GetGeomType()).lower().startswith('3d') else 3
                 }
             ]
@@ -301,7 +301,7 @@ class BaseVectorFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
-    def _promote_to_multi(self, geometry_name):
+    def promote_to_multi(self, geometry_name):
         '''
         If needed change the name of the geometry, by promoting it to Multi
         example if is Point -> MultiPoint

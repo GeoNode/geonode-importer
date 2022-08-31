@@ -127,10 +127,10 @@ class ShapeFileHandler(BaseVectorFileHandler):
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
-        additional_option = " -nlt PROMOTE_TO_MULTI" if 'Point' not in ogr.GeometryTypeToName(layer.GetGeomType()) else " "
-        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} " + additional_option
+        additional_option = " -nlt PROMOTE_TO_MULTI" if layer is not None and 'Point' not in ogr.GeometryTypeToName(layer.GetGeomType()) else " "
+        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}" + additional_option
 
-    def _promote_to_multi(self, geometry_name):
+    def promote_to_multi(self, geometry_name):
         '''
         If needed change the name of the geometry, by promoting it to Multi
         example if is Point -> MultiPoint

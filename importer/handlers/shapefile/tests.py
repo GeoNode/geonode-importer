@@ -63,8 +63,7 @@ class TestShapeFileFileHandler(TestCase):
         parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
         old_value = parallelism.max_number
         try:
-            if not created:
-                UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
+            UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
 
             with self.assertRaises(UploadParallelismLimitException) as _exc:
                 self.handler.is_valid(files=self.valid_shp, user=self.user)
@@ -72,6 +71,22 @@ class TestShapeFileFileHandler(TestCase):
         finally:
             parallelism.max_number = old_value
             parallelism.save()
+
+    def test_promote_to_multi(self):
+        # point should be keep as point
+        actual = self.handler.promote_to_multi('Point')
+        self.assertEqual("Point", actual)
+        # polygon should be changed into multipolygon
+        actual = self.handler.promote_to_multi('Polygon')
+        self.assertEqual("Multi Polygon", actual)
+
+        #linestring should be changed into multilinestring
+        actual = self.handler.promote_to_multi('Linestring')
+        self.assertEqual("Multi Linestring", actual)
+
+        # if is already multi should be kept
+        actual = self.handler.promote_to_multi('Multi Point')
+        self.assertEqual("Multi Point", actual)
 
     def test_is_valid_should_pass_with_valid_shp(self):
         self.handler.is_valid(files=self.valid_shp, user=self.user)
@@ -120,5 +135,5 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry', stdout=-1, stderr=-1, shell=True
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry ', stdout=-1, stderr=-1, shell=True
         )
