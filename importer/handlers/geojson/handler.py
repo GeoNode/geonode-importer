@@ -52,6 +52,8 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         """
         Define basic validation steps:
         """
+        #calling base validation checks
+        BaseVectorFileHandler.is_valid(files, user)
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
         upload_validator.validate_parallelism_limit_per_user()
