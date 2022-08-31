@@ -125,4 +125,15 @@ class ShapeFileHandler(BaseVectorFileHandler):
         '''
     
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
-        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}"
+
+        return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} -nlt PROMOTE_TO_MULTI "
+
+    def _promote_to_multi(self, geometry_name):
+        '''
+        If needed change the name of the geometry, by promoting it to Multi
+        example if is Point -> MultiPoint
+        Needed for the shapefiles
+        '''
+        if 'Multi' not in geometry_name:
+            return f"Multi {geometry_name.title()}"
+        return geometry_name
