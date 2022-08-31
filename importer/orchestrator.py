@@ -194,7 +194,7 @@ class ImportOrchestrator:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log or _log_message
                 )
-            raise ImportException("One or more dataset raises an error during the import, please check the logs")
+            raise ImportException(_log or _log_message)
         else:
             logger.info(f"Execution with ID {execution_id} is completed. All tasks are done")
             self.set_as_completed(execution_id)

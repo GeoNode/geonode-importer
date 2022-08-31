@@ -150,6 +150,14 @@ class BaseVectorFileHandler(BaseHandler):
         options += '-lco DIM=2 '
         options += f'-nln {alternate} "{original_name}"'
 
+        try:
+            layers = ogr.Open(files.get("base_file"))
+            layer = layers.GetLayer(original_name)
+            _geom = ogr.GeometryTypeToName(layer.GetGeomType()).upper().replace("3D", "").replace(" ", "")
+            options += f' -nlt "{_geom}"'
+        except Exception as e:
+            logger.info(e)
+
         if override_layer:
             options += " -overwrite"
 
@@ -286,7 +294,8 @@ class BaseVectorFileHandler(BaseHandler):
             layer_schema += [
                 {
                     "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
-                    "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType()))
+                    "class_name": GEOM_TYPE_MAPPING.get(ogr.GeometryTypeToName(layer.GetGeomType())),
+                    "dim": 2 if not ogr.GeometryTypeToName(layer.GetGeomType()).lower().startswith('3d') else 3
                 }
             ]
 

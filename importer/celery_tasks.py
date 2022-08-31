@@ -423,7 +423,11 @@ def create_dynamic_structure(execution_id: str, fields: dict, dynamic_model_sche
         _kwargs = {"null": field.get('null', True)}
         if field['class_name'].endswith('CharField'):
             _kwargs = {**_kwargs, **{"max_length": 255}}
-    
+
+        if field.get('dim', None) is not None:
+            # setting the dimension for the gemetry. So that we can handle also 3d geometries
+            _kwargs = {**_kwargs, **{"dim": field.get('dim')}}
+
         # if is a new creation we generate the field model from scratch
         if not overwrite:
             row_to_insert.append(_create_field(dynamic_model_schema, field, _kwargs))

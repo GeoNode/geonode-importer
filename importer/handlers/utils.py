@@ -26,6 +26,7 @@ GEOM_TYPE_MAPPING = {
     "Point": "django.contrib.gis.db.models.fields.PointField",
     "3D Point": "django.contrib.gis.db.models.fields.PointField",
     "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "3D Polygon": "django.contrib.gis.db.models.fields.PolygonField",
     "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
     "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
 }
