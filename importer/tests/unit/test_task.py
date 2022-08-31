@@ -372,6 +372,7 @@ class TestDynamicModelSchema(SimpleTestCase):
                 FieldSchema.objects.filter(model_schema=ModelSchema.objects.get(name=f"schema_copy_{name}")).exists()
             )
             async_call.assert_called_once()
+
         finally:
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
             ModelSchema.objects.filter(name=f"geonode:schema_copy_{name}").delete()
