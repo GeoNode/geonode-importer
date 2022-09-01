@@ -9,7 +9,7 @@ class ImporterSerializer(DynamicModelSerializer):
         model = Upload
         view_name = "importer_upload"
         fields = (
-            "base_file" "xml_file", "sld_file", "store_spatial_files", "override_existing_layer",
+            "base_file", "xml_file", "sld_file", "store_spatial_files", "override_existing_layer",
             "skip_existing_layers"
         )
 
