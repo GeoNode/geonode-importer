@@ -59,7 +59,13 @@ class ImporterViewSet(DynamicModelViewSet):
     parser_class = [FileUploadParser, MultiPartParser]
 
     authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, UserHasPerms]
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        UserHasPerms(
+                perms_dict={
+                    "POST": ['add_resourcebase']
+                }
+            )]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
@@ -165,7 +171,13 @@ class ImporterViewSet(DynamicModelViewSet):
 class ResourceImporter(DynamicModelViewSet):
 
     authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, UserHasPerms]
+    permission_classes = [
+        IsAuthenticatedOrReadOnly,
+        UserHasPerms(
+                perms_dict={
+                    "PUT": ['add_resourcebase', 'download_resourcebase']
+                }
+            )]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter

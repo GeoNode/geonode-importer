@@ -1,11 +1,15 @@
 from rest_framework import serializers
+from dynamic_rest.serializers import DynamicModelSerializer
+from geonode.upload.models import Upload
 
 
-class ImporterSerializer(serializers.Serializer):
+class ImporterSerializer(DynamicModelSerializer):
     class Meta:
+        ref_name = 'ImporterSerializer'
+        model = Upload
+        view_name = "importer_upload"
         fields = (
-            "base_file", "dbf_file", "shx_file", "prj_file", "xml_file",
-            "sld_file", "store_spatial_files", "override_existing_layer",
+            "base_file" "xml_file", "sld_file", "store_spatial_files", "override_existing_layer",
             "skip_existing_layers"
         )
 
