@@ -28,8 +28,8 @@ from dynamic_rest.viewsets import DynamicModelViewSet
 from geonode.base.api.filters import (DynamicSearchFilter, ExtentFilter,
                                       FavoriteFilter)
 from geonode.base.api.pagination import GeoNodeApiPagination
-from geonode.base.api.permissions import (IsOwnerOrReadOnly,
-                                          ResourceBasePermissionsFilter)
+from geonode.base.api.permissions import (IsOwnerOrReadOnly, ResourceBasePermissionsFilter,
+    UserHasPerms)
 from geonode.base.api.serializers import ResourceBaseSerializer
 from geonode.base.api.views import ResourceBaseViewSet
 from geonode.base.models import ResourceBase
@@ -59,7 +59,7 @@ class ImporterViewSet(DynamicModelViewSet):
     parser_class = [FileUploadParser, MultiPartParser]
 
     authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, UserHasPerms]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
@@ -159,7 +159,7 @@ class ImporterViewSet(DynamicModelViewSet):
 class ResourceImporter(DynamicModelViewSet):
 
     authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, UserHasPerms]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter
