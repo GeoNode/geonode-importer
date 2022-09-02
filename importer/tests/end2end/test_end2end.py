@@ -18,7 +18,7 @@ from importer.tests.utils import ImporterBaseTestSupport
 
 geourl = settings.GEODATABASE_URL
 
-class ImporterEndToEndTest(ImporterBaseTestSupport):
+class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -49,31 +49,6 @@ class ImporterEndToEndTest(ImporterBaseTestSupport):
 
     def tearDown(self) -> None:
         return super().tearDown()
-
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
-    def test_import_geopackage(self):
-        payload = {
-            "base_file": open(self.valid_gkpg, 'rb'),
-        }
-        initial_name = "stazioni_metropolitana"
-        self._assertimport(payload, initial_name)
-
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
-    def test_import_geojson(self):
-        payload = {
-            "base_file": open(self.valid_geojson, 'rb'),
-        }
-        initial_name = "valid"
-        self._assertimport(payload, initial_name)
-
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
-    def test_import_shapefile(self):
-        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
-        initial_name = "san_andres_y_providencia_highway"
-        self._assertimport(payload, initial_name)
 
     def _assertimport(self, payload, initial_name):
         self.client.force_login(self.admin)
@@ -107,3 +82,37 @@ class ImporterEndToEndTest(ImporterBaseTestSupport):
         # check if the geonode resource exists
         dataset = Dataset.objects.filter(alternate=f"geonode:{schema_entity.name}")
         self.assertTrue(dataset.exists())
+
+
+class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    def test_import_geopackage(self):
+        payload = {
+            "base_file": open(self.valid_gkpg, 'rb'),
+        }
+        initial_name = "stazioni_metropolitana"
+        self._assertimport(payload, initial_name)
+
+
+class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    def test_import_geojson(self):
+        payload = {
+            "base_file": open(self.valid_geojson, 'rb'),
+        }
+        initial_name = "valid"
+        self._assertimport(payload, initial_name)
+
+
+class ImporterShapefileImportTest(BaseImporterEndToEndTest):
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    def test_import_shapefile(self):
+        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
+        initial_name = "san_andres_y_providencia_highway"
+        self._assertimport(payload, initial_name)

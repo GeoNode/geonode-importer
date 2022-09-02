@@ -51,7 +51,9 @@ class ShapeFileHandler(BaseVectorFileHandler):
     @staticmethod
     def has_serializer(data) -> bool:
         _base = data.get("base_file")
-        if _base.endswith("shp") if isinstance(_base, str) and _base is not None else _base.name.endswith("shp"):
+        if not _base:
+            return False
+        if _base.endswith("shp") if isinstance(_base, str) else _base.name.endswith("shp"):
             return ShapeFileSerializer
         return False
 
