@@ -132,8 +132,10 @@ class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
     def test_copy_dataset_from_geojson(self):
-        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
-        initial_name = "san_andres_y_providencia_highway"
+        payload = {
+            "base_file": open(self.valid_geojson, 'rb'),
+        }
+        initial_name = "valid"        
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)
@@ -144,11 +146,9 @@ class ImporterCopyEnd2EndShapeFileTest(BaseClassEnd2End):
 
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
-    def test_copy_dataset_from_geojson(self):
-        payload = {
-            "base_file": open(self.valid_shp, 'rb'),
-        }
-        initial_name = "valid"
+    def test_copy_dataset_from_shapefile(self):
+        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
+        initial_name = "san_andres_y_providencia_highway"
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)
