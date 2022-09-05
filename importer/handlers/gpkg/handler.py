@@ -64,6 +64,8 @@ class GPKGFileHandler(BaseVectorFileHandler):
             RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
             RC18: It is recommended to give all GEOMETRY type columns the same name.
         """
+        #calling base validation checks
+        BaseVectorFileHandler.is_valid(files, user)
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
         upload_validator.validate_parallelism_limit_per_user()

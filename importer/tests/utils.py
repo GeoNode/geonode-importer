@@ -1,9 +1,9 @@
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 
 
-class ImporterBaseTestSupport(TestCase):
+class ImporterBaseTestSupport(TransactionTestCase):
 
     databases = ('default', 'datastore')
     multi_db = True

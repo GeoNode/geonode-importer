@@ -21,14 +21,14 @@ In a ubuntu/debian system you can install `gdal-bin` with the command:
 You need at least version `3.2.2` (this is the version that has been tested).  
 To check your version please run either:
 
-    # gdalinfo --version
-    GDAL 3.2.2, released 2021/03/05
+    $ gdalinfo --version
+    GDAL 3.3.2, released 2021/09/01   
 
 or
 
-    # ogrinfo --version
-    GDAL 3.2.2, released 2021/03/05
-    
+    $ ogrinfo --version
+    GDAL 3.3.2, released 2021/09/01
+
 To install `gdal-bin` on other platforms please refer to https://gdal.org/download.html.
 
 
@@ -120,5 +120,4 @@ Here a description of the various codes:
 
 ### GeoJson
 
-- Filename should not contains spaces, for example "This is my file.geojson" should be "This_is_my_file.geojson"
 - Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
