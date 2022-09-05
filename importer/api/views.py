@@ -66,7 +66,7 @@ class ImporterViewSet(DynamicModelViewSet):
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
     ]
-    queryset = Upload.objects.all()
+    queryset = ResourceBase.objects.all().order_by('-last_updated')
     serializer_class = ImporterSerializer
     pagination_class = GeoNodeApiPagination
     http_method_names = ['get', 'post']
