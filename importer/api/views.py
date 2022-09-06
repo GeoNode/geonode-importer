@@ -64,7 +64,7 @@ class ImporterViewSet(DynamicModelViewSet):
          UserHasPerms(
                 perms_dict={
                     "default": {
-                        "PUT": ['add_resourcebase']
+                        "POST": ['add_resourcebase']
                     }
                 }
             )]
