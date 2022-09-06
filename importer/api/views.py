@@ -61,7 +61,13 @@ class ImporterViewSet(DynamicModelViewSet):
     authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
     permission_classes = [
         IsAuthenticatedOrReadOnly,
-        UserHasPerms]
+         UserHasPerms(
+                perms_dict={
+                    "default": {
+                        "PUT": ['add_resourcebase']
+                    }
+                }
+            )]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         UploadPermissionsFilter
@@ -169,7 +175,19 @@ class ResourceImporter(DynamicModelViewSet):
     authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
     permission_classes = [
         IsAuthenticatedOrReadOnly,
-        UserHasPerms]
+         UserHasPerms(
+                perms_dict={
+                    "dataset": {
+                        "PUT": ['add_resourcebase', 'download_resourcebase'], "rule": all
+                    },
+                    "document": {
+                        "PUT": ['add_resourcebase', 'download_resourcebase'], "rule": all
+                    },
+                    "default": {
+                        "PUT": ['add_resourcebase']
+                    }
+                }
+            )]
     filter_backends = [
         DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
         ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter
