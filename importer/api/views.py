@@ -61,10 +61,10 @@ class ImporterViewSet(DynamicModelViewSet):
     authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
     permission_classes = [
         IsAuthenticatedOrReadOnly,
-         UserHasPerms(
+        UserHasPerms(
                 perms_dict={
                     "default": {
-                        "POST": ['add_resourcebase']
+                        "POST": ['base.add_resourcebase']
                     }
                 }
             )]
@@ -178,13 +178,13 @@ class ResourceImporter(DynamicModelViewSet):
          UserHasPerms(
                 perms_dict={
                     "dataset": {
-                        "PUT": ['add_resourcebase', 'download_resourcebase'], "rule": all
+                        "PUT": ['base.add_resourcebase', 'base.download_resourcebase'], "rule": all
                     },
                     "document": {
-                        "PUT": ['add_resourcebase', 'download_resourcebase'], "rule": all
+                        "PUT": ['base.add_resourcebase', 'base.download_resourcebase'], "rule": all
                     },
                     "default": {
-                        "PUT": ['add_resourcebase']
+                        "PUT": ['base.add_resourcebase']
                     }
                 }
             )]
