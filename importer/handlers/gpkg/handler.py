@@ -107,9 +107,3 @@ class GPKGFileHandler(BaseVectorFileHandler):
         Not implemented for GPKG, skipping
         '''
         pass
-
-    def handle_sld_file(self, saved_dataset, _exec):
-        '''
-        Not implemented for GPKG, skipping
-        '''
-        pass
