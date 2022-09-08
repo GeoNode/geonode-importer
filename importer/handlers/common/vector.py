@@ -100,7 +100,7 @@ class BaseVectorFileHandler(BaseHandler):
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.get(alternate=full_alternate).srid
+                    "crs": ResourceBase.objects.filter(alternate__icontains=layer_name).first().srid
                 }
             ]
 
@@ -309,6 +309,18 @@ class BaseVectorFileHandler(BaseHandler):
                     srs=_resource.get("crs"),
                     jdbc_virtual_table=_resource.get("name")
                 )
+                # The style with the dataset name is created by the gs importer.
+                # we need to crete it in advance
+                #style = catalog.get_style(_resource.get("name"), workspace=workspace)
+                #if style is None:
+                #    gs_dataset = catalog.get_layer(_resource.get("name"))
+                #    _default_style_body = gs_dataset.default_style.sld_body
+                #    catalog.create_style(
+                #        name=_resource.get("name"),
+                #        data=_default_style_body,
+                #        workspace=workspace
+                #    )
+                    
             except Exception as e:
                 if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
                     continue
@@ -381,10 +393,10 @@ class BaseVectorFileHandler(BaseHandler):
                 vals={"dirty_state": True}
             )
 
-    def copy_geonode_resource(alternate, resource, user, data_to_update, new_alternate):
+    def copy_geonode_resource(self, alternate, resource, _exec, data_to_update, new_alternate):
         new_resource = custom_resource_manager.copy(
                 resource,
-                owner=user,
+                owner=_exec.user,
                 defaults=data_to_update,
             )
 
@@ -400,6 +412,7 @@ class BaseVectorFileHandler(BaseHandler):
         '''
         Dataset.objects.filter(pk=new_resource.pk).update(name=new_alternate)
         new_resource.refresh_from_db()
+        self.handle_sld_file(new_resource, _exec)
         return new_resource
 
     def get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
