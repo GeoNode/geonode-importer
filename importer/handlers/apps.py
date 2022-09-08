@@ -2,8 +2,8 @@ from django.apps import AppConfig
 
 
 class HandlersConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'importer.handlers'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "importer.handlers"
 
     def ready(self):
         """Finalize setup"""
@@ -14,5 +14,6 @@ class HandlersConfig(AppConfig):
 def run_setup_hooks(*args, **kwargs):
     from .gpkg.handler import GPKGFileHandler
     from .geojson.handler import GeoJsonFileHandler
+
     GPKGFileHandler.register()
     GeoJsonFileHandler.register()
