@@ -394,26 +394,14 @@ class BaseVectorFileHandler(BaseHandler):
             )
 
     def copy_geonode_resource(self, alternate, resource, _exec, data_to_update, new_alternate):
-        new_resource = custom_resource_manager.copy(
-                resource,
-                owner=_exec.user,
-                defaults=data_to_update,
-            )
+        resource = self.create_geonode_resource(
+            layer_name=data_to_update.get("title"),
+            alternate=new_alternate,
+            execution_id=str(_exec.exec_id)
 
-        new_resource.handle_moderated_uploads()
-
-            # remove the dirty state from the resource if is set
-        ResourceBase.objects.filter(alternate=alternate).update(dirty_state=False)
-
-        '''
-        for some reason geonode update the name for the resource...
-        This will create issues later when we want to sync the resource between gn and gs
-        so we need to rool it back
-        '''
-        Dataset.objects.filter(pk=new_resource.pk).update(name=new_alternate)
-        new_resource.refresh_from_db()
-        self.handle_sld_file(new_resource, _exec)
-        return new_resource
+        )
+        resource.refresh_from_db()
+        return resource
 
     def get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
         '''
