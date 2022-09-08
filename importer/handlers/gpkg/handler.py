@@ -28,10 +28,10 @@ class GPKGFileHandler(BaseVectorFileHandler):
         ),
         exa.COPY.value: (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource"
+            "importer.publish_resource",
+            "importer.copy_geonode_resource"
         ),
     }
    
@@ -103,12 +103,6 @@ class GPKGFileHandler(BaseVectorFileHandler):
         return ogr.GetDriverByName("GPKG")
 
     def handle_xml_file(self, saved_dataset, _exec):
-        '''
-        Not implemented for GPKG, skipping
-        '''
-        pass
-
-    def handle_sld_file(self, saved_dataset, _exec):
         '''
         Not implemented for GPKG, skipping
         '''

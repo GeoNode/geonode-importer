@@ -11,7 +11,6 @@ from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
-
 from importer.api.exception import (CopyResourceException,
                                     InvalidInputFileException,
                                     PublishResourceException,
@@ -156,7 +155,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         _datastore.start_import(execution_id)
 
         '''
-        The orchestrator to proceed to the next step, should be called by the hander
+        The orchestrator to proceed to the next step, should be called by the handler
         since the call to the orchestrator can changed based on the handler
         called. See the GPKG handler gpkg_next_step task
         '''
@@ -236,9 +235,13 @@ def publish_resource(
 
         # at the end recall the import_orchestrator for the next step
 
-        import_orchestrator.apply_async(
-            (_files, execution_id, handler_module_path, step_name, layer_name, alternate, action)
-        )
+        task_params = ({}, execution_id, handler_module_path, step_name, layer_name, alternate, action)
+        # for some reason celery will always put the kwargs into a key kwargs
+        # so we need to remove it
+        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
+
+        import_orchestrator.apply_async(task_params, kwargs)
+
         return self.name, execution_id
 
     except Exception as e:
@@ -293,9 +296,9 @@ def create_geonode_resource(
 
         _files = _exec.input_params.get("files")
 
-        hander = import_string(handler_module_path)()
+        handler = import_string(handler_module_path)()
 
-        resource = hander.create_geonode_resource(
+        resource = handler.create_geonode_resource(
             layer_name=layer_name,
             alternate=alternate, 
             execution_id=execution_id
@@ -329,17 +332,16 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
     Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
     have the new generated alternate
     '''
+    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")    
+    new_alternate = kwargs.get("kwargs").get("new_dataset_alternate")    
     from importer.celery_tasks import import_orchestrator
-    from importer.utils import custom_resource_manager
     try:
-        resource = ResourceBase.objects.filter(alternate=alternate)
+        resource = ResourceBase.objects.filter(alternate=original_dataset_alternate)
         if not resource.exists():
             raise Exception("The resource requested does not exists")
         resource = resource.first()
 
         _exec = orchestrator.get_execution_object(exec_id)
-
-        new_alternate = create_alternate(resource.title, exec_id)
 
         workspace = resource.alternate.split(':')[0]
 
@@ -351,10 +353,11 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
         if _exec.input_params.get("title"):
             data_to_update['title'] = _exec.input_params.get("title")
 
-        new_resource = custom_resource_manager.copy(
-            resource,
-            owner=resource.owner,
-            defaults=data_to_update,
+        handler = import_string(handler_module_path)()
+
+        new_resource = handler.copy_geonode_resource(
+            alternate=alternate, resource=resource, _exec=_exec,
+            data_to_update=data_to_update, new_alternate=new_alternate
         )
 
         ResourceHandlerInfo.objects.create(
@@ -372,14 +375,12 @@ def copy_geonode_resource(exec_id, actual_step, layer_name, alternate, handler_m
             }
         )
 
-        additional_kwargs = {
-            "original_dataset_alternate": resource.alternate,
-            "new_dataset_alternate": new_resource.alternate
-        }
-
         task_params = ({}, exec_id, handler_module_path, actual_step, layer_name, new_alternate, action)
+        # for some reason celery will always put the kwargs into a key kwargs
+        # so we need to remove it
+        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
 
-        import_orchestrator.apply_async(task_params, additional_kwargs)
+        import_orchestrator.apply_async(task_params, kwargs)
 
     except Exception as e:
         raise CopyResourceException(detail=e)
@@ -457,22 +458,30 @@ def create_dynamic_structure(execution_id: str, fields: dict, dynamic_model_sche
     queue="importer.copy_dynamic_model",
     task_track_started=True
 )
-def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handlers_module_path, action, **kwargs):
+def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handler_module_path, action, **kwargs):
     '''
     Once the base resource is copied, is time to copy also the dynamic model
     '''
-    original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
-    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
 
     from importer.celery_tasks import import_orchestrator
     try:
-        dynamic_schema = ModelSchema.objects.filter(name=original_dataset_alternate.split(':')[1])
-        alternative_dynamic_schema = ModelSchema.objects.filter(name=new_dataset_alternate.split(':')[1])
+        
+        resource = ResourceBase.objects.filter(alternate=alternate)
+
+        if not resource.exists():
+            raise Exception("The resource requested does not exists")
+
+        resource = resource.first()
+
+        new_dataset_alternate = create_alternate(resource.title, exec_id)     
+   
+        dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
+        alternative_dynamic_schema = ModelSchema.objects.filter(name=new_dataset_alternate)
 
         if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
             # Creating the dynamic schema object
             new_schema = dynamic_schema.first()
-            new_schema.name = new_dataset_alternate.split(':')[1]
+            new_schema.name = new_dataset_alternate
             new_schema.pk = None
             new_schema.save()
             # create the field_schema object
@@ -485,12 +494,15 @@ def copy_dynamic_model(exec_id, actual_step, layer_name, alternate, handlers_mod
 
             FieldSchema.objects.bulk_create(fields)
 
-        task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
-        # for some reason celery will always put the kwargs into a key kwargs
-        # so we need to remove it
-        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
+        additional_kwargs = {
+            "original_dataset_alternate": resource.alternate,
+            "new_dataset_alternate": new_dataset_alternate
+        }
 
-        import_orchestrator.apply_async(task_params, kwargs)
+        task_params = ({}, exec_id, handler_module_path, actual_step, layer_name, new_dataset_alternate, action)
+
+        import_orchestrator.apply_async(task_params, additional_kwargs)
+
     except Exception as e:
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
@@ -507,7 +519,7 @@ def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handler
     Once the base resource is copied, is time to copy also the dynamic model
     '''
     original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate").split(':')[1]
-    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate").split(':')[1]
+    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
 
     from importer.celery_tasks import import_orchestrator
     try:
@@ -521,7 +533,10 @@ def copy_geonode_data_table(exec_id, actual_step, layer_name, alternate, handler
 
         task_params = ({}, exec_id, handlers_module_path, actual_step, layer_name, alternate, action)
 
+        kwargs = kwargs.get('kwargs') if "kwargs" in kwargs else kwargs
+
         import_orchestrator.apply_async(task_params, kwargs)
+
     except Exception as e:
         raise CopyResourceException(detail=e)
     return exec_id, kwargs

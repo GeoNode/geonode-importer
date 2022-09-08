@@ -27,10 +27,10 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         ),
         exa.COPY.value: (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource"
+            "importer.publish_resource",
+            "importer.copy_geonode_resource"
         ),
     }
    
@@ -79,13 +79,13 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
 
     def get_ogr2ogr_driver(self):
         return ogr.GetDriverByName("GeoJSON")
-    
+
     @staticmethod
     def create_ogr2ogr_command(files, original_name, override_layer, alternate):
         '''
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         '''
-        
+
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
         return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}" 
