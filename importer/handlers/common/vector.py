@@ -308,19 +308,7 @@ class BaseVectorFileHandler(BaseHandler):
                     native_crs=_resource.get("crs"),
                     srs=_resource.get("crs"),
                     jdbc_virtual_table=_resource.get("name")
-                )
-                # The style with the dataset name is created by the gs importer.
-                # we need to crete it in advance
-                #style = catalog.get_style(_resource.get("name"), workspace=workspace)
-                #if style is None:
-                #    gs_dataset = catalog.get_layer(_resource.get("name"))
-                #    _default_style_body = gs_dataset.default_style.sld_body
-                #    catalog.create_style(
-                #        name=_resource.get("name"),
-                #        data=_default_style_body,
-                #        workspace=workspace
-                #    )
-                    
+                )                    
             except Exception as e:
                 if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
                     continue
