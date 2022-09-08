@@ -24,6 +24,8 @@ from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 
 from importer.handlers.utils import create_alternate, should_be_imported
+from geonode.geoserver.helpers import set_dataset_style
+from importer.utils import custom_resource_manager
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +100,7 @@ class BaseVectorFileHandler(BaseHandler):
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.get(alternate=full_alternate).srid
+                    "crs": ResourceBase.objects.filter(alternate__icontains=layer_name).first().srid
                 }
             ]
 
@@ -306,7 +308,7 @@ class BaseVectorFileHandler(BaseHandler):
                     native_crs=_resource.get("crs"),
                     srs=_resource.get("crs"),
                     jdbc_virtual_table=_resource.get("name")
-                )
+                )                    
             except Exception as e:
                 if f"Resource named {_resource.get('name')} already exists in store:" in str(e):
                     continue
@@ -347,6 +349,8 @@ class BaseVectorFileHandler(BaseHandler):
                     )
                 )
 
+        saved_dataset.refresh_from_db()
+
         self.handle_xml_file(saved_dataset, _exec)
         self.handle_sld_file(saved_dataset, _exec)
 
@@ -376,6 +380,16 @@ class BaseVectorFileHandler(BaseHandler):
                 sld_uploaded=True if _path else False,
                 vals={"dirty_state": True}
             )
+
+    def copy_geonode_resource(self, alternate, resource, _exec, data_to_update, new_alternate):
+        resource = self.create_geonode_resource(
+            layer_name=data_to_update.get("title"),
+            alternate=new_alternate,
+            execution_id=str(_exec.exec_id)
+
+        )
+        resource.refresh_from_db()
+        return resource
 
     def get_ogr2ogr_task_group(self, execution_id, files, layer, should_be_overrided, alternate):
         '''
