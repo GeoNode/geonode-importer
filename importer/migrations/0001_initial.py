@@ -9,16 +9,30 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('base', '0081_alter_resourcebase_alternate'),
+        ("base", "0081_alter_resourcebase_alternate"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ResourceHandlerInfo',
+            name="ResourceHandlerInfo",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('handler_module_path', models.CharField(max_length=250)),
-                ('resource', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='base.resourcebase')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("handler_module_path", models.CharField(max_length=250)),
+                (
+                    "resource",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="base.resourcebase",
+                    ),
+                ),
             ],
         )
     ]

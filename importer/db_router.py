@@ -22,38 +22,40 @@ class DatastoreRouter:
     """
 
     foi_model = {
-        'app_label': ['geonode_importer', 'dynamic_models'],
+        "app_label": ["geonode_importer", "dynamic_models"],
     }
 
     def db_for_read(self, model, **hints):
-        '''
-            Redirect to the datastore model for the FeatureOfInterest
-        '''
-        if model._meta.app_label in self.foi_model.get('app_label'):
-            return 'datastore'
+        """
+        Redirect to the datastore model for the FeatureOfInterest
+        """
+        if model._meta.app_label in self.foi_model.get("app_label"):
+            return "datastore"
         return None
 
     def db_for_write(self, model, **hints):
-        '''
-            Redirect to the datastore model for the FeatureOfInterest
-        '''        
-        if model._meta.app_label in self.foi_model.get('app_label'):
-            return 'datastore'
+        """
+        Redirect to the datastore model for the FeatureOfInterest
+        """
+        if model._meta.app_label in self.foi_model.get("app_label"):
+            return "datastore"
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
-        '''
-            Redirect to the datastore model for the FeatureOfInterest
-        '''        
-        if obj1._meta.app_label in self.foi_model.get('app_label') or \
-           obj2._meta.app_label == 'layer':
-           return True
+        """
+        Redirect to the datastore model for the FeatureOfInterest
+        """
+        if (
+            obj1._meta.app_label in self.foi_model.get("app_label")
+            or obj2._meta.app_label == "layer"
+        ):
+            return True
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
-        '''
-            Redirect to the datastore model for the FeatureOfInterest
-        '''        
-        if app_label in self.foi_model.get('app_label'):
-            return db == 'datastore'
-        return None if db == 'default' else False
+        """
+        Redirect to the datastore model for the FeatureOfInterest
+        """
+        if app_label in self.foi_model.get("app_label"):
+            return db == "datastore"
+        return None if db == "default" else False

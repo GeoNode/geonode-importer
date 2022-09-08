@@ -1,20 +1,19 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
-from django.utils.translation import ugettext_lazy as _
 
 
 class ImportException(APIException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    default_detail = 'Exception during resource upload'
-    default_code = 'importer_exception'
-    category = 'importer'
+    default_detail = "Exception during resource upload"
+    default_code = "importer_exception"
+    category = "importer"
 
 
 class InvalidInputFileException(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'The provided files are invalid'
-    default_code = 'importer_exception'
-    category = 'importer'
+    default_detail = "The provided files are invalid"
+    default_code = "importer_exception"
+    category = "importer"
 
 
 class PublishResourceException(APIException):
@@ -29,6 +28,7 @@ class ResourceCreationException(APIException):
     default_detail = "Error during the creation of the geonode resource"
     default_code = "gn_resource_exception"
     category = "importer"
+
 
 class CopyResourceException(APIException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
