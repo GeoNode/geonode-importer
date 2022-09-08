@@ -29,10 +29,10 @@ class ShapeFileHandler(BaseVectorFileHandler):
         ),
         exa.COPY.value: (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
+            "importer.copy_geonode_resource"
         ),
     }
 
