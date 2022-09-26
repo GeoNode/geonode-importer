@@ -64,6 +64,13 @@ CELERY_TASK_QUEUES += (
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
 
 SIZE_RESTRICTED_FILE_UPLOAD_ELEGIBLE_URL_NAMES += ('importer_upload',)
+
+IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
+    'importer.handlers.gpkg.handler.GPKGFileHandler',
+    'importer.handlers.geojson.handler.GeoJsonFileHandler',
+    'importer.handlers.shapefile.handler.ShapeFileHandler'
+])
+
 ```
 
 ### DB migration
