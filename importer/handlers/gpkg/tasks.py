@@ -3,7 +3,6 @@ from uuid import UUID
 
 from celery import Task
 from django.utils.module_loading import import_string
-from django_celery_results.models import TaskResult
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 class SingleMessageErrorHandler(Task):
 
     max_retries = 1
-    track_started=True
+    track_started = True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         # exc (Exception) - The exception raised by the task.
@@ -37,18 +36,15 @@ class SingleMessageErrorHandler(Task):
         orchestrator.update_execution_request_status(
             execution_id=args[0],
             output_params=output_params,
-            log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+            log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
         )
 
         self.update_state(
             task_id=task_id,
             state="FAILURE",
-            meta={
-                "exec_id": str(exec_id.exec_id),
-                "reason": _log
-            }
+            meta={"exec_id": str(exec_id.exec_id), "reason": _log},
         )
-        #TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
+        # TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
 
         orchestrator.evaluate_execution_progress(self._get_uuid(args), _log=_log)
 
@@ -57,5 +53,5 @@ class SingleMessageErrorHandler(Task):
             try:
                 UUID(el)
                 return el
-            except:
+            except Exception:
                 continue

@@ -25,26 +25,25 @@ from geonode.resource.enumerator import ExecutionRequestAction
 from django.utils.translation import ugettext as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
-from geonode.base.api.filters import (DynamicSearchFilter, ExtentFilter,
-                                      FavoriteFilter)
+from geonode.base.api.filters import DynamicSearchFilter, ExtentFilter, FavoriteFilter
 from geonode.base.api.pagination import GeoNodeApiPagination
-from geonode.base.api.permissions import (IsOwnerOrReadOnly, ResourceBasePermissionsFilter,
-    UserHasPerms)
+from geonode.base.api.permissions import (
+    ResourceBasePermissionsFilter,
+    UserHasPerms,
+)
 from geonode.base.api.serializers import ResourceBaseSerializer
 from geonode.base.api.views import ResourceBaseViewSet
 from geonode.base.models import ResourceBase
 from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
 from geonode.upload.api.views import UploadViewSet
-from geonode.upload.models import Upload
 from geonode.upload.utils import UploadLimitValidator
 from importer.api.exception import HandlerException, ImportException
 from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import import_orchestrator
 from importer.orchestrator import orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
-from rest_framework.authentication import (BasicAuthentication,
-                                           SessionAuthentication)
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -56,26 +55,28 @@ class ImporterViewSet(DynamicModelViewSet):
     """
     API endpoint that allows uploads to be viewed or edited.
     """
+
     parser_class = [FileUploadParser, MultiPartParser]
 
-    authentication_classes = [BasicAuthentication, SessionAuthentication, OAuth2Authentication]
+    authentication_classes = [
+        BasicAuthentication,
+        SessionAuthentication,
+        OAuth2Authentication,
+    ]
     permission_classes = [
         IsAuthenticatedOrReadOnly,
-        UserHasPerms(
-            perms_dict={
-                "default": {
-                    "POST": ['base.add_resourcebase']
-                }
-            }
-        )]
-    filter_backends = [
-        DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
-        UploadPermissionsFilter
+        UserHasPerms(perms_dict={"default": {"POST": ["base.add_resourcebase"]}}),
     ]
-    queryset = ResourceBase.objects.all().order_by('-last_updated')
+    filter_backends = [
+        DynamicFilterBackend,
+        DynamicSortingFilter,
+        DynamicSearchFilter,
+        UploadPermissionsFilter,
+    ]
+    queryset = ResourceBase.objects.all().order_by("-last_updated")
     serializer_class = ImporterSerializer
     pagination_class = GeoNodeApiPagination
-    http_method_names = ['get', 'post']
+    http_method_names = ["get", "post"]
 
     def get_serializer_class(self):
         specific_serializer = orchestrator.get_serializer(self.request.data)
@@ -83,14 +84,14 @@ class ImporterViewSet(DynamicModelViewSet):
 
     def create(self, request, *args, **kwargs):
 
-        '''
+        """
         Main function called by the new import flow.
         It received the file via the front end
         if is a gpkg (in future it will support all the vector file)
         the new import flow is follow, else the normal upload api is used.
         It clone on the local repo the file that the user want to upload
-        '''
-        _file = request.FILES.get('base_file') or request.data.get('base_file')
+        """
+        _file = request.FILES.get("base_file") or request.data.get("base_file")
         execution_id = None
 
         serializer = self.get_serializer_class()
@@ -100,12 +101,17 @@ class ImporterViewSet(DynamicModelViewSet):
         data.is_valid(raise_exception=True)
         _data = {
             **data.data.copy(),
-            **{key: value[0] if isinstance(value, list) else value for key, value in request.FILES.items()}
+            **{
+                key: value[0] if isinstance(value, list) else value
+                for key, value in request.FILES.items()
+            },
         }
 
-        if 'zip_file' in _data:
+        if "zip_file" in _data:
             # if a zipfile is provided, we need to unzip it before searching for an handler
-            storage_manager = StorageManager(remote_files={"base_file": _data.get("zip_file")})
+            storage_manager = StorageManager(
+                remote_files={"base_file": _data.get("zip_file")}
+            )
             # cloning and unzip the base_file
             storage_manager.clone_remote_files()
             # update the payload with the unziped paths
@@ -128,7 +134,9 @@ class ImporterViewSet(DynamicModelViewSet):
 
                 upload_validator = UploadLimitValidator(request.user)
                 upload_validator.validate_parallelism_limit_per_user()
-                upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
+                upload_validator.validate_files_sum_of_sizes(
+                    storage_manager.data_retriever
+                )
 
                 action = ExecutionRequestAction.IMPORT.value
 
@@ -136,27 +144,22 @@ class ImporterViewSet(DynamicModelViewSet):
                     user=request.user,
                     func_name=next(iter(handler.get_task_list(action=action))),
                     step=_(next(iter(handler.get_task_list(action=action)))),
-                    input_params={**{
-                            "files": files,
-                            "handler_module_path": str(handler)
-                        },
-                        **extracted_params
+                    input_params={
+                        **{"files": files, "handler_module_path": str(handler)},
+                        **extracted_params,
                     },
                     legacy_upload_name=_file.name,
                     action=action,
-                    name=_file.name
+                    name=_file.name,
                 )
 
                 sig = import_orchestrator.s(
-                        files,
-                        str(execution_id),
-                        handler=str(handler),
-                        action=action
+                    files, str(execution_id), handler=str(handler), action=action
                 )
                 sig.apply_async()
                 return Response(data={"execution_id": execution_id}, status=201)
             except Exception as e:
-                # in case of any exception, is better to delete the 
+                # in case of any exception, is better to delete the
                 # cloned files to keep the storage under control
                 if storage_manager is not None:
                     storage_manager.delete_retrieved_paths(force=True)
@@ -172,27 +175,36 @@ class ImporterViewSet(DynamicModelViewSet):
 
 class ResourceImporter(DynamicModelViewSet):
 
-    authentication_classes = [SessionAuthentication, BasicAuthentication, OAuth2Authentication]
+    authentication_classes = [
+        SessionAuthentication,
+        BasicAuthentication,
+        OAuth2Authentication,
+    ]
     permission_classes = [
         IsAuthenticatedOrReadOnly,
         UserHasPerms(
             perms_dict={
                 "dataset": {
-                    "PUT": ['base.add_resourcebase', 'base.download_resourcebase'], "rule": all
+                    "PUT": ["base.add_resourcebase", "base.download_resourcebase"],
+                    "rule": all,
                 },
                 "document": {
-                    "PUT": ['base.add_resourcebase', 'base.download_resourcebase'], "rule": all
+                    "PUT": ["base.add_resourcebase", "base.download_resourcebase"],
+                    "rule": all,
                 },
-                "default": {
-                    "PUT": ['base.add_resourcebase']
-                }
+                "default": {"PUT": ["base.add_resourcebase"]},
             }
-        )]
-    filter_backends = [
-        DynamicFilterBackend, DynamicSortingFilter, DynamicSearchFilter,
-        ExtentFilter, ResourceBasePermissionsFilter, FavoriteFilter
+        ),
     ]
-    queryset = ResourceBase.objects.all().order_by('-last_updated')
+    filter_backends = [
+        DynamicFilterBackend,
+        DynamicSortingFilter,
+        DynamicSearchFilter,
+        ExtentFilter,
+        ResourceBasePermissionsFilter,
+        FavoriteFilter,
+    ]
+    queryset = ResourceBase.objects.all().order_by("-last_updated")
     serializer_class = ResourceBaseSerializer
     pagination_class = GeoNodeApiPagination
 
@@ -200,57 +212,61 @@ class ResourceImporter(DynamicModelViewSet):
         resource = self.get_object()
         if resource.resourcehandlerinfo_set.exists():
 
-            handler_module_path = resource.resourcehandlerinfo_set.first().handler_module_path
+            handler_module_path = (
+                resource.resourcehandlerinfo_set.first().handler_module_path
+            )
 
             action = ExecutionRequestAction.COPY.value
 
             handler = orchestrator.load_handler(handler_module_path)
 
             if not handler.can_do(action):
-                raise HandlerException(detail=f"The handler {handler_module_path} cannot manage the action required: {action}")
+                raise HandlerException(
+                    detail=f"The handler {handler_module_path} cannot manage the action required: {action}"
+                )
 
             step = next(iter(handler.get_task_list(action=action)))
 
-            extracted_params, _data = handler.extract_params_from_data(request.data, action=action)
+            extracted_params, _data = handler.extract_params_from_data(
+                request.data, action=action
+            )
 
             execution_id = orchestrator.create_execution_request(
-                    user=request.user,
-                    func_name=step,
-                    step=step,
-                    input_params={**{
-                            "handler_module_path": str(handler)
-                        },
-                        **extracted_params
-                    },
-                )
+                user=request.user,
+                func_name=step,
+                step=step,
+                input_params={
+                    **{"handler_module_path": str(handler)},
+                    **extracted_params,
+                },
+            )
 
             sig = import_orchestrator.s(
-                    {},
-                    str(execution_id),
-                    step=step,
-                    handler=str(handler_module_path),
-                    action=action,
-                    layer_name=resource.title,
-                    alternate=resource.alternate
+                {},
+                str(execution_id),
+                step=step,
+                handler=str(handler_module_path),
+                action=action,
+                layer_name=resource.title,
+                alternate=resource.alternate,
             )
             sig.apply_async()
 
-            # to reduce the work on the FE, the old payload is mantained 
+            # to reduce the work on the FE, the old payload is mantained
             return Response(
                 data={
                     "status": "ready",
                     "execution_id": execution_id,
                     "status_url": urljoin(
-                            settings.SITEURL,
-                            reverse('rs-execution-status', kwargs={'execution_id': execution_id})
-                        )
+                        settings.SITEURL,
+                        reverse(
+                            "rs-execution-status", kwargs={"execution_id": execution_id}
+                        ),
+                    ),
                 },
-                status=200
+                status=200,
             )
 
         return ResourceBaseViewSet(
-            request=request,
-            format_kwarg=None,
-            args=args,
-            kwargs=kwargs
+            request=request, format_kwarg=None, args=args, kwargs=kwargs
         ).resource_service_copy(request, pk=kwargs.get("pk"))

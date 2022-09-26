@@ -22,19 +22,15 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
     def setUpClass(cls):
         super().setUpClass()
         cls.orchestrator = ImportOrchestrator()
-    
+
     def test_get_handler(self):
-        _data = {
-            "base_file": "file.gpkg"
-        }
+        _data = {"base_file": "file.gpkg"}
         actual = self.orchestrator.get_handler(_data)
         self.assertIsNotNone(actual)
         self.assertEqual("importer.handlers.gpkg.handler.GPKGFileHandler", str(actual))
 
     def test_get_handler_should_return_none_if_is_not_available(self):
-        _data = {
-            "base_file": "file.not_supported"
-        }
+        _data = {"base_file": "file.not_supported"}
         actual = self.orchestrator.get_handler(_data)
         self.assertIsNone(actual)
     
@@ -55,7 +51,9 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         )
 
     def test_load_handler(self):
-        actual = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
+        actual = self.orchestrator.load_handler(
+            "importer.handlers.gpkg.handler.GPKGFileHandler"
+        )
         self.assertIsInstance(actual(), BaseHandler)
 
     def test_get_execution_object_raise_exp_if_not_exists(self):
@@ -76,7 +74,9 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             ExecutionRequest.objects.filter(exec_id=_uuid).delete()
 
     def test_create_execution_request(self):
-        handler = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
+        handler = self.orchestrator.load_handler(
+            "importer.handlers.gpkg.handler.GPKGFileHandler"
+        )
         count = ExecutionRequest.objects.count()
         input_files = {
             "files": {"base_file": "/tmp/file.txt"},
@@ -84,8 +84,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         }
         exec_id = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
-            func_name=next(iter(handler.get_task_list(action='import'))),
-            step=next(iter(handler.get_task_list(action='import'))),
+            func_name=next(iter(handler.get_task_list(action="import"))),
+            step=next(iter(handler.get_task_list(action="import"))),
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
                 "store_spatial_files": True,
@@ -101,10 +101,12 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
     @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_next_step(self, mock_celery):
         # setup test
-        handler = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
+        handler = self.orchestrator.load_handler(
+            "importer.handlers.gpkg.handler.GPKGFileHandler"
+        )
         _id = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
-            func_name=next(iter(handler.get_task_list(action='import'))),
+            func_name=next(iter(handler.get_task_list(action="import"))),
             step="start_import",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
@@ -112,17 +114,24 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             },
         )
         # test under tests
-        self.orchestrator.perform_next_step(_id, 'import', step='start_import', handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler")
+        self.orchestrator.perform_next_step(
+            _id,
+            "import",
+            step="start_import",
+            handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+        )
         mock_celery.assert_called_once()
         mock_celery.assert_called_with("importer.import_resource")
 
     @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_last_import_step(self, mock_celery):
         # setup test
-        handler = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
+        handler = self.orchestrator.load_handler(
+            "importer.handlers.gpkg.handler.GPKGFileHandler"
+        )
         _id = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
-            func_name=next(iter(handler.get_task_list(action='import'))),
+            func_name=next(iter(handler.get_task_list(action="import"))),
             step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
@@ -131,10 +140,10 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         )
         # test under tests
         self.orchestrator.perform_next_step(
-            _id, 
-            'import', 
-            step='importer.create_geonode_resource',
-            handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler"
+            _id,
+            "import",
+            step="importer.create_geonode_resource",
+            handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
         )
         mock_celery.assert_not_called()
 
@@ -142,10 +151,12 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
     def test_perform_with_error_set_invalid_status(self, mock_celery):
         mock_celery.side_effect = Exception("test exception")
         # setup test
-        handler = self.orchestrator.load_handler("importer.handlers.gpkg.handler.GPKGFileHandler")
+        handler = self.orchestrator.load_handler(
+            "importer.handlers.gpkg.handler.GPKGFileHandler"
+        )
         _id = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
-            func_name=next(iter(handler.get_task_list(action='import'))),
+            func_name=next(iter(handler.get_task_list(action="import"))),
             step="start_import",  # adding the first step for the GPKG file
             input_params={
                 "files": {"base_file": "/tmp/file.txt"},
@@ -154,7 +165,12 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         )
         # test under tests
         with self.assertRaises(Exception):
-            self.orchestrator.perform_next_step(_id, 'import', step='start_import', handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler")
+            self.orchestrator.perform_next_step(
+                _id,
+                "import",
+                step="start_import",
+                handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+            )
 
         _excec = ExecutionRequest.objects.filter(exec_id=_id).first()
         self.assertIsNotNone(_excec)
@@ -175,17 +191,17 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _uuid = str(_uuid)
         self.orchestrator.set_as_failed(_uuid, reason="automatic test")
 
-        #check normal execution status
+        # check normal execution status
         req = ExecutionRequest.objects.get(exec_id=_uuid)
         self.assertTrue(req.status, ExecutionRequest.STATUS_FAILED)
         self.assertTrue(req.log, "automatic test")
 
-        #check legacy execution status
+        # check legacy execution status
         legacy = Upload.objects.filter(metadata__contains=_uuid)
         self.assertTrue(legacy.exists())
         self.assertEqual(legacy.first().state, enum.STATE_INVALID)
 
-        #cleanup
+        # cleanup
         req.delete()
         legacy.delete()
 
@@ -207,12 +223,12 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         req = ExecutionRequest.objects.get(exec_id=_uuid)
         self.assertTrue(req.status, ExecutionRequest.STATUS_FINISHED)
 
-        #check legacy execution status
+        # check legacy execution status
         legacy = Upload.objects.filter(metadata__contains=_uuid)
         self.assertTrue(legacy.exists())
         self.assertEqual(legacy.first().state, enum.STATE_PROCESSED)
 
-        #cleanup
+        # cleanup
         req.delete()
         legacy.delete()
 
@@ -240,35 +256,34 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertTrue(req.func_name, "function_name")
         self.assertTrue(req.step, "step_here")
 
-        #check legacy execution status
+        # check legacy execution status
         legacy = Upload.objects.filter(metadata__contains=_uuid)
         self.assertTrue(legacy.exists())
         self.assertEqual(legacy.first().state, enum.STATE_RUNNING)
 
-        #cleanup
+        # cleanup
         req.delete()
         legacy.delete()
 
-
-    def test_evaluate_execution_progress_should_continue_if_some_task_is_not_finished(self):
+    def test_evaluate_execution_progress_should_continue_if_some_task_is_not_finished(
+        self,
+    ):
         # create the celery task result entry
         try:
-            exec_id = str(self.orchestrator.create_execution_request(
-                user=get_user_model().objects.first(),
-                func_name="test",
-                step="test",
-                legacy_upload_name="test"
-            ))
-        
+            exec_id = str(
+                self.orchestrator.create_execution_request(
+                    user=get_user_model().objects.first(),
+                    func_name="test",
+                    step="test",
+                    legacy_upload_name="test",
+                )
+            )
+
             started_entry = TaskResult.objects.create(
-                task_id="task_id_started",
-                status="STARTED",
-                task_args=exec_id
+                task_id="task_id_started", status="STARTED", task_args=exec_id
             )
             success_entry = TaskResult.objects.create(
-                task_id="task_id_success",
-                status="SUCCESS",
-                task_args=exec_id
+                task_id="task_id_success", status="SUCCESS", task_args=exec_id
             )
             with self.assertLogs(level="INFO") as _log:
                 result = self.orchestrator.evaluate_execution_progress(exec_id)
@@ -276,7 +291,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             self.assertIsNone(result)
             self.assertEqual(
                 f"INFO:importer.orchestrator:Execution progress with id {exec_id} is not finished yet, continuing",
-                _log.output[0]
+                _log.output[0],
             )
 
         finally:
@@ -286,27 +301,25 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                 success_entry.delete()
 
     def test_evaluate_execution_progress_should_fail_if_one_task_is_failed(self):
-        '''
+        """
         Should set it fail if all the execution are done and at least 1 is failed
-        '''
-               # create the celery task result entry
+        """
+        # create the celery task result entry
         try:
-            exec_id = str(self.orchestrator.create_execution_request(
-                user=get_user_model().objects.first(),
-                func_name="test",
-                step="test",
-                legacy_upload_name="test"
-            ))
-        
+            exec_id = str(
+                self.orchestrator.create_execution_request(
+                    user=get_user_model().objects.first(),
+                    func_name="test",
+                    step="test",
+                    legacy_upload_name="test",
+                )
+            )
+
             FAILED_entry = TaskResult.objects.create(
-                task_id="task_id_FAILED",
-                status="FAILURE",
-                task_args=exec_id
+                task_id="task_id_FAILED", status="FAILURE", task_args=exec_id
             )
             success_entry = TaskResult.objects.create(
-                task_id="task_id_success",
-                status="SUCCESS",
-                task_args=exec_id
+                task_id="task_id_success", status="SUCCESS", task_args=exec_id
             )
             with self.assertRaises(ImportException) as e:
                 self.orchestrator.evaluate_execution_progress(exec_id)
@@ -322,20 +335,19 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             if success_entry:
                 success_entry.delete()
 
-
     def test_evaluate_execution_progress_should_set_as_completed(self):
         try:
-            exec_id = str(self.orchestrator.create_execution_request(
-                user=get_user_model().objects.first(),
-                func_name="test",
-                step="test",
-                legacy_upload_name="test"
-            ))
-        
+            exec_id = str(
+                self.orchestrator.create_execution_request(
+                    user=get_user_model().objects.first(),
+                    func_name="test",
+                    step="test",
+                    legacy_upload_name="test",
+                )
+            )
+
             success_entry = TaskResult.objects.create(
-                task_id="task_id_success",
-                status="SUCCESS",
-                task_args=exec_id
+                task_id="task_id_success", status="SUCCESS", task_args=exec_id
             )
 
             self.orchestrator.evaluate_execution_progress(exec_id)

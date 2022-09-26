@@ -2,8 +2,8 @@ from django.apps import AppConfig
 
 
 class HandlersConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'importer.handlers'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "importer.handlers"
 
     def ready(self):
         """Finalize setup"""

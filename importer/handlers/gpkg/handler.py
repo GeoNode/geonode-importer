@@ -1,4 +1,3 @@
-import json
 import logging
 
 from geonode.resource.enumerator import ExecutionRequestAction as exa
@@ -14,38 +13,41 @@ logger = logging.getLogger(__name__)
 
 
 class GPKGFileHandler(BaseVectorFileHandler):
-    '''
+    """
     Handler to import GPK files into GeoNode data db
     It must provide the task_lists required to comple the upload
-    '''
+    """
 
     ACTIONS = {
         exa.IMPORT.value: (
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_geonode_resource"
+            "importer.create_geonode_resource",
         ),
         exa.COPY.value: (
             "start_copy",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
-            "importer.copy_geonode_resource"
+            "importer.copy_geonode_resource",
         ),
     }
-   
 
     @staticmethod
     def can_handle(_data) -> bool:
-        '''
+        """
         This endpoint will return True or False if with the info provided
         the handler is able to handle the file or not
-        '''
+        """
         base = _data.get("base_file")
         if not base:
             return False
-        return base.endswith('.gpkg') if isinstance(base, str) else base.name.endswith('.gpkg')
+        return (
+            base.endswith(".gpkg")
+            if isinstance(base, str)
+            else base.name.endswith(".gpkg")
+        )
 
     @staticmethod
     def is_valid(files, user):
@@ -64,7 +66,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
             RQ15: All table geometries must match the geometry_type_name from the gpkg_geometry_columns table
             RC18: It is recommended to give all GEOMETRY type columns the same name.
         """
-        #calling base validation checks
+        # calling base validation checks
         BaseVectorFileHandler.is_valid(files, user)
         # getting the upload limit validation
         upload_validator = UploadLimitValidator(user)
@@ -81,8 +83,8 @@ class GPKGFileHandler(BaseVectorFileHandler):
 
         if layers_count >= max_upload:
             raise UploadParallelismLimitException(
-                detail=f"The number of layers in the gpkg {layers_count} is greater than " \
-                f"the max parallel upload permitted: {max_upload} " \
+                detail=f"The number of layers in the gpkg {layers_count} is greater than "
+                f"the max parallel upload permitted: {max_upload} "
                 f"please upload a smaller file"
             )
         elif layers_count + actual_upload >= max_upload:
@@ -92,10 +94,12 @@ class GPKGFileHandler(BaseVectorFileHandler):
 
         validator = validate(
             gpkg_path=files.get("base_file"),
-            validations='RQ1, RQ2, RQ13, RQ14, RQ15, RC18'
+            validations="RQ1, RQ2, RQ13, RQ14, RQ15, RC18",
         )
         if not validator[-1]:
-            raise InvalidGeopackageException([x.get("validation_description") for x in validator[0]])
+            raise InvalidGeopackageException(
+                [x.get("validation_description") for x in validator[0]]
+            )
 
         return True
 
@@ -103,7 +107,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
         return ogr.GetDriverByName("GPKG")
 
     def handle_xml_file(self, saved_dataset, _exec):
-        '''
+        """
         Not implemented for GPKG, skipping
-        '''
+        """
         pass

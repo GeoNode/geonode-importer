@@ -26,40 +26,44 @@ class TestGeoJsonFileHandler(TestCase):
         cls.invalid_files = {"base_file": cls.invalid_geojson}
         cls.valid_files = {"base_file": cls.valid_geojson}
         cls.owner = get_user_model().objects.first()
-        cls.layer = create_single_dataset(name='stazioni_metropolitana', owner=cls.owner)
-
+        cls.layer = create_single_dataset(
+            name="stazioni_metropolitana", owner=cls.owner
+        )
 
     def test_task_list_is_the_expected_one(self):
         expected = (
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_geonode_resource"
+            "importer.create_geonode_resource",
         )
-        self.assertEqual(len(self.handler.ACTIONS['import']), 4)
-        self.assertTupleEqual(expected, self.handler.ACTIONS['import'])
+        self.assertEqual(len(self.handler.ACTIONS["import"]), 4)
+        self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
 
-
-    def test_task_list_is_the_expected_one(self):
+    def test_task_list_is_the_expected_one_copy(self):
         expected = (
             "start_copy",
             "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource"
+            "importer.publish_resource",
         )
-        self.assertEqual(len(self.handler.ACTIONS['copy']), 5)
-        self.assertTupleEqual(expected, self.handler.ACTIONS['copy'])
+        self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
+        self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
 
     def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
-        parallelism, created = UploadParallelismLimit.objects.get_or_create(slug="default_max_parallel_uploads")
+        parallelism, created = UploadParallelismLimit.objects.get_or_create(
+            slug="default_max_parallel_uploads"
+        )
         old_value = parallelism.max_number
         try:
-            UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
+            UploadParallelismLimit.objects.filter(
+                slug="default_max_parallel_uploads"
+            ).update(max_number=0)
 
-            with self.assertRaises(UploadParallelismLimitException) as _exc:
+            with self.assertRaises(UploadParallelismLimitException):
                 self.handler.is_valid(files=self.valid_files, user=self.user)
-            
+
         finally:
             parallelism.max_number = old_value
             parallelism.save()
@@ -68,19 +72,22 @@ class TestGeoJsonFileHandler(TestCase):
         self.handler.is_valid(files=self.valid_files, user=self.user)
 
     def test_is_valid_should_raise_exception_if_the_geojson_is_invalid(self):
-        data = {"base_file": "/using/double/dot/in/the/name/is/an/error/file.invalid.geojson"}
+        data = {
+            "base_file": "/using/double/dot/in/the/name/is/an/error/file.invalid.geojson"
+        }
         with self.assertRaises(InvalidGeoJsonException) as _exc:
             self.handler.is_valid(files=data, user=self.user)
-        
+
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "Please remove the additional dots in the filename" in str(_exc.exception.detail)
+            "Please remove the additional dots in the filename"
+            in str(_exc.exception.detail)
         )
 
     def test_is_valid_should_raise_exception_if_the_geojson_is_invalid_format(self):
         with self.assertRaises(InvalidGeoJsonException) as _exc:
             self.handler.is_valid(files=self.invalid_files, user=self.user)
-        
+
         self.assertIsNotNone(_exc)
         self.assertTrue(
             "The provided GeoJson is not valid" in str(_exc.exception.detail)
