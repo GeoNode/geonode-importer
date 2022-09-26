@@ -1,4 +1,11 @@
+import logging
+
 from django.apps import AppConfig
+from django.conf import settings
+from django.utils.module_loading import import_string
+
+
+logger = logging.getLogger(__name__)
 
 
 class HandlersConfig(AppConfig):
@@ -12,9 +19,8 @@ class HandlersConfig(AppConfig):
 
 
 def run_setup_hooks(*args, **kwargs):
-    from .gpkg.handler import GPKGFileHandler
-    from .geojson.handler import GeoJsonFileHandler
-    from .shapefile.handler import ShapeFileHandler
-    GPKGFileHandler.register()
-    GeoJsonFileHandler.register()
-    ShapeFileHandler.register()
+    if getattr(settings, 'IMPORTER_HANDLERS', []):
+        _handlers = [import_string(module_path) for module_path in settings.IMPORTER_HANDLERS]
+        list(map(lambda item: item.register(), _handlers))
+        logger.info(f"The following handlers have been registered: {', '.join(settings.IMPORTER_HANDLERS)}")
+        
