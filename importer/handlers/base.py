@@ -63,6 +63,14 @@ class BaseHandler(ABC):
         return False
 
     @staticmethod
+    def has_serializer(_data) -> bool:
+        '''
+        This endpoint should return (if set) the custom serializer used in the API
+        to validate the input resource
+        '''
+        return None
+
+    @staticmethod
     def can_do(action) -> bool:
         """
         This endpoint will return True or False if with the info provided

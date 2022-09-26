@@ -3,7 +3,9 @@ from django.contrib.auth import get_user_model
 from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import ImportException
+from importer.api.serializer import ImporterSerializer
 from importer.handlers.base import BaseHandler
+from importer.handlers.shapefile.serializer import ShapeFileSerializer
 from importer.orchestrator import ImportOrchestrator
 from geonode.upload.models import Upload
 from django.utils import timezone
@@ -31,6 +33,14 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _data = {"base_file": "file.not_supported"}
         actual = self.orchestrator.get_handler(_data)
         self.assertIsNone(actual)
+    
+    def test_get_serializer_should_return_the_default_one_for_if_not_specified(self):
+        actual = self.orchestrator.get_serializer({"base_file": "file.gpkg"})
+        self.assertEqual(type(ImporterSerializer), type(actual))
+
+    def test_get_serializer_should_return_the_specific_one(self):
+        actual = self.orchestrator.get_serializer({"base_file": "file.shp"})
+        self.assertEqual(type(ShapeFileSerializer), type(actual))
 
     def test_load_handler_raise_error_if_not_exists(self):
         with self.assertRaises(ImportException) as _exc:
@@ -315,8 +325,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                 self.orchestrator.evaluate_execution_progress(exec_id)
 
             self.assertEqual(
-                "One or more dataset raises an error during the import, please check the logs",
-                str(e.exception),
+                f"For the execution ID {exec_id} The following celery task are failed: ['task_id_FAILED']",
+                str(e.exception)
             )
 
         finally:

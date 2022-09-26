@@ -23,10 +23,13 @@ from geonode.base.populate_test_data import create_single_dataset
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 
+from importer.tests.utils import ImporterBaseTestSupport
+
 # Create your tests here.
 
 
-class TestCeleryTasks(GeoNodeBaseTestSupport):
+class TestCeleryTasks(ImporterBaseTestSupport):
+
     def setUp(self):
         self.user = get_user_model().objects.first()
         self.exec_id = orchestrator.create_execution_request(

@@ -11,6 +11,7 @@ from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
+from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
@@ -21,7 +22,7 @@ from importer.handlers.utils import (
 )
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from osgeo import ogr
+from osgeo import ogr, osr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 
@@ -57,6 +58,14 @@ class BaseVectorFileHandler(BaseHandler):
         This endpoint will return True or False if with the info provided
         the handler is able to handle the file or not
         """
+        return False
+
+    @staticmethod
+    def has_serializer(_data) -> bool:
+        '''
+        This endpoint will return True or False if with the info provided
+        the handler is able to handle the file or not
+        '''
         return False
 
     @staticmethod
@@ -108,15 +117,18 @@ class BaseVectorFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": (
-                    f"{_l.GetSpatialRef().GetAuthorityName(None)}:{_l.GetSpatialRef().GetAuthorityCode('PROJCS') or _l.GetSpatialRef().GetAuthorityCode('GEOGCS')}"
-                    if _l.GetSpatialRef()
-                    else None
-                ),
-            }
+                "crs" : self.identify_authority(_l) if _l.GetSpatialRef() else None
+            } 
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name
         ]
+
+    def identify_authority(self, layer):
+        spatial_ref = layer.GetSpatialRef()
+        spatial_ref.AutoIdentifyEPSG()
+        _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
+        _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
+        return f"{_name}:{_code}"
 
     def get_ogr2ogr_driver(self):
         """
@@ -254,13 +266,12 @@ class BaseVectorFileHandler(BaseHandler):
             we just take the dynamic_model to override the existing one
             """
             dynamic_schema = dynamic_schema.get()
-        elif (dataset_exists and not dynamic_schema_exists) or (
-            not dataset_exists and not dynamic_schema_exists
-        ):
-            """
+        elif not dataset_exists and not dynamic_schema_exists:
+            '''
             cames here when is a new brand upload or when (for any reasons) the dataset exists but the
             dynamic model has not been created before
-            """
+            '''
+            layer_name = create_alternate(layer_name, execution_id)
             dynamic_schema = ModelSchema.objects.create(
                 name=layer_name,
                 db_name="datastore",
@@ -269,6 +280,8 @@ class BaseVectorFileHandler(BaseHandler):
             )
         elif (not dataset_exists and dynamic_schema_exists) or (
             dataset_exists and dynamic_schema_exists and not should_be_overrided
+        ) or (
+            dataset_exists and not dynamic_schema_exists
         ):
             """
             it comes here when the layer should not be overrided so we append the UUID
@@ -313,11 +326,9 @@ class BaseVectorFileHandler(BaseHandler):
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
-                    "name": layer.GetGeometryColumn()
-                    or self.default_geometry_column_name,
-                    "class_name": GEOM_TYPE_MAPPING.get(
-                        ogr.GeometryTypeToName(layer.GetGeomType())
-                    ),
+                    "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
+                    "class_name": GEOM_TYPE_MAPPING.get(self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType()))),
+                    "dim": 2 if not ogr.GeometryTypeToName(layer.GetGeomType()).lower().startswith('3d') else 3
                 }
             ]
 
@@ -337,6 +348,14 @@ class BaseVectorFileHandler(BaseHandler):
         )
 
         return dynamic_model_schema, celery_group
+
+    def promote_to_multi(self, geometry_name):
+        '''
+        If needed change the name of the geometry, by promoting it to Multi
+        example if is Point -> MultiPoint
+        Needed for the shapefiles
+        '''
+        return geometry_name
 
     @staticmethod
     def publish_resources(resources: List[str], catalog, store, workspace):

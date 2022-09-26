@@ -22,11 +22,15 @@ STANDARD_TYPE_MAPPING = {
 GEOM_TYPE_MAPPING = {
     "Line String": "django.contrib.gis.db.models.fields.LineStringField",
     "Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
+    "3D Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
     "Point": "django.contrib.gis.db.models.fields.PointField",
     "3D Point": "django.contrib.gis.db.models.fields.PointField",
-    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
     "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
+    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "3D Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "3D Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
     "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
+    "3D Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
 }
 
 

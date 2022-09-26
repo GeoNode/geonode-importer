@@ -1,19 +1,21 @@
 import logging
 import os
+from typing import Optional
 from uuid import UUID
 
 from celery import states
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
 from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
-from typing import Optional
-from django.utils.module_loading import import_string
+from rest_framework import serializers
 
 from importer.api.exception import ImportException
+from importer.api.serializer import ImporterSerializer
 from importer.celery_app import importer_app
 from importer.handlers.base import BaseHandler
 from importer.utils import error_handler
@@ -45,6 +47,14 @@ class ImportOrchestrator:
                 return handler()
         logger.error("Handler not found, fallback on the legacy upload system")
         return None
+    
+    def get_serializer(self, _data) -> serializers.Serializer:
+        for handler in BaseHandler.get_registry():
+            _serializer = handler.has_serializer(_data)
+            if _serializer:
+                return _serializer
+        logger.info("specific serializer not found, fallback on the default one")
+        return ImporterSerializer
 
     def load_handler(self, module_path):
         try:
@@ -205,9 +215,7 @@ class ImportOrchestrator:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log or _log_message
                 )
-            raise ImportException(
-                "One or more dataset raises an error during the import, please check the logs"
-            )
+            raise ImportException(_log or _log_message)
         else:
             logger.info(
                 f"Execution with ID {execution_id} is completed. All tasks are done"

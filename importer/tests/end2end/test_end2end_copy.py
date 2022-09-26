@@ -14,20 +14,28 @@ from geonode.resource.models import ExecutionRequest
 from geonode.utils import OGC_Servers_Handler
 from geoserver.catalog import Catalog
 from importer import project_dir
-from importer.tests.utils import ImporterBaseTestSupport
+from importer.tests.utils import TransactionImporterBaseTestSupport
 from django.db import transaction
 
 geourl = settings.GEODATABASE_URL
 
 
-class BaseClassEnd2End(ImporterBaseTestSupport):
+class BaseClassEnd2End(TransactionImporterBaseTestSupport):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.valid_gkpg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
-        cls.url_create = reverse("importer_upload")
-        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
+        file_path = gisdata.VECTOR_DATA
+        filename = os.path.join(file_path, "san_andres_y_providencia_highway.shp")
+        cls.valid_shp = {
+            "base_file": filename,
+            "dbf_file": f"{file_path}/san_andres_y_providencia_highway.dbf",
+            "prj_file": f"{file_path}/san_andres_y_providencia_highway.prj",
+            "shx_file": f"{file_path}/san_andres_y_providencia_highway.shx",
+        }
+        cls.url_create = reverse('importer_upload')
+        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
 
         _user, _password = ogc_server_settings.credentials
 
@@ -56,7 +64,7 @@ class BaseClassEnd2End(ImporterBaseTestSupport):
 
     def _assertCloning(self, initial_name):
         # getting the geonode resource
-        dataset = Dataset.objects.get(alternate=f"geonode:{initial_name}")
+        dataset = Dataset.objects.get(alternate__icontains=f'geonode:{initial_name}')
         prev_dataset_count = Dataset.objects.count()
         self.client.force_login(get_user_model().objects.get(username="admin"))
         # creating the url and login
@@ -146,7 +154,20 @@ class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
         payload = {
             "base_file": open(self.valid_geojson, "rb"),
         }
-        initial_name = "valid"
+        initial_name = "valid"        
+        # first we need to import a resource
+        with transaction.atomic():
+            self._import_resource(payload, initial_name)
+            self._assertCloning(initial_name)
+
+
+class ImporterCopyEnd2EndShapeFileTest(BaseClassEnd2End):
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    def test_copy_dataset_from_shapefile(self):
+        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
+        initial_name = "san_andres_y_providencia_highway"
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)
