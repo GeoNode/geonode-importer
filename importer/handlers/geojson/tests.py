@@ -35,7 +35,7 @@ class TestGeoJsonFileHandler(TestCase):
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_geonode_resource",
+            "importer.create_geonode_resource"
         )
         self.assertEqual(len(self.handler.ACTIONS["import"]), 4)
         self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
@@ -46,7 +46,7 @@ class TestGeoJsonFileHandler(TestCase):
             "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource",
+            "importer.publish_resource"
         )
         self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
