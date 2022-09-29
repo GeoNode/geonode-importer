@@ -325,9 +325,7 @@ def create_geonode_resource(
             layer_name=layer_name, alternate=alternate, execution_id=execution_id
         )
 
-        ResourceHandlerInfo.objects.create(
-            handler_module_path=handler_module_path, resource=resource
-        )
+        handler.create_resourcehandlerinfo(handler_module_path, resource)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
@@ -394,9 +392,7 @@ def copy_geonode_resource(
             new_alternate=new_alternate,
         )
 
-        ResourceHandlerInfo.objects.create(
-            resource=new_resource, handler_module_path=handler_module_path
-        )
+        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path)
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 

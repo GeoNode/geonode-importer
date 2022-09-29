@@ -40,3 +40,4 @@ class ResourceHandlerInfo(models.Model):
         ResourceBase, blank=False, null=False, on_delete=models.CASCADE
     )
     handler_module_path = models.CharField(max_length=250, blank=False, null=False)
+    kwargs = models.JSONField(verbose_name="Storing strictly related information of the handler", default=dict)

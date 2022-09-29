@@ -27,6 +27,7 @@ from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 
 from importer.handlers.utils import create_alternate, should_be_imported
+from importer.models import ResourceHandlerInfo
 
 logger = logging.getLogger(__name__)
 
@@ -456,6 +457,15 @@ class BaseVectorFileHandler(BaseHandler):
             sld_file=_exec.input_params.get("files", {}).get("sld_file", ""),
             sld_uploaded=True if _path else False,
             vals={"dirty_state": True},
+        )
+
+    def create_resourcehandlerinfo(self, handler_module_path, resource, **kwargs):
+        """
+        Create relation between the GeonodeResource and the handler used
+        to create/copy it
+        """
+        ResourceHandlerInfo.objects.create(
+            handler_module_path=handler_module_path, resource=resource
         )
 
     def copy_geonode_resource(
