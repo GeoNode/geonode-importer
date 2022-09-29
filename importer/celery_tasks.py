@@ -325,7 +325,7 @@ def create_geonode_resource(
             layer_name=layer_name, alternate=alternate, execution_id=execution_id
         )
 
-        handler.create_resourcehandlerinfo(handler_module_path, resource)
+        handler.create_resourcehandlerinfo(handler_module_path, resource, **kwargs)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
