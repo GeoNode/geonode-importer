@@ -131,6 +131,9 @@ class BaseHandler(ABC):
         """
         return NotImplementedError
 
+    def create_resourcehandlerinfo(self, handler_module_path, resource):
+        return NotImplementedError
+
     def get_ogr2ogr_task_group(
         self, execution_id, files, layer, should_be_overrided, alternate
     ):
