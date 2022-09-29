@@ -72,7 +72,7 @@ class DataPublisher:
                 store_name=geodatabase, workspace=self.workspace.name
             )
 
-    def publish_geoserver_view(self, layer_name, crs, view_name, sql=None, raw_name=None, geometry=None):
+    def publish_geoserver_view(self, layer_name, crs, view_name, sql=None, geometry=None):
         """
         Let the handler create a geoserver view given the input parameters
         """
@@ -86,6 +86,5 @@ class DataPublisher:
             crs=crs,
             view_name=view_name,
             sql=sql,
-            raw_name=raw_name,
             geometry=geometry
         )
