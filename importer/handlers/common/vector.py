@@ -7,11 +7,11 @@ from celery import chord, group
 
 from django.conf import settings
 from dynamic_models.models import ModelSchema
+from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.api.serializer import ImporterSerializer
 from importer.celery_tasks import create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
@@ -22,7 +22,7 @@ from importer.handlers.utils import (
 )
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from osgeo import ogr, osr
+from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 
@@ -101,6 +101,76 @@ class BaseVectorFileHandler(BaseHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
+
+    @staticmethod
+    def publish_resources(resources: List[str], catalog, store, workspace):
+        """
+        Given a list of strings (which rappresent the table on geoserver)
+        Will publish the resorces on geoserver
+        """
+        for _resource in resources:
+            try:
+                catalog.publish_featuretype(
+                    name=_resource.get("name"),
+                    store=store,
+                    native_crs=_resource.get("crs"),
+                    srs=_resource.get("crs"),
+                    jdbc_virtual_table=_resource.get("name"),
+                )
+            except Exception as e:
+                if (
+                    f"Resource named {_resource.get('name')} already exists in store:"
+                    in str(e)
+                ):
+                    continue
+                raise e
+        return True
+
+    @staticmethod
+    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+        """
+        Define the ogr2ogr command to be executed.
+        This is a default command that is needed to import a vector file
+        """
+        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
+        db_user, db_password = _uri.split("@")[0].split(":")
+        db_host, db_port = _uri.split("@")[1].split("/")[0].split(":")
+        db_name = _uri.split("@")[1].split("/")[1]
+
+        options = "--config PG_USE_COPY YES "
+        options += (
+            "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
+            % (db_name, db_host, db_port, db_user, db_password)
+        )
+        options += f'"{files.get("base_file")}"' + " "
+        options += "-lco DIM=2 "
+        options += f'-nln {alternate} "{original_name}"'
+
+        if override_layer:
+            options += " -overwrite"
+
+        return options
+
+    @staticmethod
+    def delete_resource(instance):
+        """
+        Base function to delete the resource with all the dependencies (example: dynamic model)
+        """
+        try:
+            name = instance.alternate.split(":")[1]
+            schema = ModelSchema.objects.filter(name=name).first()
+            if schema:
+                '''
+                We use the schema editor directly, because the model itself is not managed
+                on creation, but for the delete since we are going to handle, we can use it
+                '''
+                _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
+                _model_editor.drop_table(schema.as_model())
+                schema.delete()
+            # Removing Field Schema
+        except Exception as e:
+            logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
+
     def extract_resource_to_publish(self, files, action, layer_name, alternate):
         if action == exa.COPY.value:
             return [
@@ -136,31 +206,6 @@ class BaseVectorFileHandler(BaseHandler):
         Should return the Driver object that is used to open the layers via OGR2OGR
         """
         return None
-
-    @staticmethod
-    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
-        """
-        Define the ogr2ogr command to be executed.
-        This is a default command that is needed to import a vector file
-        """
-        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
-        db_user, db_password = _uri.split("@")[0].split(":")
-        db_host, db_port = _uri.split("@")[1].split("/")[0].split(":")
-        db_name = _uri.split("@")[1].split("/")[1]
-
-        options = "--config PG_USE_COPY YES "
-        options += (
-            "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-            % (db_name, db_host, db_port, db_user, db_password)
-        )
-        options += f'"{files.get("base_file")}"' + " "
-        options += "-lco DIM=2 "
-        options += f'-nln {alternate} "{original_name}"'
-
-        if override_layer:
-            options += " -overwrite"
-
-        return options
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
         """
@@ -357,30 +402,6 @@ class BaseVectorFileHandler(BaseHandler):
         Needed for the shapefiles
         '''
         return geometry_name
-
-    @staticmethod
-    def publish_resources(resources: List[str], catalog, store, workspace):
-        """
-        Given a list of strings (which rappresent the table on geoserver)
-        Will publish the resorces on geoserver
-        """
-        for _resource in resources:
-            try:
-                catalog.publish_featuretype(
-                    name=_resource.get("name"),
-                    store=store,
-                    native_crs=_resource.get("crs"),
-                    srs=_resource.get("crs"),
-                    jdbc_virtual_table=_resource.get("name"),
-                )
-            except Exception as e:
-                if (
-                    f"Resource named {_resource.get('name')} already exists in store:"
-                    in str(e)
-                ):
-                    continue
-                raise e
-        return True
 
     def create_geonode_resource(
         self, layer_name, alternate, execution_id, resource_type: Dataset = Dataset

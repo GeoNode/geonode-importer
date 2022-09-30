@@ -141,3 +141,9 @@ class BaseHandler(ABC):
         implement custom ogr2ogr task group
         """
         return NotImplementedError
+
+    def delete_resource(self, instance):
+        """
+        Base function to delete the resource with all the dependencies (example: dynamic model)
+        """
+        return NotImplementedError
