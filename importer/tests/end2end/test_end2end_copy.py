@@ -26,6 +26,7 @@ class BaseClassEnd2End(ImporterBaseTestSupport):
         super().setUpClass()
         cls.valid_gkpg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
+        cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
         cls.url_create = reverse("importer_upload")
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
 
@@ -145,6 +146,22 @@ class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
     def test_copy_dataset_from_geojson(self):
         payload = {
             "base_file": open(self.valid_geojson, "rb"),
+        }
+        initial_name = "valid"
+        # first we need to import a resource
+        with transaction.atomic():
+            self._import_resource(payload, initial_name)
+            self._assertCloning(initial_name)
+
+
+class ImporterCopyEnd2EndKMLTest(BaseClassEnd2End):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_copy_dataset_from_geojson(self):
+        payload = {
+            "base_file": open(self.valid_kml, "rb"),
         }
         initial_name = "valid"
         # first we need to import a resource
