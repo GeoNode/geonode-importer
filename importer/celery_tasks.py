@@ -35,25 +35,11 @@ from celery.worker.request import Request
 logger = logging.getLogger(__name__)
 
 
-class MyRequest(Request):
-    'A minimal custom request to log failures and hard time limits.'
-
-    def on_timeout(self, soft, timeout):
-        super(MyRequest, self).on_timeout(soft, timeout)
-        if not soft:
-           logger.warning(
-               'A hard timeout was enforced for task %s',
-               self.task.name
-           )
-
-
 class ErrorBaseTaskClass(Task):
     """
     Basic Error task class. Is common to all the base tasks of the import pahse
     it defines a on_failure method which set the task as "failed" with some extra information
     """
-    Request = MyRequest
-    task_soft_time_limit = 5
     max_retries = 3
     track_started = True
 
