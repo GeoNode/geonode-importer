@@ -327,6 +327,8 @@ class ImportOrchestrator:
         Last hookable step for each handler before mark the execution as completed
         To override this, please hook the method perform_last_step from the Handler
         '''
+        if not handler_module_path:
+            return
         return self.load_handler(handler_module_path).perform_last_step(execution_id)
 
 

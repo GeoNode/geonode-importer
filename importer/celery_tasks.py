@@ -50,9 +50,9 @@ class ErrorBaseTaskClass(Task):
         _uuid = self._get_uuid(args)
         reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
         logger.error(reason)
-        orchestrator.set_as_failed(
+        orchestrator.evaluate_execution_progress(
             execution_id=_uuid,
-            reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
+            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
         )
         self.update_state(
             task_id=task_id, state="FAILURE", meta={"exec_id": _uuid, "reason": reason}

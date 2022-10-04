@@ -33,10 +33,9 @@ class SingleMessageErrorHandler(Task):
         else:
             output_params = {"errors": [_log]}
 
-        orchestrator.update_execution_request_status(
+        orchestrator.evaluate_execution_progress(
             execution_id=args[0],
-            output_params=output_params,
-            log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
+            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
         )
 
         self.update_state(
