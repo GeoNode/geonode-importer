@@ -110,7 +110,7 @@ class ImportOrchestrator:
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
                 # The list of task is empty, it means that the process is finished
-                self.evaluate_execution_progress(execution_id)
+                self.evaluate_execution_progress(execution_id, handler_module_path=handler_module_path)
                 return
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
@@ -166,6 +166,20 @@ class ImportOrchestrator:
             legacy_status=STATE_INVALID,
         )
 
+
+    def set_as_partially_failed(self, execution_id, reason=None):
+        """
+        Utility method to set the ExecutionRequest object to partially failed
+        """
+        self.update_execution_request_status(
+            execution_id=str(execution_id),
+            status=ExecutionRequest.STATUS_PARTIAL_FAILED,
+            finished=timezone.now(),
+            last_updated=timezone.now(),
+            log=reason,
+            legacy_status=STATE_INVALID,
+        )
+
     def set_as_completed(self, execution_id):
         """
         Utility method to set the ExecutionRequest object to fail
@@ -178,7 +192,9 @@ class ImportOrchestrator:
             legacy_status=STATE_PROCESSED,
         )
 
-    def evaluate_execution_progress(self, execution_id, _log=None):
+    def evaluate_execution_progress(self, execution_id, _log=None, handler_module_path=None):
+        from importer.models import ResourceHandlerInfo
+        
         """
         The execution id is a mandatory argument for the task
         We use that to filter out all the task execution that are still in progress.
@@ -208,19 +224,34 @@ class ImportOrchestrator:
             """
             Should set it fail if all the execution are done and at least 1 is failed
             """
+            _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
             failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             logger.error(_log_message)
-            if _log is not None:
+            if _has_data:
+                self.set_as_partially_failed(
+                    execution_id=execution_id, reason=_log or _log_message
+                )
+            else:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log or _log_message
                 )
-            raise ImportException(_log or _log_message)
         else:
-            logger.info(
-                f"Execution with ID {execution_id} is completed. All tasks are done"
-            )
-            self.set_as_completed(execution_id)
+            from importer.models import ResourceHandlerInfo
+            _exec = self.get_execution_object(execution_id)
+            expected_dataset = _exec.input_params.get("total_layers", 0)
+            actual_dataset = ResourceHandlerInfo.objects.filter(execution_request=_exec).count()
+            if actual_dataset >= expected_dataset:
+                logger.info(
+                    f"Execution with ID {execution_id} is completed. All tasks are done"
+                )
+                self._last_step(execution_id, handler_module_path)
+                self.set_as_completed(execution_id)
+            else:
+                logger.info(
+                    f"Execution progress with id {execution_id} is not finished yet, continuing"
+                )
+                return
 
     def create_execution_request(
         self,
@@ -290,6 +321,13 @@ class ImportOrchestrator:
             TaskResult.objects.filter(task_id=celery_task_request.id).update(
                 task_args=celery_task_request.args
             )
+    
+    def _last_step(self, execution_id, handler_module_path):
+        '''
+        Last hookable step for each handler before mark the execution as completed
+        To override this, please hook the method perform_last_step from the Handler
+        '''
+        return self.load_handler(handler_module_path).perform_last_step(execution_id)
 
 
 orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)

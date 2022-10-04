@@ -22,7 +22,6 @@ from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.utils import create_alternate, drop_dynamic_model_schema
-from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -31,8 +30,21 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import error_handler
+from celery.worker.request import Request
 
 logger = logging.getLogger(__name__)
+
+
+class MyRequest(Request):
+    'A minimal custom request to log failures and hard time limits.'
+
+    def on_timeout(self, soft, timeout):
+        super(MyRequest, self).on_timeout(soft, timeout)
+        if not soft:
+           logger.warning(
+               'A hard timeout was enforced for task %s',
+               self.task.name
+           )
 
 
 class ErrorBaseTaskClass(Task):
@@ -40,7 +52,8 @@ class ErrorBaseTaskClass(Task):
     Basic Error task class. Is common to all the base tasks of the import pahse
     it defines a on_failure method which set the task as "failed" with some extra information
     """
-
+    Request = MyRequest
+    task_soft_time_limit = 5
     max_retries = 3
     track_started = True
 
@@ -325,7 +338,7 @@ def create_geonode_resource(
             layer_name=layer_name, alternate=alternate, execution_id=execution_id
         )
 
-        handler.create_resourcehandlerinfo(handler_module_path, resource, **kwargs)
+        handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
