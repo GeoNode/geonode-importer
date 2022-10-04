@@ -5,6 +5,8 @@ The logic which adapts to different file types is modular.
 The implemented file type handlers so far are:
 - GeoPackage
 - GeoJSON
+- Shapefiles
+- KML
 
 
 ## System dependencies
@@ -69,7 +71,7 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.gpkg.handler.GPKGFileHandler',
     'importer.handlers.geojson.handler.GeoJsonFileHandler',
     'importer.handlers.shapefile.handler.ShapeFileHandler',
-    'importer.handlers.kml.handler.KMLFileHandler
+    'importer.handlers.kml.handler.KMLFileHandler'
 ])
 
 ```
