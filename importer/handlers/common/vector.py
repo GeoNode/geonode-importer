@@ -493,7 +493,7 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def create_resourcehandlerinfo(self, handler_module_path, resource, execution_id: str, **kwargs):
+    def create_resourcehandlerinfo(self, handler_module_path, resource, execution_id, **kwargs):
         """
         Create relation between the GeonodeResource and the handler used
         to create/copy it
