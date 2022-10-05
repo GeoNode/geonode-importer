@@ -381,7 +381,7 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) != 'Geometry Collection':
+        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {

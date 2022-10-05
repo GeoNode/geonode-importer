@@ -68,7 +68,7 @@ class KMLFileHandler(BaseVectorFileHandler):
         layers = KMLFileHandler().get_ogr2ogr_driver().Open(files.get("base_file"))
 
         if not layers:
-            raise InvalidKmlException("The kml provided is empty")
+            raise InvalidKmlException("The kml provided is invalid")
 
         layers_count = len(layers)
 
