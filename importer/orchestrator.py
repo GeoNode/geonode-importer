@@ -243,7 +243,7 @@ class ImportOrchestrator:
                 )
         else:
             if is_last_dataset:
-                if 'ErrorDetail' in _log:
+                if _log and 'ErrorDetail' in _log:
                     self.set_as_failed(
                     execution_id=execution_id, reason=_log
                 )
