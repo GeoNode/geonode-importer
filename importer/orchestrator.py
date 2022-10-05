@@ -200,6 +200,11 @@ class ImportOrchestrator:
         We use that to filter out all the task execution that are still in progress.
         if any is failed, we raise it.
         """
+        from importer.models import ResourceHandlerInfo
+        _exec = self.get_execution_object(execution_id)
+        expected_dataset = _exec.input_params.get("total_layers", 0)
+        actual_dataset = ResourceHandlerInfo.objects.filter(execution_request=_exec).count()
+        is_last_dataset = actual_dataset >= expected_dataset
         execution_id = str(execution_id)  # force it as string to be sure
         lower_exec_id = execution_id.replace("-", "_").lower()
         exec_result = TaskResult.objects.filter(
@@ -232,16 +237,12 @@ class ImportOrchestrator:
                 self.set_as_partially_failed(
                     execution_id=execution_id, reason=_log
                 )
-            else:
+            elif is_last_dataset:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log
                 )
         else:
-            from importer.models import ResourceHandlerInfo
-            _exec = self.get_execution_object(execution_id)
-            expected_dataset = _exec.input_params.get("total_layers", 0)
-            actual_dataset = ResourceHandlerInfo.objects.filter(execution_request=_exec).count()
-            if actual_dataset >= expected_dataset:
+            if is_last_dataset:
                 logger.info(
                     f"Execution with ID {execution_id} is completed. All tasks are done"
                 )
@@ -308,6 +309,9 @@ class ImportOrchestrator:
         """
         if status is not None:
             kwargs["status"] = status
+
+        #if kwargs.get("reason") is None and status and status == ExecutionRequest.STATUS_FAILED:
+        #    kwargs.pop("reason")
 
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
 
