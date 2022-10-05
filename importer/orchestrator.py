@@ -173,10 +173,10 @@ class ImportOrchestrator:
         """
         self.update_execution_request_status(
             execution_id=str(execution_id),
-            status=ExecutionRequest.STATUS_PARTIAL_FAILED,
+            status=ExecutionRequest.STATUS_FAILED,
             finished=timezone.now(),
             last_updated=timezone.now(),
-            log=reason,
+            log=f"The execution is finished, but one or more layer are failed: {reason}",
             legacy_status=STATE_INVALID,
         )
 
