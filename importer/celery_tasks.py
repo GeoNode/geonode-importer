@@ -391,7 +391,7 @@ def copy_geonode_resource(
             new_alternate=new_alternate,
         )
 
-        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path)
+        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 

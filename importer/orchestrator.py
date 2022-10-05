@@ -225,16 +225,16 @@ class ImportOrchestrator:
             Should set it fail if all the execution are done and at least 1 is failed
             """
             _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
-            failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
-            _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
-            logger.error(_log_message)
+            #failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
+            #_log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
+            logger.error(_log)
             if _has_data:
                 self.set_as_partially_failed(
-                    execution_id=execution_id, reason=_log or _log_message
+                    execution_id=execution_id, reason=_log
                 )
             else:
                 self.set_as_failed(
-                    execution_id=execution_id, reason=_log or _log_message
+                    execution_id=execution_id, reason=_log
                 )
         else:
             from importer.models import ResourceHandlerInfo
