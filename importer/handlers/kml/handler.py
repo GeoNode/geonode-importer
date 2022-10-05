@@ -44,9 +44,9 @@ class KMLFileHandler(BaseVectorFileHandler):
         if not base:
             return False
         return (
-            base.endswith(".kml")
+            base.endswith(".kml") or base.endswith(".kmz")
             if isinstance(base, str)
-            else base.name.endswith(".kml")
+            else base.name.endswith(".kml") or base.name.endswith(".kmz")
         )
 
     @staticmethod
@@ -74,13 +74,13 @@ class KMLFileHandler(BaseVectorFileHandler):
 
         if layers_count >= max_upload:
             raise UploadParallelismLimitException(
-                detail=f"The number of layers in the gpkg {layers_count} is greater than "
+                detail=f"The number of layers in the kml {layers_count} is greater than "
                 f"the max parallel upload permitted: {max_upload} "
                 f"please upload a smaller file"
             )
         elif layers_count + actual_upload >= max_upload:
             raise UploadParallelismLimitException(
-                detail=f"With the provided gpkg, the number of max parallel upload will exceed the limit of {max_upload}"
+                detail=f"With the provided kml, the number of max parallel upload will exceed the limit of {max_upload}"
             )
 
         return True
@@ -90,7 +90,7 @@ class KMLFileHandler(BaseVectorFileHandler):
 
     def handle_xml_file(self, saved_dataset, _exec):
         """
-        Not implemented for GPKG, skipping
+        Not implemented for KML, skipping
         """
         pass
 

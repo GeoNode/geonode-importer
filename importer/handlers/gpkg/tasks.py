@@ -33,19 +33,13 @@ class SingleMessageErrorHandler(Task):
         else:
             output_params = {"errors": [_log]}
 
-        orchestrator.evaluate_execution_progress(
-            execution_id=args[0],
-            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
-        )
-
         self.update_state(
             task_id=task_id,
             state="FAILURE",
             meta={"exec_id": str(exec_id.exec_id), "reason": _log},
         )
-        # TaskResult.objects.filter(task_id=task_id).update(task_args=self._get_uuid(args))
 
-        orchestrator.evaluate_execution_progress(self._get_uuid(args), _log=_log)
+        orchestrator.evaluate_execution_progress(self._get_uuid(args), _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]))
 
     def _get_uuid(self, _list):
         for el in _list:
