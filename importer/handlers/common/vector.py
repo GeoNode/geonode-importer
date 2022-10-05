@@ -408,7 +408,7 @@ class BaseVectorFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
-    def promote_to_multi(self, geometry_name):
+    def promote_to_multi(self, geometry_name: str):
         '''
         If needed change the name of the geometry, by promoting it to Multi
         example if is Point -> MultiPoint
@@ -417,7 +417,7 @@ class BaseVectorFileHandler(BaseHandler):
         return geometry_name
 
     def create_geonode_resource(
-        self, layer_name, alternate, execution_id, resource_type: Dataset = Dataset
+        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -472,7 +472,7 @@ class BaseVectorFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
-    def handle_xml_file(self, saved_dataset, _exec):
+    def handle_xml_file(self, saved_dataset: Dataset, _exec: ExecutionRequest):
         _path = _exec.input_params.get("files", {}).get("xml_file", "")
         resource_manager.update(
             None,
@@ -482,7 +482,7 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def handle_sld_file(self, saved_dataset, _exec):
+    def handle_sld_file(self, saved_dataset: Dataset, _exec: ExecutionRequest):
         _path = _exec.input_params.get("files", {}).get("sld_file", "")
         resource_manager.exec(
             "set_style",
@@ -493,7 +493,7 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def create_resourcehandlerinfo(self, handler_module_path, resource, execution_id, **kwargs):
+    def create_resourcehandlerinfo(self, handler_module_path: str, resource: Dataset, execution_id: ExecutionRequest, **kwargs):
         """
         Create relation between the GeonodeResource and the handler used
         to create/copy it
@@ -506,7 +506,7 @@ class BaseVectorFileHandler(BaseHandler):
         )
 
     def copy_geonode_resource(
-        self, alternate, resource, _exec, data_to_update, new_alternate
+        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str
     ):
         resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
@@ -517,7 +517,7 @@ class BaseVectorFileHandler(BaseHandler):
         return resource
 
     def get_ogr2ogr_task_group(
-        self, execution_id, files, layer, should_be_overrided, alternate
+        self, execution_id: str, files: dict, layer, should_be_overrided: bool, alternate: str
     ):
         """
         In case the OGR2OGR is different from the default one, is enough to ovverride this method
@@ -551,7 +551,7 @@ class BaseVectorFileHandler(BaseHandler):
 def import_next_step(
     _,
     execution_id: str,
-    handlers_module_path,
+    handlers_module_path: str,
     actual_step: str,
     layer_name: str,
     alternate: str,
@@ -592,7 +592,7 @@ def import_with_ogr2ogr(
     execution_id: str,
     files: dict,
     original_name: str,
-    handler_module_path,
+    handler_module_path: str,
     override_layer=False,
     alternate=None,
 ):
