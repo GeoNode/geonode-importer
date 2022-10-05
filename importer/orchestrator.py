@@ -243,11 +243,16 @@ class ImportOrchestrator:
                 )
         else:
             if is_last_dataset:
-                logger.info(
-                    f"Execution with ID {execution_id} is completed. All tasks are done"
+                if 'ErrorDetail' in _log:
+                    self.set_as_failed(
+                    execution_id=execution_id, reason=_log
                 )
-                self._last_step(execution_id, handler_module_path)
-                self.set_as_completed(execution_id)
+                else:
+                    logger.info(
+                        f"Execution with ID {execution_id} is completed. All tasks are done"
+                    )
+                    self._last_step(execution_id, handler_module_path)
+                    self.set_as_completed(execution_id)
             else:
                 logger.info(
                     f"Execution progress with id {execution_id} is not finished yet, continuing"
