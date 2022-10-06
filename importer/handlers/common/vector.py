@@ -494,7 +494,7 @@ class BaseVectorFileHandler(BaseHandler):
             handler_module_path=handler_module_path,
             resource=resource,
             execution_request=execution_id,
-            kwargs=kwargs.get('kwargs')
+            kwargs=kwargs.get('kwargs', {})
         )
 
     def copy_geonode_resource(
