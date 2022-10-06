@@ -37,6 +37,7 @@ def run_setup_hooks(*args, **kwargs):
     # injecting the new config required for FE
     gpkg_config = [
         {"id": "gpkg", "label": "GeoPackage", "format": "archive", "ext": ["gpkg"]},
+        {"id": "kml", "label": "KML/KMZ", "format": "archive", "ext": ["kml", "kmz"]},
         {
             "id": "geojson",
             "label": "GeoJson",

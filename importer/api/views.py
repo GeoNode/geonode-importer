@@ -107,10 +107,10 @@ class ImporterViewSet(DynamicModelViewSet):
             },
         }
 
-        if "zip_file" in _data:
+        if "zip_file" in _data or "kmz_file" in _data:
             # if a zipfile is provided, we need to unzip it before searching for an handler
             storage_manager = StorageManager(
-                remote_files={"base_file": _data.get("zip_file")}
+                remote_files={"base_file": _data.get("zip_file", _data.get("kmz_file"))}
             )
             # cloning and unzip the base_file
             storage_manager.clone_remote_files()

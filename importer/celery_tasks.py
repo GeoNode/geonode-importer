@@ -22,7 +22,6 @@ from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.utils import create_alternate, drop_dynamic_model_schema
-from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -31,6 +30,7 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import error_handler
+from celery.worker.request import Request
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,6 @@ class ErrorBaseTaskClass(Task):
     Basic Error task class. Is common to all the base tasks of the import pahse
     it defines a on_failure method which set the task as "failed" with some extra information
     """
-
     max_retries = 3
     track_started = True
 
@@ -51,12 +50,12 @@ class ErrorBaseTaskClass(Task):
         _uuid = self._get_uuid(args)
         reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
         logger.error(reason)
-        orchestrator.set_as_failed(
-            execution_id=_uuid,
-            reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
-        )
         self.update_state(
             task_id=task_id, state="FAILURE", meta={"exec_id": _uuid, "reason": reason}
+        )
+        orchestrator.evaluate_execution_progress(
+            execution_id=_uuid,
+            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
         )
 
     def _get_uuid(self, _list):
@@ -325,7 +324,7 @@ def create_geonode_resource(
             layer_name=layer_name, alternate=alternate, execution_id=execution_id
         )
 
-        handler.create_resourcehandlerinfo(handler_module_path, resource, **kwargs)
+        handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
@@ -392,7 +391,7 @@ def copy_geonode_resource(
             new_alternate=new_alternate,
         )
 
-        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path)
+        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 

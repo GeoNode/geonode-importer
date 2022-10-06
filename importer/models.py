@@ -7,6 +7,7 @@ from geonode.geoserver.signals import geoserver_delete
 from geonode.layers.models import Dataset
 from geonode.base.models import ResourceBase
 from importer.orchestrator import orchestrator
+from geonode.resource.models import ExecutionRequest
 
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,7 @@ class ResourceHandlerInfo(models.Model):
     Here we save the relation between the geonode resource created and the handler that created that resource
     """
 
-    resource = models.ForeignKey(
-        ResourceBase, blank=False, null=False, on_delete=models.CASCADE
-    )
+    resource = models.ForeignKey(ResourceBase, blank=False, null=False, on_delete=models.CASCADE)
     handler_module_path = models.CharField(max_length=250, blank=False, null=False)
+    execution_request = models.ForeignKey(ExecutionRequest, null=True, default=None, on_delete=models.SET_NULL)
     kwargs = models.JSONField(verbose_name="Storing strictly related information of the handler", default=dict)

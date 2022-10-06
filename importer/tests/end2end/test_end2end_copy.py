@@ -2,7 +2,7 @@ import ast
 import os
 import time
 from django.http import QueryDict
-
+import gisdata
 import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -36,6 +36,9 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
         }
         cls.url_create = reverse('importer_upload')
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
+        cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
+        cls.url_create = reverse("importer_upload")
+        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
 
         _user, _password = ogc_server_settings.credentials
 
@@ -168,6 +171,22 @@ class ImporterCopyEnd2EndShapeFileTest(BaseClassEnd2End):
     def test_copy_dataset_from_shapefile(self):
         payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
         initial_name = "san_andres_y_providencia_highway"
+        # first we need to import a resource
+        with transaction.atomic():
+            self._import_resource(payload, initial_name)
+            self._assertCloning(initial_name)
+
+
+class ImporterCopyEnd2EndKMLTest(BaseClassEnd2End):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_copy_dataset_from_geojson(self):
+        payload = {
+            "base_file": open(self.valid_kml, "rb"),
+        }
+        initial_name = "valid"
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)

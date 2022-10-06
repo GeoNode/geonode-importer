@@ -28,6 +28,7 @@ from importer.celery_app import importer_app
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
+from importer.orchestrator import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,16 @@ class BaseVectorFileHandler(BaseHandler):
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
 
+    @staticmethod
+    def perform_last_step(execution_id):
+        '''
+        Override this method if there is some extra step to perform
+        before considering the execution as completed.
+        For example can be used to trigger an email-send to notify
+        that the execution is completed
+        '''
+        pass
+
     def extract_resource_to_publish(self, files, action, layer_name, alternate):
         if action == exa.COPY.value:
             return [
@@ -218,6 +229,8 @@ class BaseVectorFileHandler(BaseHandler):
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
+        _input = {**_exec.input_params, **{"total_layers": layer_count}}
+        orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
         dynamic_model = None
         try:
             # start looping on the layers available
@@ -368,7 +381,7 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) != 'Geometry Collection':
+        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
@@ -395,7 +408,7 @@ class BaseVectorFileHandler(BaseHandler):
 
         return dynamic_model_schema, celery_group
 
-    def promote_to_multi(self, geometry_name):
+    def promote_to_multi(self, geometry_name: str):
         '''
         If needed change the name of the geometry, by promoting it to Multi
         example if is Point -> MultiPoint
@@ -404,7 +417,7 @@ class BaseVectorFileHandler(BaseHandler):
         return geometry_name
 
     def create_geonode_resource(
-        self, layer_name, alternate, execution_id, resource_type: Dataset = Dataset
+        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -459,7 +472,7 @@ class BaseVectorFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
-    def handle_xml_file(self, saved_dataset, _exec):
+    def handle_xml_file(self, saved_dataset: Dataset, _exec: ExecutionRequest):
         _path = _exec.input_params.get("files", {}).get("xml_file", "")
         resource_manager.update(
             None,
@@ -469,7 +482,7 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def handle_sld_file(self, saved_dataset, _exec):
+    def handle_sld_file(self, saved_dataset: Dataset, _exec: ExecutionRequest):
         _path = _exec.input_params.get("files", {}).get("sld_file", "")
         resource_manager.exec(
             "set_style",
@@ -480,17 +493,20 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def create_resourcehandlerinfo(self, handler_module_path, resource, **kwargs):
+    def create_resourcehandlerinfo(self, handler_module_path: str, resource: Dataset, execution_id: ExecutionRequest, **kwargs):
         """
         Create relation between the GeonodeResource and the handler used
         to create/copy it
         """
         ResourceHandlerInfo.objects.create(
-            handler_module_path=handler_module_path, resource=resource
+            handler_module_path=handler_module_path,
+            resource=resource,
+            execution_request=execution_id,
+            kwargs=kwargs.get('kwargs')
         )
 
     def copy_geonode_resource(
-        self, alternate, resource, _exec, data_to_update, new_alternate
+        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str
     ):
         resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
@@ -501,7 +517,7 @@ class BaseVectorFileHandler(BaseHandler):
         return resource
 
     def get_ogr2ogr_task_group(
-        self, execution_id, files, layer, should_be_overrided, alternate
+        self, execution_id: str, files: dict, layer, should_be_overrided: bool, alternate: str
     ):
         """
         In case the OGR2OGR is different from the default one, is enough to ovverride this method
@@ -535,7 +551,7 @@ class BaseVectorFileHandler(BaseHandler):
 def import_next_step(
     _,
     execution_id: str,
-    handlers_module_path,
+    handlers_module_path: str,
     actual_step: str,
     layer_name: str,
     alternate: str,
@@ -543,7 +559,7 @@ def import_next_step(
     """
     If the ingestion of the resource is successfuly, the next step for the layer is called
     """
-    from importer.celery_tasks import import_orchestrator, orchestrator
+    from importer.celery_tasks import import_orchestrator
 
     _exec = orchestrator.get_execution_object(execution_id)
 
@@ -576,7 +592,7 @@ def import_with_ogr2ogr(
     execution_id: str,
     files: dict,
     original_name: str,
-    handler_module_path,
+    handler_module_path: str,
     override_layer=False,
     alternate=None,
 ):
@@ -584,7 +600,6 @@ def import_with_ogr2ogr(
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically
     """
-    from importer.celery_tasks import orchestrator
 
     ogr_exe = "/usr/bin/ogr2ogr"
 

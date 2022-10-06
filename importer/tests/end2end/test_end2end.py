@@ -33,6 +33,8 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
             "prj_file": f"{file_path}/san_andres_y_providencia_highway.prj",
             "shx_file": f"{file_path}/san_andres_y_providencia_highway.shx",
         }
+        cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
+
         cls.url = reverse('importer_upload')
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
 
@@ -105,6 +107,18 @@ class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
             "base_file": open(self.valid_geojson, 'rb'),
         }
         initial_name = "valid"
+        self._assertimport(payload, initial_name)
+
+
+class ImporterKMLImportTest(BaseImporterEndToEndTest):
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    def test_import_shapefile(self):
+        payload = {
+            "base_file": open(self.valid_kml, 'rb'),
+        }
+        initial_name = "extruded_polygon"
         self._assertimport(payload, initial_name)
 
 
