@@ -71,3 +71,20 @@ class DataPublisher:
             self.store = create_geoserver_db_featurestore(
                 store_name=geodatabase, workspace=self.workspace.name
             )
+
+    def publish_geoserver_view(self, layer_name, crs, view_name, sql=None, geometry=None):
+        """
+        Let the handler create a geoserver view given the input parameters
+        """
+        self.get_or_create_store()
+
+        return self.handler.publish_geoserver_view(
+            catalog=self.cat,
+            workspace=self.workspace,
+            datastore=self.store,
+            layer_name=layer_name,
+            crs=crs,
+            view_name=view_name,
+            sql=sql,
+            geometry=geometry
+        )

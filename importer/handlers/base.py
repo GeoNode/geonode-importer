@@ -123,10 +123,19 @@ class BaseHandler(ABC):
         """
         return NotImplementedError
 
+    def create_resourcehandlerinfo(self, handler_module_path, resource, **kwargs):
+        return NotImplementedError
+
     def get_ogr2ogr_task_group(
         self, execution_id, files, layer, should_be_overrided, alternate
     ):
         """
         implement custom ogr2ogr task group
+        """
+        return NotImplementedError
+
+    def delete_resource(self, instance):
+        """
+        Base function to delete the resource with all the dependencies (example: dynamic model)
         """
         return NotImplementedError

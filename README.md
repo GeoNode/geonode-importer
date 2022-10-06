@@ -5,6 +5,7 @@ The logic which adapts to different file types is modular.
 The implemented file type handlers so far are:
 - GeoPackage
 - GeoJSON
+- KML
 
 
 ## System dependencies

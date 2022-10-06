@@ -51,12 +51,14 @@ class ErrorBaseTaskClass(Task):
         _uuid = self._get_uuid(args)
         reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
         logger.error(reason)
-        orchestrator.set_as_failed(
-            execution_id=_uuid,
-            reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
-        )
+
         self.update_state(
             task_id=task_id, state="FAILURE", meta={"exec_id": _uuid, "reason": reason}
+        )
+
+        orchestrator.evaluate_execution_progress(
+            execution_id=_uuid,
+            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
         )
 
     def _get_uuid(self, _list):
@@ -325,9 +327,7 @@ def create_geonode_resource(
             layer_name=layer_name, alternate=alternate, execution_id=execution_id
         )
 
-        ResourceHandlerInfo.objects.create(
-            handler_module_path=handler_module_path, resource=resource
-        )
+        handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
@@ -394,9 +394,7 @@ def copy_geonode_resource(
             new_alternate=new_alternate,
         )
 
-        ResourceHandlerInfo.objects.create(
-            resource=new_resource, handler_module_path=handler_module_path
-        )
+        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 
@@ -467,15 +465,19 @@ def create_dynamic_structure(
         # setup kwargs for the class provided
         if field["class_name"] is None or field["name"] is None:
             logger.error(
-                f"Error during the field creation. The field or class_name is None {field}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name}"
             )
             raise InvalidFieldNameError(
-                f"Error during the field creation. The field or class_name is None {field}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name}"
             )
 
         _kwargs = {"null": field.get("null", True)}
         if field["class_name"].endswith("CharField"):
             _kwargs = {**_kwargs, **{"max_length": 255}}
+
+        if field.get('dim', None) is not None:
+            # setting the dimension for the gemetry. So that we can handle also 3d geometries
+            _kwargs = {**_kwargs, **{"dim": field.get('dim')}}
 
         # if is a new creation we generate the field model from scratch
         if not overwrite:
