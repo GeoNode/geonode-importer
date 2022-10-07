@@ -29,6 +29,7 @@ from importer.celery_app import importer_app
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ class BaseVectorFileHandler(BaseHandler):
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.filter(alternate__icontains=layer_name)
+                    "crs": ResourceBase.objects.filter(Q(alternate__icontains=layer_name) | Q(title__icontains=layer_name))
                     .first()
                     .srid,
                 }
@@ -409,7 +410,7 @@ class BaseVectorFileHandler(BaseHandler):
         return geometry_name
 
     def create_geonode_resource(
-        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset
+        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -448,7 +449,7 @@ class BaseVectorFileHandler(BaseHandler):
                     dirty_state=True,
                     title=layer_name,
                     owner=_exec.user,
-                    files=list(_exec.input_params.get("files", {}).values()),
+                    files=list(_exec.input_params.get("files", {}).values()) or list(files),
                 ),
             )
 
@@ -504,6 +505,7 @@ class BaseVectorFileHandler(BaseHandler):
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
+            files=resource.files
         )
         resource.refresh_from_db()
         return resource
