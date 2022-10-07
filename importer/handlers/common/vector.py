@@ -605,6 +605,6 @@ def import_with_ogr2ogr(
 
     process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = process.communicate()
-    if stderr is not None and stderr != b"" and b"ERROR" in stderr:
-        raise Exception(stderr)
+    if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
+        raise Exception(f"{stderr} for layer {alternate}")
     return "ogr2ogr", alternate, execution_id
