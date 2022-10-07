@@ -321,7 +321,7 @@ def create_geonode_resource(
         handler = import_string(handler_module_path)()
 
         resource = handler.create_geonode_resource(
-            layer_name=layer_name, alternate=alternate, execution_id=execution_id
+            layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
         )
 
         handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
