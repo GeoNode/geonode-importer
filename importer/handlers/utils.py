@@ -108,10 +108,10 @@ def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
 
     if output_params.get("errors"):
         output_params.get("errors").append(_log)
-        failed = list(set(output_params.get("failed_layers", []).append(args[-1])))
+        failed = list(set(output_params.get("failed_layers", []).append(args[-1] or [])))
         output_params['failed_layers'] = failed
     else:
-        output_params = {"errors": [_log], "failed_layers": [args[-1]]}
+        output_params = {"errors": [_log], "failed_layers": [args[-1] or []]}
 
     celery_task.update_state(
         task_id=task_id,
