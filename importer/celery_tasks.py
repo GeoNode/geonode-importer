@@ -1,6 +1,5 @@
 import logging
 from typing import Optional
-from uuid import UUID
 
 from celery import Task
 from django.db import connections, transaction
@@ -21,8 +20,7 @@ from importer.api.exception import (
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate, drop_dynamic_model_schema
-from importer.models import ResourceHandlerInfo
+from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -48,24 +46,7 @@ class ErrorBaseTaskClass(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        _uuid = self._get_uuid(args)
-        reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
-        logger.error(reason)
-        orchestrator.set_as_failed(
-            execution_id=_uuid,
-            reason=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
-        )
-        self.update_state(
-            task_id=task_id, state="FAILURE", meta={"exec_id": _uuid, "reason": reason}
-        )
-
-    def _get_uuid(self, _list):
-        for el in _list:
-            try:
-                UUID(el)
-                return el
-            except Exception:
-                continue
+        evaluate_error(self, exc, task_id, args, kwargs, einfo)
 
 
 @importer_app.task(
@@ -243,7 +224,7 @@ def publish_resource(
                     celery_task_request=self.request,
                 )
             else:
-                logger.error("Only resources with a CRS provided can be published")
+                logger.error(f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}")
                 raise PublishResourceException(
                     "Only resources with a CRS provided can be published"
                 )
@@ -322,12 +303,10 @@ def create_geonode_resource(
         handler = import_string(handler_module_path)()
 
         resource = handler.create_geonode_resource(
-            layer_name=layer_name, alternate=alternate, execution_id=execution_id
+            layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
         )
 
-        ResourceHandlerInfo.objects.create(
-            handler_module_path=handler_module_path, resource=resource
-        )
+        handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
@@ -394,9 +373,7 @@ def copy_geonode_resource(
             new_alternate=new_alternate,
         )
 
-        ResourceHandlerInfo.objects.create(
-            resource=new_resource, handler_module_path=handler_module_path
-        )
+        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 
@@ -467,15 +444,19 @@ def create_dynamic_structure(
         # setup kwargs for the class provided
         if field["class_name"] is None or field["name"] is None:
             logger.error(
-                f"Error during the field creation. The field or class_name is None {field}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name} for execution {execution_id}"
             )
             raise InvalidFieldNameError(
-                f"Error during the field creation. The field or class_name is None {field}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name}  for execution {execution_id}"
             )
 
         _kwargs = {"null": field.get("null", True)}
         if field["class_name"].endswith("CharField"):
             _kwargs = {**_kwargs, **{"max_length": 255}}
+
+        if field.get('dim', None) is not None:
+            # setting the dimension for the gemetry. So that we can handle also 3d geometries
+            _kwargs = {**_kwargs, **{"dim": field.get('dim')}}
 
         # if is a new creation we generate the field model from scratch
         if not overwrite:

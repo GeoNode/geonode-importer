@@ -5,6 +5,8 @@ from geonode.base.models import ResourceBase
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 import logging
 from dynamic_models.schema import ModelSchemaEditor
+from django.utils.module_loading import import_string
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +23,17 @@ STANDARD_TYPE_MAPPING = {
 
 GEOM_TYPE_MAPPING = {
     "Line String": "django.contrib.gis.db.models.fields.LineStringField",
+    "3D Line String": "django.contrib.gis.db.models.fields.LineStringField",
     "Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
+    "3D Multi Line String": "django.contrib.gis.db.models.fields.MultiLineStringField",
     "Point": "django.contrib.gis.db.models.fields.PointField",
     "3D Point": "django.contrib.gis.db.models.fields.PointField",
-    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
     "Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
+    "Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "3D Polygon": "django.contrib.gis.db.models.fields.PolygonField",
+    "3D Multi Point": "django.contrib.gis.db.models.fields.MultiPointField",
     "Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
+    "3D Multi Polygon": "django.contrib.gis.db.models.fields.MultiPolygonField",
 }
 
 
@@ -72,3 +79,51 @@ def drop_dynamic_model_schema(schema_model):
             schema.drop_table(schema_model.as_model())
         except Exception as e:
             logger.warning(e.args[0])
+
+
+def get_uuid(_list):
+    for el in _list:
+        try:
+            UUID(el)
+            return el
+        except Exception:
+            continue
+
+
+def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
+    '''
+    Main error function used by the task for the "on_failure" function
+    '''
+    from importer.celery_tasks import orchestrator
+
+    exec_id = orchestrator.get_execution_object(exec_id=get_uuid(args))
+    output_params = exec_id.output_params.copy()
+
+    logger.error(f"Task FAILED with ID: {str(exec_id.exec_id)}, reason: {exc}")
+
+    handler = import_string(exec_id.input_params.get("handler_module_path"))
+
+    # creting the log message
+    _log = handler.create_error_log(exc, celery_task.name, *args)
+
+    if output_params.get("errors"):
+        output_params.get("errors").append(_log)
+        failed = list(set(output_params.get("failed_layers", []).append(args[-1])))
+        output_params['failed_layers'] = failed
+    else:
+        output_params = {"errors": [_log], "failed_layers": [args[-1]]}
+
+    celery_task.update_state(
+        task_id=task_id,
+        state="FAILURE",
+        meta={"exec_id": str(exec_id.exec_id), "reason": _log},
+    )
+    orchestrator.update_execution_request_status(
+        execution_id=str(exec_id.exec_id),
+        output_params=output_params
+    )
+
+    orchestrator.evaluate_execution_progress(
+        get_uuid(args),
+        _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+    )
