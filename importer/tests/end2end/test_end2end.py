@@ -2,7 +2,6 @@ import ast
 import os
 import time
 
-import gisdata
 import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -17,6 +16,7 @@ from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
 
 geourl = settings.GEODATABASE_URL
+
 
 class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 

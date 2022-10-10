@@ -1,6 +1,5 @@
 import logging
 from typing import Optional
-from uuid import UUID
 
 from celery import Task
 from django.db import connections, transaction
@@ -21,7 +20,7 @@ from importer.api.exception import (
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate, drop_dynamic_model_schema
+from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -47,24 +46,7 @@ class ErrorBaseTaskClass(Task):
         # exc (Exception) - The exception raised by the task.
         # args (Tuple) - Original arguments for the task that failed.
         # kwargs (Dict) - Original keyword arguments for the task that failed.
-        _uuid = self._get_uuid(args)
-        reason = f"Task FAILED with ID: {_uuid}, reason: {exc}"
-        logger.error(reason)
-        self.update_state(
-            task_id=task_id, state="FAILURE", meta={"exec_id": _uuid, "reason": reason}
-        )
-        orchestrator.evaluate_execution_progress(
-            execution_id=_uuid,
-            _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0]),
-        )
-
-    def _get_uuid(self, _list):
-        for el in _list:
-            try:
-                UUID(el)
-                return el
-            except Exception:
-                continue
+        evaluate_error(self, exc, task_id, args, kwargs, einfo)
 
 
 @importer_app.task(
@@ -242,7 +224,7 @@ def publish_resource(
                     celery_task_request=self.request,
                 )
             else:
-                logger.error("Only resources with a CRS provided can be published")
+                logger.error(f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}")
                 raise PublishResourceException(
                     "Only resources with a CRS provided can be published"
                 )
@@ -462,10 +444,10 @@ def create_dynamic_structure(
         # setup kwargs for the class provided
         if field["class_name"] is None or field["name"] is None:
             logger.error(
-                f"Error during the field creation. The field or class_name is None {field} for {layer_name}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name} for execution {execution_id}"
             )
             raise InvalidFieldNameError(
-                f"Error during the field creation. The field or class_name is None {field} for {layer_name}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name}  for execution {execution_id}"
             )
 
         _kwargs = {"null": field.get("null", True)}

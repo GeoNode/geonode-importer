@@ -103,7 +103,6 @@ class BaseVectorFileHandler(BaseHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
-
     @staticmethod
     def publish_resources(resources: List[str], catalog, store, workspace):
         """
@@ -200,8 +199,8 @@ class BaseVectorFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs" : self.identify_authority(_l) if _l.GetSpatialRef() else None
-            } 
+                "crs": self.identify_authority(_l) if _l.GetSpatialRef() else None
+            }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name
         ]
@@ -382,7 +381,7 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
+        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection']:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
@@ -395,7 +394,7 @@ class BaseVectorFileHandler(BaseHandler):
         # ones we have the schema, here we create a list of chunked value
         # so the async task will handle max of 30 field per task
         list_chunked = [
-            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)
+            layer_schema[i: i + 30] for i in range(0, len(layer_schema), 30)
         ]
 
         # definition of the celery group needed to run the async workflow.
