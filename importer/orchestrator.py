@@ -237,7 +237,13 @@ class ImportOrchestrator:
                 self.set_as_partially_failed(
                     execution_id=execution_id, reason=log
                 )
+                self._last_step(execution_id, handler_module_path)
+                
             elif is_last_dataset:
+                self.set_as_failed(
+                    execution_id=execution_id, reason=_log
+                )
+            elif expected_dataset == 1 and not _has_data:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log
                 )
