@@ -14,7 +14,7 @@ from geonode.utils import OGC_Servers_Handler
 from geoserver.catalog import Catalog
 from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
-
+import gisdata
 geourl = settings.GEODATABASE_URL
 
 

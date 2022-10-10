@@ -23,4 +23,3 @@ def run_setup_hooks(*args, **kwargs):
         _handlers = [import_string(module_path) for module_path in settings.IMPORTER_HANDLERS]
         list(map(lambda item: item.register(), _handlers))
         logger.info(f"The following handlers have been registered: {', '.join(settings.IMPORTER_HANDLERS)}")
-        

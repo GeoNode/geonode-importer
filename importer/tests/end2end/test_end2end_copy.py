@@ -157,7 +157,7 @@ class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
         payload = {
             "base_file": open(self.valid_geojson, "rb"),
         }
-        initial_name = "valid"        
+        initial_name = "valid"
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)

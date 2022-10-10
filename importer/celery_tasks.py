@@ -29,7 +29,6 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import error_handler
-from celery.worker.request import Request
 
 logger = logging.getLogger(__name__)
 

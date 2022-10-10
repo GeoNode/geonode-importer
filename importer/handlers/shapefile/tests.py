@@ -36,7 +36,6 @@ class TestShapeFileFileHandler(TestCase):
         cls.invalid_files = {"base_file": cls.invalid_shp}
         cls.owner = get_user_model().objects.first()
 
-
     def test_task_list_is_the_expected_one(self):
         expected = (
             "start_import",
@@ -47,8 +46,7 @@ class TestShapeFileFileHandler(TestCase):
         self.assertEqual(len(self.handler.ACTIONS['import']), 4)
         self.assertTupleEqual(expected, self.handler.ACTIONS['import'])
 
-
-    def test_task_list_is_the_expected_one(self):
+    def test_copy_task_list_is_the_expected_one(self):
         expected = (
             "start_copy",
             "importer.copy_geonode_resource",
@@ -65,9 +63,8 @@ class TestShapeFileFileHandler(TestCase):
         try:
             UploadParallelismLimit.objects.filter(slug="default_max_parallel_uploads").update(max_number=0)
 
-            with self.assertRaises(UploadParallelismLimitException) as _exc:
+            with self.assertRaises(UploadParallelismLimitException):
                 self.handler.is_valid(files=self.valid_shp, user=self.user)
-            
         finally:
             parallelism.max_number = old_value
             parallelism.save()
@@ -80,7 +77,7 @@ class TestShapeFileFileHandler(TestCase):
         actual = self.handler.promote_to_multi('Polygon')
         self.assertEqual("Multi Polygon", actual)
 
-        #linestring should be changed into multilinestring
+        # linestring should be changed into multilinestring
         actual = self.handler.promote_to_multi('Linestring')
         self.assertEqual("Multi Linestring", actual)
 
@@ -117,7 +114,7 @@ class TestShapeFileFileHandler(TestCase):
         _uuid = uuid.uuid4()
 
         comm = MagicMock()
-        comm.communicate.return_value = b"", b"" 
+        comm.communicate.return_value = b"", b""
         _open.return_value = comm
 
         _task, alternate, execution_id = import_with_ogr2ogr(
@@ -135,5 +132,5 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry ', stdout=-1, stderr=-1, shell=True
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry ', stdout=-1, stderr=-1, shell=True # noqa
         )

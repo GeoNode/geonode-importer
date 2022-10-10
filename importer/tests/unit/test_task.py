@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase
-from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import InvalidInputFileException
 

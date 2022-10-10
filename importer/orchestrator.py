@@ -315,9 +315,6 @@ class ImportOrchestrator:
         if status is not None:
             kwargs["status"] = status
 
-        #if kwargs.get("reason") is None and status and status == ExecutionRequest.STATUS_FAILED:
-        #    kwargs.pop("reason")
-
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
 
         if self.enable_legacy_upload_status:

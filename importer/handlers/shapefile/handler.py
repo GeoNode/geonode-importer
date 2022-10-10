@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from geonode.utils import get_supported_datasets_file_types
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
@@ -125,7 +124,6 @@ class ShapeFileHandler(BaseVectorFileHandler):
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         '''
-    
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
