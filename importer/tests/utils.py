@@ -25,7 +25,8 @@ class ImporterBaseTestSupport(TestCase):
         ]
 
         call_command('loaddata', *fixture, **{'verbosity': 0, 'database': "default"})
-        
+
+
 class TransactionImporterBaseTestSupport(TransactionTestCase):
 
     databases = ("default", "datastore")

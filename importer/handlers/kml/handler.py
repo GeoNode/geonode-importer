@@ -3,7 +3,6 @@ import logging
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.utils import UploadLimitValidator
-from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from osgeo import ogr
 
 from importer.handlers.common.vector import BaseVectorFileHandler
