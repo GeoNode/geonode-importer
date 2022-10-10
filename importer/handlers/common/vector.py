@@ -6,6 +6,7 @@ from typing import List
 from celery import chord, group
 
 from django.conf import settings
+from django_celery_results.models import TaskResult
 from dynamic_models.models import ModelSchema
 from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
@@ -166,13 +167,16 @@ class BaseVectorFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        '''
-        Override this method if there is some extra step to perform
-        before considering the execution as completed.
-        For example can be used to trigger an email-send to notify
-        that the execution is completed
-        '''
-        pass
+        # as last step, we delete the celery task to keep the number of rows under control
+        lower_exec_id = execution_id.replace("-", "_").lower()
+        TaskResult.objects.filter(
+            Q(task_args__icontains=lower_exec_id)
+            | Q(task_kwargs__icontains=lower_exec_id)
+            | Q(result__icontains=lower_exec_id)
+            | Q(task_args__icontains=execution_id)
+            | Q(task_kwargs__icontains=execution_id)
+            | Q(result__icontains=execution_id)
+        ).delete()
 
     def extract_resource_to_publish(self, files, action, layer_name, alternate):
         if action == exa.COPY.value:
