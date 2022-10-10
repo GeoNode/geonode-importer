@@ -9,7 +9,6 @@ from geonode.base.populate_test_data import create_single_dataset
 from osgeo import ogr
 
 
-
 class TestKMLHandler(TestCase):
     databases = ("default", "datastore")
 

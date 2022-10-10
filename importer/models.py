@@ -1,9 +1,8 @@
 import logging
 
 from django.db import models
-from django.db.models.signals import post_delete, pre_delete
+from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-from geonode.geoserver.signals import geoserver_delete
 from geonode.layers.models import Dataset
 from geonode.base.models import ResourceBase
 from importer.orchestrator import orchestrator
@@ -19,7 +18,6 @@ def delete_dynamic_model(instance, sender, **kwargs):
     Delete the dynamic relation and the geoserver layer
     """
     try:
-        #geoserver_delete(instance.alternate)
         if instance.resourcehandlerinfo_set.exists():
             handler_module_path = (
                 instance.resourcehandlerinfo_set.first().handler_module_path

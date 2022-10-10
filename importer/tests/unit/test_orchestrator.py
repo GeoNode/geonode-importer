@@ -33,7 +33,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _data = {"base_file": "file.not_supported"}
         actual = self.orchestrator.get_handler(_data)
         self.assertIsNone(actual)
-    
+
     def test_get_serializer_should_return_the_default_one_for_if_not_specified(self):
         actual = self.orchestrator.get_serializer({"base_file": "file.gpkg"})
         self.assertEqual(type(ImporterSerializer), type(actual))

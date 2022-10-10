@@ -47,7 +47,7 @@ class ImportOrchestrator:
                 return handler()
         logger.error("Handler not found, fallback on the legacy upload system")
         return None
-    
+
     def get_serializer(self, _data) -> serializers.Serializer:
         for handler in BaseHandler.get_registry():
             _serializer = handler.has_serializer(_data)
@@ -166,7 +166,6 @@ class ImportOrchestrator:
             legacy_status=STATE_INVALID,
         )
 
-
     def set_as_partially_failed(self, execution_id, reason=None):
         """
         Utility method to set the ExecutionRequest object to partially failed
@@ -176,7 +175,7 @@ class ImportOrchestrator:
             status=ExecutionRequest.STATUS_FAILED,
             finished=timezone.now(),
             last_updated=timezone.now(),
-            log=f"The execution is finished, but one or more layer are failed: {reason}",
+            log=f"The execution is completed, but the following layers are not imported: \n {', '.join(reason)}. Check the logs for additional infos",
             legacy_status=STATE_INVALID,
         )
 
@@ -194,13 +193,13 @@ class ImportOrchestrator:
 
     def evaluate_execution_progress(self, execution_id, _log=None, handler_module_path=None):
         from importer.models import ResourceHandlerInfo
-        
+
         """
         The execution id is a mandatory argument for the task
         We use that to filter out all the task execution that are still in progress.
         if any is failed, we raise it.
         """
-        from importer.models import ResourceHandlerInfo
+
         _exec = self.get_execution_object(execution_id)
         expected_dataset = _exec.input_params.get("total_layers", 0)
         actual_dataset = ResourceHandlerInfo.objects.filter(execution_request=_exec).count()
@@ -230,12 +229,13 @@ class ImportOrchestrator:
             Should set it fail if all the execution are done and at least 1 is failed
             """
             _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
-            #failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
-            #_log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
-            logger.error(_log)
+            # failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
+            # _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             if _has_data:
+                log = list(set(self.get_execution_object(execution_id).output_params.get("failed_layers", ['Unknown'])))
+                logger.error(log)
                 self.set_as_partially_failed(
-                    execution_id=execution_id, reason=_log
+                    execution_id=execution_id, reason=log
                 )
             elif is_last_dataset:
                 self.set_as_failed(
@@ -315,9 +315,6 @@ class ImportOrchestrator:
         if status is not None:
             kwargs["status"] = status
 
-        #if kwargs.get("reason") is None and status and status == ExecutionRequest.STATUS_FAILED:
-        #    kwargs.pop("reason")
-
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
 
         if self.enable_legacy_upload_status:
@@ -330,7 +327,7 @@ class ImportOrchestrator:
             TaskResult.objects.filter(task_id=celery_task_request.id).update(
                 task_args=celery_task_request.args
             )
-    
+
     def _last_step(self, execution_id, handler_module_path):
         '''
         Last hookable step for each handler before mark the execution as completed

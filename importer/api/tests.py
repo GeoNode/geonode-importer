@@ -1,8 +1,6 @@
 from django.contrib.auth import get_user_model
-import json
 from django.core.files.uploadedfile import SimpleUploadedFile
 from geonode.layers.models import Dataset
-from geonode.tests.base import GeoNodeBaseTestSupport
 from django.urls import reverse
 from unittest.mock import MagicMock, patch
 
@@ -73,7 +71,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         }
 
         response = self.client.post(self.url, data=payload)
-        
+
         self.assertEqual(400, response.status_code)
         self.assertEqual(expected, response.json())
 
@@ -88,7 +86,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         }
 
         response = self.client.post(self.url, data=payload)
-        
+
         self.assertEqual(201, response.status_code)
 
     @patch("importer.api.views.import_orchestrator")
@@ -104,7 +102,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         }
 
         response = self.client.post(self.url, data=payload)
-        
+
         self.assertEqual(201, response.status_code)
 
         self.assertTrue(201, response.status_code)
@@ -121,13 +119,13 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         }
 
         response = self.client.post(self.url, data=payload)
-        
+
         self.assertEqual(201, response.status_code)
-    
+
     def test_copy_method_not_allowed(self):
 
         self.client.force_login(get_user_model().objects.get(username='admin'))
-       
+
         response = self.client.get(self.copy_url)
         self.assertEqual(405, response.status_code)
 
