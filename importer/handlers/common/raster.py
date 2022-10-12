@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import List
 from celery import chord, group
@@ -10,7 +11,7 @@ from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.celery_tasks import create_dynamic_structure
+from importer.celery_tasks import create_dynamic_structure, import_orchestrator
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.utils import (
@@ -31,7 +32,7 @@ from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
-
+gdal.UseExceptions()
 class BaseRasterFileHandler(BaseHandler):
     """
     Handler to import GeoJson files into GeoNode data db
@@ -109,12 +110,13 @@ class BaseRasterFileHandler(BaseHandler):
         """
         for _resource in resources:
             try:
-                catalog.publish_featuretype(
-                    name=_resource.get("name"),
-                    store=store,
-                    native_crs=_resource.get("crs"),
-                    srs=_resource.get("crs"),
-                    jdbc_virtual_table=_resource.get("name"),
+                catalog.create_coveragestore(
+                    _resource.get("name"),
+                    path=_resource.get("tiff_path"),
+                    layer_name=_resource.get("name"),
+                    workspace=workspace,
+                    overwrite=True,
+                    upload_data=False
                 )
             except Exception as e:
                 if (
@@ -151,17 +153,15 @@ class BaseRasterFileHandler(BaseHandler):
                 }
             ]
 
-        layers = gdal.Open(files.get("base_file"))
-        if not layers:
-            return []
-        return [
-            {
+        #layers = gdal.Open(files.get("base_file"))
+        #if not layers:
+        #    return []
+        return [{
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(_l) if _l.GetSpatialRef() else None
-            }
-            for _l in layers
-            if self.fixup_name(_l.GetName()) == layer_name
-        ]
+                "crs": "EPSG:3857",#self.identify_authority(layers) if layers.GetSpatialRef() else None,
+                "tiff_path": files.get("base_file")
+            }]
+
 
     def identify_authority(self, layer):
         spatial_ref = layer.GetSpatialRef()
@@ -184,69 +184,55 @@ class BaseRasterFileHandler(BaseHandler):
         """
         layers = gdal.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
-        logger.info(f"Total number of layers available: 1")
+        logger.info(f"Total number of layers available: {layers.RasterCount}")
         _exec = self._get_execution_request_object(execution_id)
-        _input = {**_exec.input_params, **{"total_layers": 1}}
+        _input = {**_exec.input_params, **{"total_layers": layers.RasterCount}}
         orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
-        dynamic_model = None
+
         try:
+            filename = Path(files.get("base_file")).stem
             # start looping on the layers available
-            for index, layer in enumerate(layers, start=1):
+            layer_name = self.fixup_name(filename)
 
-                layer_name = self.fixup_name(layer.GetName())
+            should_be_overrided = _exec.input_params.get("override_existing_layer")
+            # should_be_imported check if the user+layername already exists or not
+            if (
+                should_be_imported(
+                    layer_name,
+                    _exec.user,
+                    skip_existing_layer=_exec.input_params.get(
+                        "skip_existing_layer"
+                    ),
+                    override_existing_layer=should_be_overrided,
+                )
+            ):
+                workspace = get_geoserver_cascading_workspace(create=False)
+                user_datasets = Dataset.objects.filter(
+                    owner=_exec.user, alternate=f"{workspace.name}:{layer_name}"
+                )
 
-                should_be_overrided = _exec.input_params.get("override_existing_layer")
-                # should_be_imported check if the user+layername already exists or not
-                if (
-                    should_be_imported(
-                        layer_name,
-                        _exec.user,
-                        skip_existing_layer=_exec.input_params.get(
-                            "skip_existing_layer"
-                        ),
-                        override_existing_layer=should_be_overrided,
-                    )
-                    and layer.GetGeometryColumn() is not None
-                ):
-                    # update the execution request object
-                    # setup dynamic model and retrieve the group task needed for tun the async workflow
-                    dynamic_model, alternate, celery_group = self.setup_dynamic_model(
-                        layer, execution_id, should_be_overrided, username=_exec.user
-                    )
-                    # evaluate if a new alternate is created by the previous flow
-                    # create the async task for create the resource into geonode_data with ogr2ogr
-                    ogr_res = self.get_ogr2ogr_task_group(
-                        execution_id,
+                dataset_exists = user_datasets.exists()
+
+                if dataset_exists and should_be_overrided:
+                    layer_name, alternate = layer_name, user_datasets.first().alternate
+                else:
+                    alternate = create_alternate(layer_name, execution_id)
+
+                import_orchestrator.apply_async(
+                    (
                         files,
-                        layer.GetName().lower(),
-                        should_be_overrided,
+                        execution_id,
+                        str(self),
+                        "importer.import_resource",
+                        layer_name,
                         alternate,
+                        exa.IMPORT.value,
                     )
-                    # prepare the async chord workflow with the on_success and on_fail methods
-                    workflow = chord(  # noqa
-                        group(
-                            celery_group.set(
-                                link_error=["dynamic_model_error_callback"]
-                            ),
-                            ogr_res.set(link_error=["dynamic_model_error_callback"]),
-                        )
-                    )(
-                        import_next_step.s(
-                            execution_id,
-                            str(self),  # passing the handler module path
-                            "importer.import_resource",
-                            layer_name,
-                            alternate,
-                        )
-                    )
+                )
+                return layer_name, alternate, execution_id
+
         except Exception as e:
             logger.error(e)
-            if dynamic_model:
-                """
-                In case of fail, we want to delete the dynamic_model schema and his field
-                to keep the DB in a consistent state
-                """
-                drop_dynamic_model_schema(dynamic_model)
             raise e
         return
 
