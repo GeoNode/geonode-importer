@@ -184,9 +184,9 @@ class BaseRasterFileHandler(BaseHandler):
         """
         layers = gdal.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
-        logger.info(f"Total number of layers available: {layers.RasterCount}")
+        logger.info(f"Total number of layers available: 1")
         _exec = self._get_execution_request_object(execution_id)
-        _input = {**_exec.input_params, **{"total_layers": layers.RasterCount}}
+        _input = {**_exec.input_params, **{"total_layers": 1}}
         orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
 
         try:
