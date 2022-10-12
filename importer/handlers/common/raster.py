@@ -4,26 +4,20 @@ import os
 from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import List
-from celery import chord, group
 
 from django.conf import settings
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.celery_tasks import create_dynamic_structure, import_orchestrator
+from importer.celery_tasks import import_orchestrator
 from importer.handlers.base import BaseHandler
-from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import (
-    GEOM_TYPE_MAPPING,
-    STANDARD_TYPE_MAPPING,
-    drop_dynamic_model_schema,
-)
+from importer.handlers.utils import STANDARD_TYPE_MAPPING
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
 from osgeo import gdal
 from importer.api.exception import ImportException
-from importer.celery_app import importer_app
+from django_celery_results.models import TaskResult
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
@@ -33,6 +27,8 @@ from django.db.models import Q
 logger = logging.getLogger(__name__)
 
 gdal.UseExceptions()
+
+
 class BaseRasterFileHandler(BaseHandler):
     """
     Handler to import GeoJson files into GeoNode data db
@@ -140,7 +136,16 @@ class BaseRasterFileHandler(BaseHandler):
         For example can be used to trigger an email-send to notify
         that the execution is completed
         '''
-        pass
+        # as last step, we delete the celery task to keep the number of rows under control
+        lower_exec_id = execution_id.replace("-", "_").lower()
+        TaskResult.objects.filter(
+            Q(task_args__icontains=lower_exec_id)
+            | Q(task_kwargs__icontains=lower_exec_id)
+            | Q(result__icontains=lower_exec_id)
+            | Q(task_args__icontains=execution_id)
+            | Q(task_kwargs__icontains=execution_id)
+            | Q(result__icontains=execution_id)
+        ).delete()
 
     def extract_resource_to_publish(self, files, action, layer_name, alternate):
         if action == exa.COPY.value:
@@ -153,12 +158,12 @@ class BaseRasterFileHandler(BaseHandler):
                 }
             ]
 
-        #layers = gdal.Open(files.get("base_file"))
-        #if not layers:
-        #    return []
+        layers = gdal.Open(files.get("base_file"))
+        if not layers:
+            return []
         return [{
                 "name": alternate or layer_name,
-                "crs": "EPSG:3857",#self.identify_authority(layers) if layers.GetSpatialRef() else None,
+                "crs": self.identify_authority(layers) if layers.GetSpatialRef() else None,
                 "tiff_path": files.get("base_file")
             }]
 
