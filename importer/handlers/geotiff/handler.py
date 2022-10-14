@@ -1,10 +1,9 @@
 import logging
 import os
+
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.raster import BaseRasterFileHandler
-from osgeo import gdal
-
 from importer.handlers.geotiff.exceptions import InvalidGeoTiffException
 
 logger = logging.getLogger(__name__)

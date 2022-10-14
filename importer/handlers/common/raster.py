@@ -1,28 +1,26 @@
 import json
 import logging
-import os
 from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import List
 
 from django.conf import settings
+from django.db.models import Q
+from django_celery_results.models import TaskResult
 from geonode.base.models import ResourceBase
-from geonode.resource.enumerator import ExecutionRequestAction as exa
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.celery_tasks import import_orchestrator
-from importer.handlers.base import BaseHandler
-from importer.handlers.utils import STANDARD_TYPE_MAPPING
+from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from osgeo import gdal
+from geonode.services.serviceprocessors.base import \
+    get_geoserver_cascading_workspace
 from importer.api.exception import ImportException
-from django_celery_results.models import TaskResult
-
+from importer.celery_tasks import import_orchestrator
+from importer.handlers.base import BaseHandler
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
-from django.db.models import Q
+from osgeo import gdal
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +106,7 @@ class BaseRasterFileHandler(BaseHandler):
             try:
                 catalog.create_coveragestore(
                     _resource.get("name"),
-                    path=_resource.get("tiff_path"),
+                    path=_resource.get("raster_path"),
                     layer_name=_resource.get("name"),
                     workspace=workspace,
                     overwrite=True,
@@ -126,6 +124,8 @@ class BaseRasterFileHandler(BaseHandler):
     @staticmethod
     def delete_resource(instance):
         # it should delete the image from the geoserver data dir
+        # for now we can rely on the geonode delete behaviour
+        # since the file is stored on local
         pass
 
     @staticmethod
@@ -164,9 +164,8 @@ class BaseRasterFileHandler(BaseHandler):
         return [{
                 "name": alternate or layer_name,
                 "crs": self.identify_authority(layers) if layers.GetSpatialRef() else None,
-                "tiff_path": files.get("base_file")
+                "raster_path": files.get("base_file")
             }]
-
 
     def identify_authority(self, layer):
         spatial_ref = layer.GetSpatialRef()
@@ -181,15 +180,8 @@ class BaseRasterFileHandler(BaseHandler):
         Internally will call the steps required to import the
         data inside the geonode_data database
         """
-    def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
-        """
-        Main function to import the resource.
-        Internally will call the steps required to import the
-        data inside the geonode_data database
-        """
-        layers = gdal.Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
-        logger.info(f"Total number of layers available: 1")
+        logger.info("Total number of layers available: 1")
         _exec = self._get_execution_request_object(execution_id)
         _input = {**_exec.input_params, **{"total_layers": 1}}
         orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
@@ -241,14 +233,6 @@ class BaseRasterFileHandler(BaseHandler):
             raise e
         return
 
-    def promote_to_multi(self, geometry_name: str):
-        '''
-        If needed change the name of the geometry, by promoting it to Multi
-        example if is Point -> MultiPoint
-        Needed for the shapefiles
-        '''
-        return geometry_name
-
     def create_geonode_resource(
         self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
     ):
@@ -283,8 +267,7 @@ class BaseRasterFileHandler(BaseHandler):
                 defaults=dict(
                     name=alternate,
                     workspace=workspace,
-                    store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
-                    subtype="vector",
+                    subtype="raster",
                     alternate=f"{workspace}:{alternate}",
                     dirty_state=True,
                     title=layer_name,
@@ -352,9 +335,3 @@ class BaseRasterFileHandler(BaseHandler):
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
-
-    def _get_type(self, _type: str):
-        """
-        Used to get the standard field type in the dynamic_model_field definition
-        """
-        return STANDARD_TYPE_MAPPING.get(gdal.FieldDefn.GetTypeName(_type))

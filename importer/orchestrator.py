@@ -9,7 +9,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
-from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
+from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
+                                       STATE_RUNNING)
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
 from rest_framework import serializers
@@ -238,7 +239,7 @@ class ImportOrchestrator:
                     execution_id=execution_id, reason=log
                 )
                 self._last_step(execution_id, handler_module_path)
-                
+
             elif is_last_dataset:
                 self.set_as_failed(
                     execution_id=execution_id, reason=_log

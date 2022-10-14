@@ -26,7 +26,7 @@ def delete_dynamic_model(instance, sender, **kwargs):
             handler.delete_resource(instance)
         # Removing Field Schema
     except Exception as e:
-        logger.error(f"Error during deletion instance deletion: {e.args[0]}")
+        logger.error(f"Error during deletion instance deletion: {e}")
 
 
 class ResourceHandlerInfo(models.Model):
