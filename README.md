@@ -3,10 +3,11 @@
 A GeoNode 4.0 app that implements a brand new upload/import flow.  
 The logic which adapts to different file types is modular.  
 The implemented file type handlers so far are:
-- GeoPackage
-- GeoJSON
-- Shapefiles
-- KML
+- GeoPackage - Vector
+- GeoJSON - Vector
+- Shapefiles - Vector
+- KML - Vector
+- GeoTiff - Raster
 
 
 ## System dependencies
@@ -71,10 +72,16 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.gpkg.handler.GPKGFileHandler',
     'importer.handlers.geojson.handler.GeoJsonFileHandler',
     'importer.handlers.shapefile.handler.ShapeFileHandler',
-    'importer.handlers.kml.handler.KMLFileHandler'
+    'importer.handlers.kml.handler.KMLFileHandler',
+    'importer.handlers.geotiff.handler.GeoTiffFileHandler'
 ])
 
 ```
+
+NOTE:
+In case of local environment, Geoserver and Geonode should be able to reach the default `MEDIA_ROOT`.
+
+If some permission is missing, please change the `FILE_UPLOAD_DIRECTORY_PERMISSIONS` to make the folder accessible to both
 
 ### DB migration
 
