@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class GeoTiffFileHandler(BaseRasterFileHandler):
     """
-    Handler to import GeoJson files into GeoNode data db
+    Handler to import GeoTiff files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
 

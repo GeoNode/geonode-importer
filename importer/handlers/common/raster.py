@@ -29,7 +29,7 @@ gdal.UseExceptions()
 
 class BaseRasterFileHandler(BaseHandler):
     """
-    Handler to import GeoJson files into GeoNode data db
+    Handler to import Raster files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
 

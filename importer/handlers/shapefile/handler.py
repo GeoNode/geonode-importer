@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ShapeFileHandler(BaseVectorFileHandler):
     """
-    Handler to import GeoJson files into GeoNode data db
+    Handler to import Shapefile files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
 
