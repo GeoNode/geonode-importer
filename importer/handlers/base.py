@@ -91,7 +91,7 @@ class BaseHandler(ABC):
             .replace(" ", "_").replace(")", "")\
             .replace("(", "").replace(",", "").replace("&", "")
 
-    def extract_resource_to_publish(self, files, layer_name, alternate):
+    def extract_resource_to_publish(self, files, layer_name, alternate, **kwargs):
         """
         Function to extract the layer name and the CRS from needed in the
         publishing phase

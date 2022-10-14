@@ -209,7 +209,7 @@ def publish_resource(
 
             # extracting the crs and the resource name, are needed for publish the resource
             _metadata = _publisher.extract_resource_to_publish(
-                _files, action, layer_name, alternate
+                _files, action, layer_name, alternate, **kwargs
             )
             if _metadata:
                 # we should not publish resource without a crs
@@ -370,6 +370,7 @@ def copy_geonode_resource(
             _exec=_exec,
             data_to_update=data_to_update,
             new_alternate=new_alternate,
+            **kwargs
         )
 
         handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)

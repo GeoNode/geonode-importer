@@ -192,7 +192,7 @@ class BaseVectorFileHandler(BaseHandler):
             | Q(result__icontains=execution_id)
         ).delete()
 
-    def extract_resource_to_publish(self, files, action, layer_name, alternate):
+    def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
         if action == exa.COPY.value:
             return [
                 {
@@ -466,7 +466,7 @@ class BaseVectorFileHandler(BaseHandler):
                     dirty_state=True,
                     title=layer_name,
                     owner=_exec.user,
-                    files=list(_exec.input_params.get("files", {}).values()) or list(files),
+                    files=list(set(list(_exec.input_params.get("files", {}).values()) or list(files))),
                 ),
             )
 
@@ -516,7 +516,7 @@ class BaseVectorFileHandler(BaseHandler):
         )
 
     def copy_geonode_resource(
-        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str
+        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str, **kwargs
     ):
         resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
