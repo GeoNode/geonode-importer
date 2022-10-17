@@ -236,7 +236,7 @@ class ResourceImporter(DynamicModelViewSet):
                 func_name=step,
                 step=step,
                 input_params={
-                    **{"handler_module_path": str(handler)},
+                    **{"handler_module_path": handler_module_path},
                     **extracted_params,
                 },
             )

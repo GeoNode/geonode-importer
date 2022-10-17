@@ -24,8 +24,7 @@ class GeoTiffFileHandler(BaseRasterFileHandler):
         ),
         exa.COPY.value: (
             "start_copy",
-            "importer.copy_dynamic_model",
-            "importer.copy_geonode_data_table",
+            "importer.copy_raster_file",
             "importer.publish_resource",
             "importer.copy_geonode_resource",
         ),

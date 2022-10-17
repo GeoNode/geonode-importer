@@ -1,3 +1,4 @@
+from itertools import chain
 import json
 import logging
 from pathlib import Path
@@ -15,12 +16,15 @@ from geonode.resource.models import ExecutionRequest
 from geonode.services.serviceprocessors.base import \
     get_geoserver_cascading_workspace
 from importer.api.exception import ImportException
-from importer.celery_tasks import import_orchestrator
+from importer.celery_tasks import ErrorBaseTaskClass, import_orchestrator
 from importer.handlers.base import BaseHandler
+from importer.handlers.geotiff.exceptions import InvalidGeoTiffException
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from osgeo import gdal
+from importer.celery_app import importer_app
+from geonode.storage.manager import storage_manager
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +151,17 @@ class BaseRasterFileHandler(BaseHandler):
             | Q(result__icontains=execution_id)
         ).delete()
 
-    def extract_resource_to_publish(self, files, action, layer_name, alternate):
+        _exec = orchestrator.get_execution_object(execution_id)
+
+        if _exec and not _exec.input_params.get("store_spatial_file", False):
+            resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
+            # getting all files list
+            resources_files = list(set(chain(*[x.resource.files for x in resources])))
+            # better to delete each single file since it can be a remove storage service
+            list(map(storage_manager.delete, resources_files))
+
+
+    def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
         if action == exa.COPY.value:
             return [
                 {
@@ -155,6 +169,7 @@ class BaseRasterFileHandler(BaseHandler):
                     "crs": ResourceBase.objects.filter(Q(alternate__icontains=layer_name) | Q(title__icontains=layer_name))
                     .first()
                     .srid,
+                    "raster_path": kwargs['kwargs'].get("new_file_location").get("files")[0]
                 }
             ]
 
@@ -272,7 +287,7 @@ class BaseRasterFileHandler(BaseHandler):
                     dirty_state=True,
                     title=layer_name,
                     owner=_exec.user,
-                    files=list(_exec.input_params.get("files", {}).values()) or list(files),
+                    files=list(set(list(_exec.input_params.get("files", {}).values()) or list(files))),
                 ),
             )
 
@@ -315,23 +330,82 @@ class BaseRasterFileHandler(BaseHandler):
         to create/copy it
         """
         ResourceHandlerInfo.objects.create(
-            handler_module_path=handler_module_path,
+            handler_module_path=str(handler_module_path),
             resource=resource,
             execution_request=execution_id,
             kwargs=kwargs.get('kwargs', {})
         )
 
     def copy_geonode_resource(
-        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str
+        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str, **kwargs
     ):
         resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=resource.files
+            files=kwargs.get("kwargs", {}).get("new_file_location", {}).get("files", [])
         )
         resource.refresh_from_db()
         return resource
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
+
+    @staticmethod
+    def copy_original_file(dataset):
+        '''
+        Copy the original file into a new location
+        '''
+        return storage_manager.copy(dataset)
+
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.copy_raster_file",
+    queue="importer.copy_raster_file",
+    max_retries=1,
+    acks_late=False,
+    ignore_result=False,
+    task_track_started=True,
+)
+def copy_raster_file(
+    exec_id,
+    actual_step,
+    layer_name,
+    alternate,
+    handler_module_path,
+    action,
+    **kwargs
+):
+    """
+    Perform a copy of the original raster file    """
+
+    original_dataset = ResourceBase.objects.filter(alternate=alternate)
+    if not original_dataset.exists():
+        raise InvalidGeoTiffException("Dataset required does not exists")
+
+    original_dataset = original_dataset.first()
+
+    new_file_location = orchestrator.load_handler(handler_module_path).copy_original_file(original_dataset)
+
+    new_dataset_alternate = create_alternate(original_dataset.title, exec_id)
+
+    additional_kwargs = {
+        "original_dataset_alternate": original_dataset.alternate,
+        "new_dataset_alternate": new_dataset_alternate,
+        "new_file_location": new_file_location
+    }
+
+    task_params = (
+        {},
+        exec_id,
+        handler_module_path,
+        actual_step,
+        layer_name,
+        new_dataset_alternate,
+        action,
+    )
+
+    import_orchestrator.apply_async(task_params, additional_kwargs)
+
+    return "copy_raster", layer_name, alternate, exec_id
