@@ -1,3 +1,4 @@
+from itertools import chain
 import json
 import logging
 import os
@@ -26,6 +27,7 @@ from geonode.resource.models import ExecutionRequest
 from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
+from geonode.storage.manager import storage_manager
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
@@ -191,6 +193,15 @@ class BaseVectorFileHandler(BaseHandler):
             | Q(task_kwargs__icontains=execution_id)
             | Q(result__icontains=execution_id)
         ).delete()
+
+        _exec = orchestrator.get_execution_object(execution_id)
+
+        if _exec and not _exec.input_params.get("store_spatial_file", False):
+            resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
+            # getting all files list
+            resources_files = list(set(chain(*[x.resource.files for x in resources])))
+            # better to delete each single file since it can be a remove storage service
+            list(map(storage_manager.delete, resources_files))
 
     def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
         if action == exa.COPY.value:
