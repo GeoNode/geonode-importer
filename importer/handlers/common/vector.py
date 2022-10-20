@@ -196,6 +196,13 @@ class BaseVectorFileHandler(BaseHandler):
 
         _exec = orchestrator.get_execution_object(execution_id)
 
+        _exec.output_params.update(**{
+            "detail_url": [
+                x.resource.detail_url
+                for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
+            ]
+        })
+        _exec.save()
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
             # getting all files list
