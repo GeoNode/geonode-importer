@@ -153,13 +153,21 @@ class BaseRasterFileHandler(BaseHandler):
 
         _exec = orchestrator.get_execution_object(execution_id)
 
+        _exec.save()
+
+        _exec.output_params.update(**{
+            "detail_url": [
+                x.resource.detail_url
+                for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
+            ]
+        })
+
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
             # getting all files list
             resources_files = list(set(chain(*[x.resource.files for x in resources])))
             # better to delete each single file since it can be a remove storage service
             list(map(storage_manager.delete, resources_files))
-
 
     def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
         if action == exa.COPY.value:
