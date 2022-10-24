@@ -172,9 +172,9 @@ class BaseVectorFileHandler(BaseHandler):
                 We use the schema editor directly, because the model itself is not managed
                 on creation, but for the delete since we are going to handle, we can use it
                 '''
+                schema.delete()
                 _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
                 _model_editor.drop_table(schema.as_model())
-                schema.delete()
             # Removing Field Schema
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
@@ -520,7 +520,7 @@ class BaseVectorFileHandler(BaseHandler):
 
             self.handle_xml_file(dataset, _exec)
 
-            resource_manager.set_thumbnail(self.object.uuid, instance=self.object, overwrite=False)
+            resource_manager.set_thumbnail(dataset.uuid, instance=dataset, overwrite=False)
             dataset.refresh_from_db()
             return dataset
         elif not dataset.exists() and _overwrite:

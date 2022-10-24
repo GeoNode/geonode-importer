@@ -212,7 +212,7 @@ def publish_resource(
         )
         if data:
             # we should not publish resource without a crs
-            if not _overwrite:
+            if not _overwrite or (_overwrite and not _publisher.get_resource(alternate)):
                 _publisher.publish_resources(data)
             else:
                 _publisher.overwrite_resources(data)
