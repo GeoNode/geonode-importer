@@ -276,7 +276,7 @@ class BaseRasterFileHandler(BaseHandler):
             "DEFAULT_WORKSPACE",
             getattr(settings, "CASCADE_WORKSPACE", "geonode"),
         )
-        
+
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
@@ -290,8 +290,7 @@ class BaseRasterFileHandler(BaseHandler):
             defaults=dict(
                 name=alternate,
                 workspace=workspace,
-                store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
-                subtype="vector",
+                subtype="raster",
                 alternate=f"{workspace}:{alternate}",
                 dirty_state=True,
                 title=layer_name,
@@ -311,21 +310,21 @@ class BaseRasterFileHandler(BaseHandler):
 
         saved_dataset.refresh_from_db()
         return saved_dataset
-    
+
     def overwrite_geonode_resource(
         self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
     ):
-        
+
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
         _exec = self._get_execution_request_object(execution_id)
-        
+
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
-            
+
             resource_manager.update(dataset.uuid, instance=dataset)
 
             dataset.refresh_from_db()
@@ -336,10 +335,10 @@ class BaseRasterFileHandler(BaseHandler):
             dataset.refresh_from_db()
             return dataset
         elif not dataset.exists() and _overwrite:
-                logger.warning(
-                    f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
-                )
-                return self.create_geonode_resource(layer_name, alternate, execution_id, resource_type, files)
+            logger.warning(
+                f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
+            )
+            return self.create_geonode_resource(layer_name, alternate, execution_id, resource_type, files)
         elif not dataset.exists() and not _overwrite:
             logger.warning(
                 "The resource does not exists, please use 'create_geonode_resource' to create one"
