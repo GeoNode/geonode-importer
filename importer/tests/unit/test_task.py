@@ -157,13 +157,70 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
     @patch("importer.celery_tasks.DataPublisher.extract_resource_to_publish")
     @patch("importer.celery_tasks.DataPublisher.publish_resources")
-    def test_publish_resource_if_overwrite_should_not_call_the_publishing(
+    def test_publish_resource_if_overwrite_should_call_the_publishing(
         self,
         publish_resources,
         extract_resource_to_publish,
         importer,
     ):
+        '''
+        Publish resource should be called since the resource does not exists in geoserver
+        even if an overwrite is required
+        '''
         try:
+            publish_resources.return_value = True
+            extract_resource_to_publish.return_value = [
+                {"crs": 12345, "name": "dataset3"}
+            ]
+            exec_id = orchestrator.create_execution_request(
+                user=get_user_model().objects.get(username=self.user),
+                func_name="dummy_func",
+                step="dummy_step",
+                legacy_upload_name="dummy",
+                input_params={
+                    "files": {"base_file": "/filepath"},
+                    "overwrite_existing_layer": True,
+                    "store_spatial_files": True,
+                },
+            )
+            publish_resource(
+                str(exec_id),
+                resource_type="gpkg",
+                step_name="publish_resource",
+                layer_name="dataset3",
+                alternate="alternate_dataset3",
+                action=ExecutionRequestAction.IMPORT.value,
+                handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+            )
+
+            # Evaluation
+            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+            self.assertEqual("importer.publish_resource", req.step)
+            publish_resources.assert_called_once()
+            importer.assert_called_once()
+
+        finally:
+            # cleanup
+            if exec_id:
+                ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.DataPublisher.extract_resource_to_publish")
+    @patch("importer.celery_tasks.DataPublisher.publish_resources")
+    @patch("importer.celery_tasks.DataPublisher.get_resource")
+    def test_publish_resource_if_overwrite_should_not_call_the_publishing(
+        self,
+        get_resource,
+        publish_resources,
+        extract_resource_to_publish,
+        importer,
+    ):
+        '''
+        Publish resource should be called since the resource does not exists in geoserver
+        even if an overwrite is required
+        '''
+        try:
+            get_resource.return_falue = True
             publish_resources.return_value = True
             extract_resource_to_publish.return_value = [
                 {"crs": 12345, "name": "dataset3"}
@@ -243,6 +300,10 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 "invalid_alternate",
                 "importer.handlers.gpkg.handler.GPKGFileHandler",
                 "copy",
+                kwargs={
+                    "original_dataset_alternate": f"geonode:example_dataset",
+                    "new_dataset_alternate": f"geonode:schema_copy_example_dataset",  # this alternate is generated dring the geonode resource copy
+                },
             )
         async_call.assert_not_called()
 
@@ -260,6 +321,10 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 rasource.alternate,
                 "importer.handlers.gpkg.handler.GPKGFileHandler",
                 "copy",
+                kwargs={
+                    "original_dataset_alternate": f"geonode:cloning",
+                    "new_dataset_alternate": f"geonode:schema_copy_cloning",  # this alternate is generated dring the geonode resource copy
+                },
             )
 
             self.assertTrue(
@@ -326,7 +391,7 @@ class TestDynamicModelSchema(SimpleTestCase):
                     layer_name="test_layer",
                 )
 
-            expected_msg = "Error during the field creation. The field or class_name is None {'name': 'field1', 'class_name': None, 'null': True}"
+            expected_msg = "Error during the field creation. The field or class_name is None {'name': 'field1', 'class_name': None, 'null': True} for test_layer " + f"for execution {name}"
             self.assertEqual(expected_msg, str(_exc.exception))
         finally:
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
@@ -374,12 +439,16 @@ class TestDynamicModelSchema(SimpleTestCase):
                 model_schema=schema,
             )
 
+            layer = create_single_dataset(f"schema_{name}")
+            layer.alternate = f"geonode:schema_{name}"
+            layer.save()
+
             copy_dynamic_model(
                 exec_id=str(self.exec_id),
                 actual_step="copy",
                 layer_name=f"schema_{name}",
                 alternate=f"geonode:schema_{name}",
-                handlers_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+                handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
                 action=ExecutionRequestAction.COPY.value,
                 kwargs={
                     "original_dataset_alternate": f"geonode:schema_{name}",
@@ -389,18 +458,14 @@ class TestDynamicModelSchema(SimpleTestCase):
 
             self.assertTrue(ModelSchema.objects.filter(name=f"schema_{name}").exists())
             self.assertTrue(
-                ModelSchema.objects.filter(name=f"schema_copy_{name}").exists()
+                ModelSchema.objects.filter(name__icontains=f"schema_copy").exists()
             )
-            self.assertTrue(
-                FieldSchema.objects.filter(
-                    model_schema=ModelSchema.objects.get(name=f"schema_copy_{name}")
-                ).exists()
-            )
+
             async_call.assert_called_once()
 
         finally:
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
-            ModelSchema.objects.filter(name=f"geonode:schema_copy_{name}").delete()
+            ModelSchema.objects.filter(name__icontains=f"geonode:schema_copy").delete()
             FieldSchema.objects.filter(name=f"field_{name}").delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
@@ -422,7 +487,7 @@ class TestDynamicModelSchema(SimpleTestCase):
             action=ExecutionRequestAction.COPY.value,
             kwargs={
                 "original_dataset_alternate": f"geonode:schema_{str(self.exec_id)}",
-                "new_dataset_alternate": f"geonode:schema_copy_{str(self.exec_id)}",  # this alternate is generated dring the geonode resource copy
+                "new_dataset_alternate": f"schema_copy_{str(self.exec_id)}",  # this alternate is generated dring the geonode resource copy
             },
         )
         mock_cursor.execute.assert_called_once()

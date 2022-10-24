@@ -454,7 +454,7 @@ def create_dynamic_structure(
                 f"Error during the field creation. The field or class_name is None {field} for {layer_name} for execution {execution_id}"
             )
             raise InvalidFieldNameError(
-                f"Error during the field creation. The field or class_name is None {field} for {layer_name}  for execution {execution_id}"
+                f"Error during the field creation. The field or class_name is None {field} for {layer_name} for execution {execution_id}"
             )
 
         _kwargs = {"null": field.get("null", True)}

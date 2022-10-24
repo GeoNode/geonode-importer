@@ -321,13 +321,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             success_entry = TaskResult.objects.create(
                 task_id="task_id_success", status="SUCCESS", task_args=exec_id
             )
-            with self.assertRaises(ImportException) as e:
-                self.orchestrator.evaluate_execution_progress(exec_id)
+            self.orchestrator.evaluate_execution_progress(exec_id)
 
-            self.assertEqual(
-                f"For the execution ID {exec_id} The following celery task are failed: ['task_id_FAILED']",
-                str(e.exception)
-            )
 
         finally:
             if FAILED_entry:

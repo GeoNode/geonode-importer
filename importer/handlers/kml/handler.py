@@ -1,4 +1,5 @@
 import logging
+import os
 
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.api.exceptions import UploadParallelismLimitException
@@ -86,6 +87,14 @@ class KMLFileHandler(BaseVectorFileHandler):
                 detail=f"With the provided kml, the number of max parallel upload will exceed the limit of {max_upload}"
             )
 
+        filename = os.path.basename(files.get("base_file"))
+
+        if len(filename.split(".")) > 2:
+            # means that there is a dot other than the one needed for the extension
+            # if we keep it ogr2ogr raise an error, better to remove it
+            raise InvalidKmlException(
+                "Please remove the additional dots in the filename"
+            )
         return True
 
     def get_ogr2ogr_driver(self):

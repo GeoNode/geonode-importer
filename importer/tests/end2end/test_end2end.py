@@ -14,6 +14,7 @@ from geonode.utils import OGC_Servers_Handler
 from geoserver.catalog import Catalog
 from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
+from geonode.geoserver.signals import geoserver_delete
 import gisdata
 geourl = settings.GEODATABASE_URL
 
@@ -91,35 +92,47 @@ class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
     def test_import_geopackage(self):
+        layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_gkpg, 'rb'),
         }
         initial_name = "stazioni_metropolitana"
         self._assertimport(payload, initial_name)
-
+        layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        self.cat.delete(layer)
 
 class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
 
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
     def test_import_geojson(self):
+        layer = self.cat.get_layer("geonode:valid")
+        self.cat.delete(layer)
+
         payload = {
             "base_file": open(self.valid_geojson, 'rb'),
         }
         initial_name = "valid"
         self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:valid")
+        self.cat.delete(layer)
 
 
 class ImporterKMLImportTest(BaseImporterEndToEndTest):
 
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
-    def test_import_shapefile(self):
+    def test_import_kml(self):
+        layer = self.cat.get_layer("geonode:extruded_polygon")
+        self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_kml, 'rb'),
         }
         initial_name = "extruded_polygon"
         self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:extruded_polygon")
+        self.cat.delete(layer)
 
 
 class ImporterShapefileImportTest(BaseImporterEndToEndTest):
@@ -127,6 +140,10 @@ class ImporterShapefileImportTest(BaseImporterEndToEndTest):
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
     @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
     def test_import_shapefile(self):
+        layer = self.cat.get_layer("geonode:san_andres_y_providencia_highway")
+        self.cat.delete(layer)
         payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
         initial_name = "san_andres_y_providencia_highway"
         self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:san_andres_y_providencia_highway")
+        self.cat.delete(layer)

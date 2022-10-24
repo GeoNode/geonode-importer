@@ -49,10 +49,10 @@ class TestShapeFileFileHandler(TestCase):
     def test_copy_task_list_is_the_expected_one(self):
         expected = (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource"
+            "importer.publish_resource",
+            "importer.copy_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS['copy']), 5)
         self.assertTupleEqual(expected, self.handler.ACTIONS['copy'])
@@ -132,5 +132,5 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry ', stdout=-1, stderr=-1, shell=True # noqa
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ', stdout=-1, stderr=-1, shell=True # noqa
         )

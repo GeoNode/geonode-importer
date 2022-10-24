@@ -1,6 +1,7 @@
 from django.test import TestCase
 from dynamic_models.models import ModelSchema, FieldSchema
 from geonode.base.populate_test_data import create_single_dataset
+from importer.models import ResourceHandlerInfo
 
 
 class TestModelSchemaSignal(TestCase):
@@ -8,6 +9,7 @@ class TestModelSchemaSignal(TestCase):
 
     def setUp(self):
         self.resource = create_single_dataset(name="test_dataset")
+        ResourceHandlerInfo.objects.create(resource=self.resource, handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler")
         self.dynamic_model = ModelSchema.objects.create(
             name=self.resource.name, db_name="datastore"
         )

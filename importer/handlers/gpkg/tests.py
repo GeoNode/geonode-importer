@@ -44,10 +44,10 @@ class TestGPKGHandler(TestCase):
     def test_task_list_is_the_expected_one_geojson(self):
         expected = (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
+            "importer.copy_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
@@ -132,16 +132,15 @@ class TestGPKGHandler(TestCase):
         )
 
         celery_task_handler = SingleMessageErrorHandler()
-        with self.assertRaises(ImportException):
-            """
-            The progress evaluation will raise and exception
-            """
-            celery_task_handler.on_failure(
-                exc=Exception("exception raised"),
-                task_id=started_entry.task_id,
-                args=[str(exec_id), "other_args"],
-                kwargs={},
-                einfo=None,
-            )
+        """
+        The progress evaluation will raise and exception
+        """
+        celery_task_handler.on_failure(
+            exc=Exception("exception raised"),
+            task_id=started_entry.task_id,
+            args=[str(exec_id), "other_args"],
+            kwargs={},
+            einfo=None,
+        )
 
         self.assertEqual("FAILURE", TaskResult.objects.get(task_id=str(exec_id)).status)
