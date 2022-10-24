@@ -201,32 +201,33 @@ def publish_resource(
         )
         _exec = orchestrator.get_execution_object(execution_id)
         _files = _exec.input_params.get("files")
-        _overwrite = _exec.input_params.get("override_existing_layer")
+        _overwrite = _exec.input_params.get("overwrite_existing_layer")
 
         # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
-        if not _overwrite:
-            _publisher = DataPublisher(handler_module_path)
+        _publisher = DataPublisher(handler_module_path)
 
-            # extracting the crs and the resource name, are needed for publish the resource
-            _metadata = _publisher.extract_resource_to_publish(
-                _files, action, layer_name, alternate, **kwargs
-            )
-            if _metadata:
-                # we should not publish resource without a crs
-
-                _publisher.publish_resources(_metadata)
-
-                # updating the execution request status
-                orchestrator.update_execution_request_status(
-                    execution_id=execution_id,
-                    last_updated=timezone.now(),
-                    celery_task_request=self.request,
-                )
+        # extracting the crs and the resource name, are needed for publish the resource
+        data = _publisher.extract_resource_to_publish(
+            _files, action, layer_name, alternate, **kwargs
+        )
+        if data:
+            # we should not publish resource without a crs
+            if not _overwrite:
+                _publisher.publish_resources(data)
             else:
-                logger.error(f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}")
-                raise PublishResourceException(
-                    "Only resources with a CRS provided can be published"
-                )
+                _publisher.overwrite_resources(data)
+
+            # updating the execution request status
+            orchestrator.update_execution_request_status(
+                execution_id=execution_id,
+                last_updated=timezone.now(),
+                celery_task_request=self.request,
+            )
+        else:
+            logger.error(f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}")
+            raise PublishResourceException(
+                "Only resources with a CRS provided can be published"
+            )
 
         # at the end recall the import_orchestrator for the next step
 
@@ -300,10 +301,16 @@ def create_geonode_resource(
         _files = _exec.input_params.get("files")
 
         handler = import_string(handler_module_path)()
+        _overwrite = _exec.input_params.get("overwrite_existing_layer")
 
-        resource = handler.create_geonode_resource(
-            layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
-        )
+        if _overwrite:
+            resource = handler.overwrite_geonode_resource(
+                layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
+            )
+        else:
+            resource = handler.create_geonode_resource(
+                layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
+            )
 
         handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
         # at the end recall the import_orchestrator for the next step

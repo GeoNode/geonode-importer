@@ -59,6 +59,12 @@ class DataPublisher:
             store=self.store,
             workspace=self.workspace,
         )
+    
+    def overwrite_resources(self, resources: List[str]):
+        '''
+        Not available for now, waiting geoserver 2.20/2.21 available with Geonode
+        '''
+        pass
 
     def get_or_create_store(self):
         """

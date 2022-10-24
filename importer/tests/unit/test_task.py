@@ -38,7 +38,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             legacy_upload_name="dummy",
             input_params={
                 "files": {"base_file": "/filepath"},
-                # "override_existing_layer": True,
+                # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
             },
         )
@@ -175,7 +175,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 legacy_upload_name="dummy",
                 input_params={
                     "files": {"base_file": "/filepath"},
-                    "override_existing_layer": True,
+                    "overwrite_existing_layer": True,
                     "store_spatial_files": True,
                 },
             )
@@ -287,7 +287,7 @@ class TestDynamicModelSchema(SimpleTestCase):
             legacy_upload_name="dummy",
             input_params={
                 "files": {"base_file": "/filepath"},
-                # "override_existing_layer": True,
+                # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
             },
         )

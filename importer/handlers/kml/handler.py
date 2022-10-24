@@ -94,13 +94,13 @@ class KMLFileHandler(BaseVectorFileHandler):
         pass
 
     @staticmethod
-    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+    def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
         """
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         """
 
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(
-            files, original_name, override_layer, alternate
+            files, original_name, ovverwrite_layer, alternate
         )
         return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} --config OGR_SKIP LibKML"

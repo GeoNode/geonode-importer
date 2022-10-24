@@ -122,7 +122,7 @@ class TestShapeFileFileHandler(TestCase):
             files=self.valid_shp,
             original_name="dataset",
             handler_module_path=str(self.handler),
-            override_layer=False,
+            ovverwrite_layer=False,
             alternate="alternate"
         )
 

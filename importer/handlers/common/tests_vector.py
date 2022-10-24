@@ -120,7 +120,7 @@ class TestBaseVectorFileHandler(TestCase):
             dynamic_model, layer_name, celery_group = self.handler.setup_dynamic_model(
                 layer=[x for x in layers][0],
                 execution_id=str(exec_id),
-                should_be_overrided=overwrite,
+                should_be_overwritten=overwrite,
                 username=self.user,
             )
 
@@ -194,7 +194,7 @@ class TestBaseVectorFileHandler(TestCase):
             str(_uuid),
             files=self.valid_files,
             layer="dataset",
-            should_be_overrided=True,
+            should_be_overwritten=True,
             alternate="abc",
         )
         self.assertIsInstance(actual, (Signature,))
@@ -215,7 +215,7 @@ class TestBaseVectorFileHandler(TestCase):
             files=self.valid_files,
             original_name="dataset",
             handler_module_path=str(self.handler),
-            override_layer=False,
+            ovverwrite_layer=False,
             alternate="alternate",
         )
 
@@ -242,7 +242,7 @@ class TestBaseVectorFileHandler(TestCase):
                 files=self.valid_files,
                 original_name="dataset",
                 handler_module_path=str(self.handler),
-                override_layer=False,
+                ovverwrite_layer=False,
                 alternate="alternate",
             )
 
