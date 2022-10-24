@@ -33,6 +33,16 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         ),
     }
 
+    @property
+    def supported_file_extension_config(self):
+        return {
+            "id": "geojson",
+            "label": "GeoJson",
+            "format": "metadata",
+            "ext": ["json", "geojson"],
+            "optional": ["xml", "sld"],
+        }
+
     @staticmethod
     def can_handle(_data) -> bool:
         """

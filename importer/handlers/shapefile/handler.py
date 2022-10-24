@@ -35,6 +35,17 @@ class ShapeFileHandler(BaseVectorFileHandler):
         ),
     }
 
+    @property
+    def supported_file_extension_config(self):
+        return {
+            "id": 'shp',
+            "label": 'ESRI Shapefile',
+            "format": 'vector',
+            "ext": ['shp'],
+            "requires": ['shp', 'prj', 'dbf', 'shx'],
+            "optional": ['xml', 'sld']
+        }
+
     @staticmethod
     def can_handle(_data) -> bool:
         """

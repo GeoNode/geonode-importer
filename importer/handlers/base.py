@@ -47,6 +47,14 @@ class BaseHandler(ABC):
             raise Exception("The requested action is not implemented yet")
         return cls.ACTIONS.get(action)
 
+    @property
+    def default_geometry_column_name(self):
+        return "geometry"
+
+    @property
+    def supported_file_extension_config(self):
+        return NotImplementedError
+
     @staticmethod
     def is_valid(files, user):
         """
