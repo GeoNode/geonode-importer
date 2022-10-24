@@ -34,6 +34,10 @@ class GPKGFileHandler(BaseVectorFileHandler):
         ),
     }
 
+    @property
+    def supported_file_extension_config(self):
+        return {"id": "gpkg", "label": "GeoPackage", "format": "archive", "ext": ["gpkg"]}
+
     @staticmethod
     def can_handle(_data) -> bool:
         """

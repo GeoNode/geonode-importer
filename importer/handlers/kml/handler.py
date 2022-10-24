@@ -33,6 +33,10 @@ class KMLFileHandler(BaseVectorFileHandler):
         ),
     }
 
+    @property
+    def supported_file_extension_config(self):
+        return {"id": "kml", "label": "KML/KMZ", "format": "archive", "ext": ["kml", "kmz"]}
+
     @staticmethod
     def can_handle(_data) -> bool:
         """
