@@ -23,3 +23,57 @@ def run_setup_hooks(*args, **kwargs):
         _handlers = [import_string(module_path) for module_path in settings.IMPORTER_HANDLERS]
         list(map(lambda item: item.register(), _handlers))
         logger.info(f"The following handlers have been registered: {', '.join(settings.IMPORTER_HANDLERS)}")
+
+        _available_settings = [
+            import_string(module_path)().supported_file_extension_config
+            for module_path in settings.IMPORTER_HANDLERS
+        ]
+        # injecting the new config required for FE
+        supported_type = [
+            {
+                "id": "xml",
+                "label": "XML Metadata File",
+                "format": "metadata",
+                "ext": ["xml"],
+                "mimeType": ["application/json"],
+                "needsFiles": [
+                    "shp",
+                    "prj",
+                    "dbf",
+                    "shx",
+                    "csv",
+                    "tiff",
+                    "zip",
+                    "sld",
+                    "geojson",
+                ],
+            },
+            {
+                "id": "sld",
+                "label": "Styled Layer Descriptor (SLD)",
+                "format": "metadata",
+                "ext": ["sld"],
+                "mimeType": ["application/json"],
+                "needsFiles": [
+                    "shp",
+                    "prj",
+                    "dbf",
+                    "shx",
+                    "csv",
+                    "tiff",
+                    "zip",
+                    "xml",
+                    "geojson",
+                ],
+            },
+        ]
+        supported_type.extend(_available_settings)
+        if not getattr(settings, "ADDITIONAL_DATASET_FILE_TYPES", None):
+            setattr(settings, "ADDITIONAL_DATASET_FILE_TYPES", supported_type)
+        elif "gpkg" not in [x.get("id") for x in settings.ADDITIONAL_DATASET_FILE_TYPES]:
+            settings.ADDITIONAL_DATASET_FILE_TYPES.extend(supported_type)
+            setattr(
+                settings,
+                "ADDITIONAL_DATASET_FILE_TYPES",
+                settings.ADDITIONAL_DATASET_FILE_TYPES,
+            )

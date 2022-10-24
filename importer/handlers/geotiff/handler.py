@@ -30,6 +30,17 @@ class GeoTiffFileHandler(BaseRasterFileHandler):
         ),
     }
 
+    @property
+    def supported_file_extension_config(self):
+        return {
+            "id": 'tiff',
+            "label": 'GeoTIFF',
+            "format": 'raster',
+            "ext": ['tiff', 'tif'],
+            "mimeType": ['image/tiff'],
+            "optional": ['xml', 'sld']
+        }
+
     @staticmethod
     def can_handle(_data) -> bool:
         """

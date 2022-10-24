@@ -47,6 +47,10 @@ class BaseVectorFileHandler(BaseHandler):
     def default_geometry_column_name(self):
         return "geometry"
 
+    @property
+    def supported_file_extension_config(self):
+        return NotImplementedError
+
     @staticmethod
     def is_valid(files, user):
         """
