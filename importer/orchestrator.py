@@ -276,6 +276,7 @@ class ImportOrchestrator:
         legacy_upload_name="",
         action=None,
         name=None,
+        source=None
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
@@ -288,6 +289,7 @@ class ImportOrchestrator:
             input_params=input_params,
             action=action,
             name=name,
+            source=source
         )
         if self.enable_legacy_upload_status:
             # getting the package name from the base_filename
