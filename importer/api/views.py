@@ -151,6 +151,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     legacy_upload_name=_file.name,
                     action=action,
                     name=_file.name,
+                    source='upload'
                 )
 
                 sig = import_orchestrator.s(
@@ -239,6 +240,7 @@ class ResourceImporter(DynamicModelViewSet):
                     **{"handler_module_path": handler_module_path},
                     **extracted_params,
                 },
+                source="importer_copy"
             )
 
             sig = import_orchestrator.s(

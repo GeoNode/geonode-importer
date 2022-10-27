@@ -17,7 +17,7 @@ class TestKMLHandler(TestCase):
         super().setUpClass()
         cls.handler = KMLFileHandler()
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
-        cls.invalid_kml = f"{project_dir}/tests/fixture/invalid.gpkg"
+        cls.invalid_kml = f"{project_dir}/tests/fixture/inva.lid.kml"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_kml}
         cls.valid_files = {"base_file": cls.valid_kml}
@@ -39,10 +39,10 @@ class TestKMLHandler(TestCase):
     def test_task_list_is_the_expected_one_geojson(self):
         expected = (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
+            "importer.copy_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
@@ -52,10 +52,7 @@ class TestKMLHandler(TestCase):
             self.handler.is_valid(files=self.invalid_files, user=self.user)
 
         self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores"
-            in str(_exc.exception.detail)
-        )
+        self.assertTrue("The kml provided is invalid" in str(_exc.exception.detail))
 
     def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
         parallelism, _ = UploadParallelismLimit.objects.get_or_create(

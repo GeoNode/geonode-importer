@@ -100,7 +100,7 @@ class BaseRasterFileHandler(BaseHandler):
 
         return {
             "skip_existing_layers": _data.pop("skip_existing_layers", "False"),
-            "override_existing_layer": _data.pop("override_existing_layer", "False"),
+            "overwrite_existing_layer": _data.pop("overwrite_existing_layer", "False"),
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }, _data
 
@@ -218,7 +218,7 @@ class BaseRasterFileHandler(BaseHandler):
             # start looping on the layers available
             layer_name = self.fixup_name(filename)
 
-            should_be_overrided = _exec.input_params.get("override_existing_layer")
+            should_be_overwritten = _exec.input_params.get("overwrite_existing_layer")
             # should_be_imported check if the user+layername already exists or not
             if (
                 should_be_imported(
@@ -227,7 +227,7 @@ class BaseRasterFileHandler(BaseHandler):
                     skip_existing_layer=_exec.input_params.get(
                         "skip_existing_layer"
                     ),
-                    override_existing_layer=should_be_overrided,
+                    overwrite_existing_layer=should_be_overwritten,
                 )
             ):
                 workspace = get_geoserver_cascading_workspace(create=False)
@@ -237,7 +237,7 @@ class BaseRasterFileHandler(BaseHandler):
 
                 dataset_exists = user_datasets.exists()
 
-                if dataset_exists and should_be_overrided:
+                if dataset_exists and should_be_overwritten:
                     layer_name, alternate = layer_name, user_datasets.first().alternate
                 else:
                     alternate = create_alternate(layer_name, execution_id)
@@ -276,32 +276,28 @@ class BaseRasterFileHandler(BaseHandler):
             "DEFAULT_WORKSPACE",
             getattr(settings, "CASCADE_WORKSPACE", "geonode"),
         )
+
+        _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
-        if saved_dataset.exists():
-            saved_dataset = saved_dataset.first()
-        else:
-            # if it not exists, we create it from scratch
-            if not saved_dataset.exists() and _exec.input_params.get(
-                "override_existing_layer", False
-            ):
-                logger.warning(
-                    f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
-                )
-            saved_dataset = resource_manager.create(
-                None,
-                resource_type=resource_type,
-                defaults=dict(
-                    name=alternate,
-                    workspace=workspace,
-                    subtype="raster",
-                    alternate=f"{workspace}:{alternate}",
-                    dirty_state=True,
-                    title=layer_name,
-                    owner=_exec.user,
-                    files=list(set(list(_exec.input_params.get("files", {}).values()) or list(files))),
-                ),
+        if not saved_dataset.exists() and _overwrite:
+            logger.warning(
+                f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+        saved_dataset = resource_manager.create(
+            None,
+            resource_type=resource_type,
+            defaults=dict(
+                name=alternate,
+                workspace=workspace,
+                subtype="raster",
+                alternate=f"{workspace}:{alternate}",
+                dirty_state=True,
+                title=layer_name,
+                owner=_exec.user,
+                files=list(set(list(_exec.input_params.get("files", {}).values()) or list(files))),
+            ),
+        )
 
         saved_dataset.refresh_from_db()
 
@@ -314,6 +310,40 @@ class BaseRasterFileHandler(BaseHandler):
 
         saved_dataset.refresh_from_db()
         return saved_dataset
+
+    def overwrite_geonode_resource(
+        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
+    ):
+
+        dataset = resource_type.objects.filter(alternate__icontains=alternate)
+
+        _exec = self._get_execution_request_object(execution_id)
+
+        _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
+        # if the layer exists, we just update the information of the dataset by
+        # let it recreate the catalogue
+        if dataset.exists() and _overwrite:
+            dataset = dataset.first()
+
+            resource_manager.update(dataset.uuid, instance=dataset)
+
+            dataset.refresh_from_db()
+
+            self.handle_xml_file(dataset, _exec)
+
+            resource_manager.set_thumbnail(self.object.uuid, instance=self.object, overwrite=False)
+            dataset.refresh_from_db()
+            return dataset
+        elif not dataset.exists() and _overwrite:
+            logger.warning(
+                f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
+            )
+            return self.create_geonode_resource(layer_name, alternate, execution_id, resource_type, files)
+        elif not dataset.exists() and not _overwrite:
+            logger.warning(
+                "The resource does not exists, please use 'create_geonode_resource' to create one"
+            )
+        return
 
     def handle_xml_file(self, saved_dataset: Dataset, _exec: ExecutionRequest):
         _path = _exec.input_params.get("files", {}).get("xml_file", "")

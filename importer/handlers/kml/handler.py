@@ -1,4 +1,5 @@
 import logging
+import os
 
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.api.exceptions import UploadParallelismLimitException
@@ -86,6 +87,14 @@ class KMLFileHandler(BaseVectorFileHandler):
                 detail=f"With the provided kml, the number of max parallel upload will exceed the limit of {max_upload}"
             )
 
+        filename = os.path.basename(files.get("base_file"))
+
+        if len(filename.split(".")) > 2:
+            # means that there is a dot other than the one needed for the extension
+            # if we keep it ogr2ogr raise an error, better to remove it
+            raise InvalidKmlException(
+                "Please remove the additional dots in the filename"
+            )
         return True
 
     def get_ogr2ogr_driver(self):
@@ -98,13 +107,13 @@ class KMLFileHandler(BaseVectorFileHandler):
         pass
 
     @staticmethod
-    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+    def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
         """
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         """
 
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(
-            files, original_name, override_layer, alternate
+            files, original_name, ovverwrite_layer, alternate
         )
         return f"{base_command } -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} --config OGR_SKIP LibKML"

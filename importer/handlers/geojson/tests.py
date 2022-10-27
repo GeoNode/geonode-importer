@@ -43,10 +43,10 @@ class TestGeoJsonFileHandler(TestCase):
     def test_task_list_is_the_expected_one_copy(self):
         expected = (
             "start_copy",
-            "importer.copy_geonode_resource",
             "importer.copy_dynamic_model",
             "importer.copy_geonode_data_table",
-            "importer.publish_resource"
+            "importer.publish_resource",
+            "importer.copy_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
@@ -119,7 +119,7 @@ class TestGeoJsonFileHandler(TestCase):
             files=self.valid_files,
             original_name="dataset",
             handler_module_path=str(self.handler),
-            override_layer=False,
+            ovverwrite_layer=False,
             alternate="alternate"
         )
 

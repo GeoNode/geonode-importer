@@ -79,7 +79,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
 
         additional_params = {
             "skip_existing_layers": _data.pop("skip_existing_layers", "False"),
-            "override_existing_layer": _data.pop("override_existing_layer", "False"),
+            "overwrite_existing_layer": _data.pop("overwrite_existing_layer", "False"),
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
         }
 
@@ -130,12 +130,12 @@ class ShapeFileHandler(BaseVectorFileHandler):
         return ogr.GetDriverByName("ESRI Shapefile")
 
     @staticmethod
-    def create_ogr2ogr_command(files, original_name, override_layer, alternate):
+    def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
         '''
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         '''
-        base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, override_layer, alternate)
+        base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate)
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
         additional_option = " -nlt PROMOTE_TO_MULTI" if layer is not None and 'Point' not in ogr.GeometryTypeToName(layer.GetGeomType()) else " "

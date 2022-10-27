@@ -146,7 +146,7 @@ class BaseHandler(ABC):
         return NotImplementedError
 
     def get_ogr2ogr_task_group(
-        self, execution_id, files, layer, should_be_overrided, alternate
+        self, execution_id, files, layer, should_be_overwritten, alternate
     ):
         """
         implement custom ogr2ogr task group

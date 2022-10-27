@@ -47,6 +47,11 @@ class DataPublisher:
             files, action, layer_name, alternate, **kwargs
         )
 
+    def get_resource(self, resource_name) -> bool:
+        self.get_or_create_store()
+        _res = self.cat.get_resource(resource_name, store=self.store, workspace=self.workspace)
+        return True if _res else False
+
     def publish_resources(self, resources: List[str]):
         """
         Given a list of strings (which rappresent the table on geoserver)
@@ -59,6 +64,12 @@ class DataPublisher:
             store=self.store,
             workspace=self.workspace,
         )
+
+    def overwrite_resources(self, resources: List[str]):
+        '''
+        Not available for now, waiting geoserver 2.20/2.21 available with Geonode
+        '''
+        pass
 
     def get_or_create_store(self):
         """
