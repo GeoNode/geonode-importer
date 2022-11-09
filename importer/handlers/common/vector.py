@@ -675,5 +675,15 @@ def import_with_ogr2ogr(
     process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
     stdout, stderr = process.communicate()
     if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
-        raise Exception(f"{stderr} for layer {alternate}")
+        try:
+            err = stderr.decode()
+        except:
+            err = stderr.decode("latin1")
+        message = normalize_ogr2ogr_error(err, original_name)
+        raise Exception(f"{message} for layer {alternate}")
     return "ogr2ogr", alternate, execution_id
+
+
+def normalize_ogr2ogr_error(err, original_name):
+    getting_errors = [y for y in err.split('\n') if 'ERROR ' in y]
+    return ', '.join([x.split(original_name)[0] for x in getting_errors if 'ERROR' in x])
