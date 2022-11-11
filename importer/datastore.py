@@ -26,8 +26,8 @@ class DataStoreManager:
         """
         return self.handler.is_valid(self.files, self.user)
 
-    def start_import(self, execution_id):
+    def start_import(self, execution_id, **kwargs):
         """
         call the resource handler object to perform the import phase
         """
-        return self.handler().import_resource(self.files, execution_id)
+        return self.handler().import_resource(self.files, execution_id,  **kwargs)

@@ -1,5 +1,4 @@
 from django.test import TestCase
-from importer.api.exception import ImportException
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from django.contrib.auth import get_user_model
 from importer.handlers.gpkg.handler import GPKGFileHandler

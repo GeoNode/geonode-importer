@@ -143,7 +143,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         if not _datastore.input_is_valid():
             raise Exception("dataset is invalid")
 
-        _datastore.start_import(execution_id)
+        _datastore.start_import(execution_id, **kwargs)
 
         """
         The orchestrator to proceed to the next step, should be called by the handler

@@ -301,8 +301,8 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 "importer.handlers.gpkg.handler.GPKGFileHandler",
                 "copy",
                 kwargs={
-                    "original_dataset_alternate": f"geonode:example_dataset",
-                    "new_dataset_alternate": f"geonode:schema_copy_example_dataset",  # this alternate is generated dring the geonode resource copy
+                    "original_dataset_alternate": "geonode:example_dataset",
+                    "new_dataset_alternate": "geonode:schema_copy_example_dataset",  # this alternate is generated dring the geonode resource copy
                 },
             )
         async_call.assert_not_called()
@@ -322,8 +322,8 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 "importer.handlers.gpkg.handler.GPKGFileHandler",
                 "copy",
                 kwargs={
-                    "original_dataset_alternate": f"geonode:cloning",
-                    "new_dataset_alternate": f"geonode:schema_copy_cloning",  # this alternate is generated dring the geonode resource copy
+                    "original_dataset_alternate": "geonode:cloning",
+                    "new_dataset_alternate": "geonode:schema_copy_cloning",  # this alternate is generated dring the geonode resource copy
                 },
             )
 
@@ -458,14 +458,14 @@ class TestDynamicModelSchema(SimpleTestCase):
 
             self.assertTrue(ModelSchema.objects.filter(name=f"schema_{name}").exists())
             self.assertTrue(
-                ModelSchema.objects.filter(name__icontains=f"schema_copy").exists()
+                ModelSchema.objects.filter(name__icontains="schema_copy").exists()
             )
 
             async_call.assert_called_once()
 
         finally:
             ModelSchema.objects.filter(name=f"schema_{name}").delete()
-            ModelSchema.objects.filter(name__icontains=f"geonode:schema_copy").delete()
+            ModelSchema.objects.filter(name__icontains="geonode:schema_copy").delete()
             FieldSchema.objects.filter(name=f"field_{name}").delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")

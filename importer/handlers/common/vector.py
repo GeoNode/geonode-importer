@@ -312,6 +312,7 @@ class BaseVectorFileHandler(BaseHandler):
                             "importer.import_resource",
                             layer_name,
                             alternate,
+                            **kwargs
                         )
                     )
         except Exception as e:
@@ -618,6 +619,7 @@ def import_next_step(
     actual_step: str,
     layer_name: str,
     alternate: str,
+    **kwargs: dict
 ):
     """
     If the ingestion of the resource is successfuly, the next step for the layer is called
@@ -628,17 +630,19 @@ def import_next_step(
 
     _files = _exec.input_params.get("files")
     # at the end recall the import_orchestrator for the next step
-    import_orchestrator.apply_async(
-        (
-            _files,
-            execution_id,
-            handlers_module_path,
-            actual_step,
-            layer_name,
-            alternate,
-            exa.IMPORT.value,
-        )
+
+    task_params = (
+        _files,
+        execution_id,
+        handlers_module_path,
+        actual_step,
+        layer_name,
+        alternate,
+        exa.IMPORT.value,
     )
+
+    import_orchestrator.apply_async(task_params, kwargs)
+
     return "import_next_step", alternate, execution_id
 
 
@@ -677,7 +681,7 @@ def import_with_ogr2ogr(
     if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
         try:
             err = stderr.decode()
-        except:
+        except Exception:
             err = stderr.decode("latin1")
         message = normalize_ogr2ogr_error(err, original_name)
         raise Exception(f"{message} for layer {alternate}")

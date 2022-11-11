@@ -323,7 +323,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             )
             self.orchestrator.evaluate_execution_progress(exec_id)
 
-
         finally:
             if FAILED_entry:
                 FAILED_entry.delete()
