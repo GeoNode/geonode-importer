@@ -14,7 +14,6 @@ from geonode.utils import OGC_Servers_Handler
 from geoserver.catalog import Catalog
 from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
-from geonode.geoserver.signals import geoserver_delete
 import gisdata
 geourl = settings.GEODATABASE_URL
 
@@ -101,6 +100,7 @@ class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
         self._assertimport(payload, initial_name)
         layer = self.cat.get_layer("geonode:stazioni_metropolitana")
         self.cat.delete(layer)
+
 
 class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
 
