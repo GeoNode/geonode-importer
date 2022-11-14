@@ -382,12 +382,15 @@ class BaseRasterFileHandler(BaseHandler):
         """
         Overwrite the ResourceHandlerInfo
         """
-        ResourceHandlerInfo.objects.filter(execution_request=execution_id).update(
-            handler_module_path=handler_module_path,
-            resource=resource,
-            execution_request=execution_id,
-            kwargs=kwargs.get('kwargs', {})
-        )
+        if resource.resourcehandlerinfo_set.exists():
+            resource.resourcehandlerinfo_set.update(
+                handler_module_path=handler_module_path,
+                resource=resource,
+                execution_request=execution_id,
+                kwargs=kwargs.get('kwargs', {}) or kwargs
+            )
+            return
+        return self.create_resourcehandlerinfo(handler_module_path, resource, execution_id, kwargs)
 
     def copy_geonode_resource(
         self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str, **kwargs
