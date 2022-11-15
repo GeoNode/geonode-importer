@@ -102,7 +102,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
         )
         if not validator[-1]:
             raise InvalidGeopackageException(
-                [x.get("validation_description") for x in validator[0]]
+                '. '.join([x.get("validation_description") for x in validator[0]])
             )
 
         return True
