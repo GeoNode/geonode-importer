@@ -580,7 +580,7 @@ class BaseVectorFileHandler(BaseHandler):
                 kwargs=kwargs.get('kwargs', {}) or kwargs
             )
             return
-        return self.create_resourcehandlerinfo(handler_module_path, resource, execution_id, kwargs)
+        return self.create_resourcehandlerinfo(handler_module_path, resource, execution_id, **kwargs)
 
     def copy_geonode_resource(
         self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str, **kwargs
