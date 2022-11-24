@@ -520,6 +520,7 @@ class BaseVectorFileHandler(BaseHandler):
             dataset.refresh_from_db()
 
             self.handle_xml_file(dataset, _exec)
+            self.handle_sld_file(dataset, _exec)
 
             resource_manager.set_thumbnail(dataset.uuid, instance=dataset, overwrite=False)
             dataset.refresh_from_db()
