@@ -215,21 +215,19 @@ class ImportOrchestrator:
             | Q(task_kwargs__icontains=execution_id)
             | Q(result__icontains=execution_id)
         )
+        _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
+
         # .all() is needed since we want to have the last status on the DB without take in consideration the cache
         if (
             exec_result.all()
             .exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE))
             .exists()
         ):
-            logger.info(
-                f"Execution progress with id {execution_id} is not finished yet, continuing"
-            )
-            return
+            self._evaluate_last_dataset(is_last_dataset, _log, execution_id, handler_module_path)
         elif exec_result.all().filter(status=states.FAILURE).exists():
             """
             Should set it fail if all the execution are done and at least 1 is failed
             """
-            _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
             # failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             # _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             if _has_data:
@@ -249,22 +247,25 @@ class ImportOrchestrator:
                     execution_id=execution_id, reason=_log
                 )
         else:
-            if is_last_dataset:
-                if _log and 'ErrorDetail' in _log:
-                    self.set_as_failed(
-                    execution_id=execution_id, reason=_log
-                )
-                else:
-                    logger.info(
-                        f"Execution with ID {execution_id} is completed. All tasks are done"
-                    )
-                    self._last_step(execution_id, handler_module_path)
-                    self.set_as_completed(execution_id)
+            self._evaluate_last_dataset(is_last_dataset, _log, execution_id, handler_module_path)
+
+    def _evaluate_last_dataset(self, is_last_dataset, _log, execution_id, handler_module_path):
+        if is_last_dataset:
+            if _log and 'ErrorDetail' in _log:
+                self.set_as_failed(
+                execution_id=execution_id, reason=_log
+            )
             else:
                 logger.info(
-                    f"Execution progress with id {execution_id} is not finished yet, continuing"
+                    f"Execution with ID {execution_id} is completed. All tasks are done"
                 )
-                return
+                self._last_step(execution_id, handler_module_path)
+                self.set_as_completed(execution_id)
+        else:
+            logger.info(
+                f"Execution progress with id {execution_id} is not finished yet, continuing"
+            )
+            return
 
     def create_execution_request(
         self,
