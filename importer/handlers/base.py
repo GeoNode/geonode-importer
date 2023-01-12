@@ -81,8 +81,10 @@ class BaseHandler(ABC):
     @staticmethod
     def can_do(action) -> bool:
         """
-        This endpoint will return True or False if with the info provided
-        the handler is able to handle the file or not
+        Evaluate if the handler can take care of a specific action.
+        Each action (import/copy/etc...) can define different step so
+        the Handler must be ready to handle them. If is not in the actual
+        flow the already in place flow is followd
         """
         return action in BaseHandler.ACTIONS
 
