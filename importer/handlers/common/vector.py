@@ -151,7 +151,7 @@ class BaseVectorFileHandler(BaseHandler):
             % (db_name, db_host, db_port, db_user, db_password)
         )
         options += f'"{files.get("base_file")}"' + " "
-        options += "-lco DIM=2 "
+#        options += "-lco DIM=2 "
         options += f'-nln {alternate} "{original_name}"'
 
         if ovverwrite_layer:
@@ -281,7 +281,7 @@ class BaseVectorFileHandler(BaseHandler):
                         ),
                         overwrite_existing_layer=should_be_overwritten,
                     )
-                    and layer.GetGeometryColumn() is not None
+                    #and layer.GetGeometryColumn() is not None
                 ):
                     # update the execution request object
                     # setup dynamic model and retrieve the group task needed for tun the async workflow
@@ -414,7 +414,7 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
+        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)', 'None']:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
