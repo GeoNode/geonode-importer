@@ -7,6 +7,7 @@ The implemented file type handlers so far are:
 - GeoJSON - Vector
 - Shapefiles - Vector
 - KML - Vector
+- CSV - Vector
 - GeoTiff - Raster
 
 
@@ -74,6 +75,7 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.geojson.handler.GeoJsonFileHandler',
     'importer.handlers.shapefile.handler.ShapeFileHandler',
     'importer.handlers.kml.handler.KMLFileHandler',
+    'importer.handlers.csv.handler.CSVFileHandler',
     'importer.handlers.geotiff.handler.GeoTiffFileHandler'
 ])
 
