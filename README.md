@@ -141,3 +141,18 @@ Here a description of the various codes:
 ### GeoJson
 
 - Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
+
+
+### CSV
+
+
+The CSV colum for lat/long are the followings:
+
+- `lat`, `latitude`, `y`
+- `long`, `longitude`, `x`
+
+NB: The CSV with the above, are treated as `POINTS`
+
+Otherwise if you have to pass a geometry column, the accepted column names are:
+
+- `geom`, `geometry`, `the_geom`, `wkt_geom`
