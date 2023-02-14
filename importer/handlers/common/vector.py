@@ -256,7 +256,7 @@ class BaseVectorFileHandler(BaseHandler):
         Internally will call the steps required to import the
         data inside the geonode_data database
         """
-        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"), 0)
+        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
@@ -415,6 +415,7 @@ class BaseVectorFileHandler(BaseHandler):
             for x in layer.schema
         ]
         if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
+            # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
                     "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
