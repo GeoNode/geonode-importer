@@ -40,7 +40,7 @@ class CSVFileHandler(BaseVectorFileHandler):
 
     @property
     def supported_file_extension_config(self):
-        return {"id": "csv", "label": "CSV", "format": "archive", "ext": ["csv"]}
+        return {"id": "csv", "label": "CSV", "format": "vector", "mimeType": ["text/csv"], "ext": ["csv"], "optional": ["sld", "xml"]}
 
     @staticmethod
     def can_handle(_data) -> bool:
