@@ -146,7 +146,7 @@ Here a description of the various codes:
 ### CSV
 
 
-The CSV colum for lat/long are the followings:
+The CSV colum accepted for lat/long CSVs are the followings:
 
 - `lat`, `latitude`, `y`
 - `long`, `longitude`, `x`
