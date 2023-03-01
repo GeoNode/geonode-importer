@@ -97,7 +97,7 @@ class CSVFileHandler(BaseVectorFileHandler):
         This is a default command that is needed to import a vector file
         '''
         base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate)
-        additional_option = ' -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"'
+        additional_option = ' -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*,wkt_geom" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"'
         return f"{base_command } -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} " + additional_option
 
     def create_dynamic_model_fields(
