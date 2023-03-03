@@ -7,6 +7,7 @@ The implemented file type handlers so far are:
 - GeoJSON - Vector
 - Shapefiles - Vector
 - KML - Vector
+- CSV - Vector
 - GeoTiff - Raster
 
 
@@ -74,6 +75,7 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.geojson.handler.GeoJsonFileHandler',
     'importer.handlers.shapefile.handler.ShapeFileHandler',
     'importer.handlers.kml.handler.KMLFileHandler',
+    'importer.handlers.csv.handler.CSVFileHandler',
     'importer.handlers.geotiff.handler.GeoTiffFileHandler'
 ])
 
@@ -139,3 +141,18 @@ Here a description of the various codes:
 ### GeoJson
 
 - Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
+
+
+### CSV
+
+
+The CSV colum accepted for lat/long CSVs are the followings:
+
+- `lat`, `latitude`, `y`
+- `long`, `longitude`, `x`
+
+NB: The CSV with the above, are treated as `POINTS`
+
+Otherwise if you have to pass a geometry column, the accepted column names are:
+
+- `geom`, `geometry`, `the_geom`, `wkt_geom`
