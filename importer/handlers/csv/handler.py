@@ -52,9 +52,9 @@ class CSVFileHandler(BaseVectorFileHandler):
         if not base:
             return False
         return (
-            base.endswith(".csv")
+            base.lower().endswith(".csv")
             if isinstance(base, str)
-            else base.name.endswith(".csv")
+            else base.name.lower().endswith(".csv")
         )
 
     @staticmethod
@@ -165,7 +165,7 @@ class CSVFileHandler(BaseVectorFileHandler):
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.filter(Q(alternate__icontains=layer_name) | Q(title__icontains=layer_name))
+                    "crs": ResourceBase.objects.filter(alternate__istartswith=layer_name)
                     .first()
                     .srid,
                 }
