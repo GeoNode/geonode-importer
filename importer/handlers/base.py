@@ -3,7 +3,7 @@ import logging
 from typing import List
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.layers.models import Dataset
-
+from importer.utils import ImporterRequestAction as ira
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +25,7 @@ class BaseHandler(ABC):
         exa.COPY.value: (),
         exa.DELETE.value: (),
         exa.UPDATE.value: (),
+        ira.ROLLBACK.value: (),
     }
 
     def __str__(self):

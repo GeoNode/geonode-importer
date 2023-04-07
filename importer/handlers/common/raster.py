@@ -325,9 +325,7 @@ class BaseRasterFileHandler(BaseHandler):
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
-            resource_manager.update(dataset.uuid, instance=dataset)
-
-            dataset.refresh_from_db()
+            dataset = resource_manager.update(dataset.uuid, instance=dataset)
 
             self.handle_xml_file(dataset, _exec)
             self.handle_sld_file(dataset, _exec)

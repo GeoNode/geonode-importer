@@ -1,6 +1,12 @@
+import enum
 from geonode.resource.manager import ResourceManager
 from geonode.geoserver.manager import GeoServerResourceManager
 from geonode.base.models import ResourceBase
+from django.utils.translation import gettext_lazy as _
+
+
+class ImporterRequestAction(enum.Enum):
+    ROLLBACK = _("rollback")
 
 
 def error_handler(exc, exec_id=None):

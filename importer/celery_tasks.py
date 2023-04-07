@@ -123,6 +123,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
     """
     # Updating status to running
     try:
+        raise e
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
             last_updated=timezone.now(),
@@ -153,6 +154,18 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         return self.name, execution_id
 
     except Exception as e:
+        
+        task_params = (
+            {},
+            execution_id,
+            handler_module_path,
+            "importer.import_resource",
+            None,
+            None,
+            "rollback",
+        )
+        kwargs['previous_action'] = action
+        import_orchestrator.apply_async(task_params, kwargs)
         raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
 
@@ -192,6 +205,8 @@ def publish_resource(
     """
     # Updating status to running
     try:
+        kwargs = kwargs.get("kwargs") if "kwargs" in kwargs else kwargs
+
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
             last_updated=timezone.now(),
@@ -242,13 +257,23 @@ def publish_resource(
         )
         # for some reason celery will always put the kwargs into a key kwargs
         # so we need to remove it
-        kwargs = kwargs.get("kwargs") if "kwargs" in kwargs else kwargs
 
         import_orchestrator.apply_async(task_params, kwargs)
 
         return self.name, execution_id
 
     except Exception as e:
+        import_orchestrator.apply_async(
+            (
+                None,
+                execution_id,
+                handler_module_path,
+                step_name,
+                layer_name,
+                alternate,
+                "rollback",
+            )
+        )
         raise PublishResourceException(detail=error_handler(e, execution_id))
 
 
@@ -609,6 +634,31 @@ def copy_geonode_data_table(
 
     except Exception as e:
         raise CopyResourceException(detail=e)
+    return exec_id, kwargs
+
+
+@importer_app.task(
+    bind=True,
+    base=ErrorBaseTaskClass,
+    name="importer.rollback",
+    task_track_started=True,
+)
+def rollback(
+    self, exec_id, actual_step, layer_name, alternate, handler_module_path, action, **kwargs
+):
+    """
+    Once the base resource is copied, is time to copy also the dynamic model
+    """
+    orchestrator.update_execution_request_status(
+        execution_id=exec_id,
+        last_updated=timezone.now(),
+        func_name="rollback",
+        step=ugettext("importer.rollback"),
+        celery_task_request=self.request,
+    )
+
+    handler = import_string(handler_module_path)()
+    handler.rollback(actual_step, action)
     return exec_id, kwargs
 
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from importer.handlers.shapefile.exceptions import InvalidShapeFileException
 from importer.handlers.shapefile.serializer import ShapeFileSerializer
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ class ShapeFileHandler(BaseVectorFileHandler):
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
             "importer.copy_geonode_resource"
+        ),
+        ira.ROLLBACK.value: (
+            "importer.rollback",
         ),
     }
 

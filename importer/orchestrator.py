@@ -6,6 +6,7 @@ from uuid import UUID
 from celery import states
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.db.transaction import rollback
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
