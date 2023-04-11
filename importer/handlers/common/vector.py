@@ -637,31 +637,37 @@ class BaseVectorFileHandler(BaseHandler):
             normalized_step_name = step.split(".")[-1]
             if getattr(self, f"_{normalized_step_name}_rollback", None):
                 function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, rollback_from_step, action_to_rollback, *args, **kwargs)
+                function(exec_id, *args, **kwargs)
 
         logger.warning(f"Rollback for execid: {exec_id} resource published was: {args[3]} completed")        
                 
 
-    def _import_resource_rollback(self, _, rollback_from_step, action_to_rollback, *args, **kwargs):
+    def _import_resource_rollback(self, exec_id, *args, **kwargs):
         '''
         We use the schema editor directly, because the model itself is not managed
         on creation, but for the delete since we are going to handle, we can use it
         '''
-        logger.info(f"Rollback dynamic model step in progress for execid: {_} resource published was: {args[3]}")
+        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {args[3]}")
         name = args[3]
         schema = ModelSchema.objects.filter(name=name).first()
         _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
         _model_editor.drop_table(schema.as_model())
         schema.delete()
     
-    def _publish_resource_rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+    def _publish_resource_rollback(self, exec_id, *args, **kwargs):
+        '''
+        We delete the resource from geoserver
+        '''
         logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {args[3]}")        
         exec_object = orchestrator.get_execution_object(exec_id)
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
         publisher.delete_resource(args[3])
     
-    def _create_geonode_resource_rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+    def _create_geonode_resource_rollback(self, exec_id, *args, **kwargs):
+        '''
+        The handler will remove the resource from geonode
+        '''
         logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {args[3]}")
         resource = ResourceBase.objects.filter(alternate__icontains=args[3])
         resource.delete()
