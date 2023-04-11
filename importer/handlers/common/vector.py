@@ -631,16 +631,15 @@ class BaseVectorFileHandler(BaseHandler):
             return
         # reversing the tuple to going backwards with the rollback
         reversed_steps = steps_to_rollback[::-1]
-        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {args[3]}")        
-        
+        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {args[3]}")
+
         for step in reversed_steps:
             normalized_step_name = step.split(".")[-1]
             if getattr(self, f"_{normalized_step_name}_rollback", None):
                 function = getattr(self, f"_{normalized_step_name}_rollback")
                 function(exec_id, *args, **kwargs)
 
-        logger.warning(f"Rollback for execid: {exec_id} resource published was: {args[3]} completed")        
-                
+        logger.warning(f"Rollback for execid: {exec_id} resource published was: {args[3]} completed")
 
     def _import_resource_rollback(self, exec_id, *args, **kwargs):
         '''
@@ -658,7 +657,7 @@ class BaseVectorFileHandler(BaseHandler):
         '''
         We delete the resource from geoserver
         '''
-        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {args[3]}")        
+        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {args[3]}")
         exec_object = orchestrator.get_execution_object(exec_id)
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
