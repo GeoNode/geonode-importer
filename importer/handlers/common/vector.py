@@ -1,3 +1,5 @@
+from importer.publisher import DataPublisher
+from importer.utils import call_rollback_function
 from itertools import chain
 import json
 import logging
@@ -14,7 +16,7 @@ from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.celery_tasks import create_dynamic_structure
+from importer.celery_tasks import ErrorBaseTaskClass, create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.utils import (
@@ -172,9 +174,9 @@ class BaseVectorFileHandler(BaseHandler):
                 We use the schema editor directly, because the model itself is not managed
                 on creation, but for the delete since we are going to handle, we can use it
                 '''
-                schema.delete()
                 _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
                 _model_editor.drop_table(schema.as_model())
+                schema.delete()
             # Removing Field Schema
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
@@ -619,11 +621,54 @@ class BaseVectorFileHandler(BaseHandler):
         """
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
 
-    def rollback(self, from_step, action):
-        steps = self.ACTIONS.get(action)
+    def rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+        steps = self.ACTIONS.get(action_to_rollback)
+        step_index = steps.index(rollback_from_step)
+        # the start_import, start_copy etc.. dont do anything as step, is just the start
+        # so there is nothing to rollback
+        steps_to_rollback = steps[1:step_index+1]
+        if not steps_to_rollback:
+            return
+        # reversing the tuple to going backwards with the rollback
+        reversed_steps = steps_to_rollback[::-1]
+        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {args[3]}")        
+        
+        for step in reversed_steps:
+            normalized_step_name = step.split(".")[-1]
+            if getattr(self, f"_{normalized_step_name}_rollback", None):
+                function = getattr(self, f"_{normalized_step_name}_rollback")
+                function(exec_id, rollback_from_step, action_to_rollback, *args, **kwargs)
+
+        logger.warning(f"Rollback for execid: {exec_id} resource published was: {args[3]} completed")        
+                
+
+    def _import_resource_rollback(self, _, rollback_from_step, action_to_rollback, *args, **kwargs):
+        '''
+        We use the schema editor directly, because the model itself is not managed
+        on creation, but for the delete since we are going to handle, we can use it
+        '''
+        logger.info(f"Rollback dynamic model step in progress for execid: {_} resource published was: {args[3]}")
+        name = args[3]
+        schema = ModelSchema.objects.filter(name=name).first()
+        _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
+        _model_editor.drop_table(schema.as_model())
+        schema.delete()
+    
+    def _publish_resource_rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {args[3]}")        
+        exec_object = orchestrator.get_execution_object(exec_id)
+        handler_module_path = exec_object.input_params.get("handler_module_path")
+        publisher = DataPublisher(handler_module_path=handler_module_path)
+        publisher.delete_resource(args[3])
+    
+    def _create_geonode_resource_rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {args[3]}")
+        resource = ResourceBase.objects.filter(alternate__icontains=args[3])
+        resource.delete()
 
 
 @importer_app.task(
+    base=ErrorBaseTaskClass,
     name="importer.import_next_step",
     queue="importer.import_next_step",
     task_track_started=True,
@@ -641,25 +686,37 @@ def import_next_step(
     If the ingestion of the resource is successfuly, the next step for the layer is called
     """
     from importer.celery_tasks import import_orchestrator
+    try:
+        _exec = orchestrator.get_execution_object(execution_id)
 
-    _exec = orchestrator.get_execution_object(execution_id)
+        _files = _exec.input_params.get("files")
+        # at the end recall the import_orchestrator for the next step
 
-    _files = _exec.input_params.get("files")
-    # at the end recall the import_orchestrator for the next step
+        task_params = (
+            _files,
+            execution_id,
+            handlers_module_path,
+            actual_step,
+            layer_name,
+            alternate,
+            exa.IMPORT.value,
+        )
 
-    task_params = (
-        _files,
-        execution_id,
-        handlers_module_path,
-        actual_step,
-        layer_name,
-        alternate,
-        exa.IMPORT.value,
-    )
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handlers_module_path,
+            prev_action=exa.IMPORT.value,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
 
-    import_orchestrator.apply_async(task_params, kwargs)
+    finally:
+        return "import_next_step", alternate, execution_id
 
-    return "import_next_step", alternate, execution_id
 
 
 @importer_app.task(

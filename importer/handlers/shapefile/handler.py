@@ -35,6 +35,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
             "importer.copy_geonode_resource"
         ),
         ira.ROLLBACK.value: (
+            "start_rollback",
             "importer.rollback",
         ),
     }

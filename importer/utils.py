@@ -28,3 +28,20 @@ class ImporterConcreteManager(GeoServerResourceManager):
 
 
 custom_resource_manager = ResourceManager(concrete_manager=ImporterConcreteManager())
+
+
+def call_rollback_function(execution_id, handlers_module_path, prev_action, layer=None, alternate=None, error=None, **kwargs):
+    from importer.celery_tasks import import_orchestrator
+    
+    task_params = (
+        {},
+        execution_id,
+        handlers_module_path,
+        "start_rollback",
+        layer,
+        alternate,
+        ImporterRequestAction.ROLLBACK.value,
+    )
+    kwargs['previous_action'] = prev_action
+    kwargs["error"] = error_handler(error, exec_id=execution_id)
+    import_orchestrator.apply_async(task_params, kwargs)

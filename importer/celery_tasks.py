@@ -20,7 +20,7 @@ from importer.api.exception import (
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error
+from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error, get_uuid
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -28,7 +28,8 @@ from importer.settings import (
     IMPORTER_PUBLISHING_RATE_LIMIT,
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
-from importer.utils import error_handler
+from importer.utils import call_rollback_function, error_handler
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def import_orchestrator(
 
 @importer_app.task(
     bind=True,
-    base=ErrorBaseTaskClass,
+    #base=ErrorBaseTaskClass,
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=1,
@@ -123,7 +124,6 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
     """
     # Updating status to running
     try:
-        raise e
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
             last_updated=timezone.now(),
@@ -154,18 +154,15 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         return self.name, execution_id
 
     except Exception as e:
-        
-        task_params = (
-            {},
+        call_rollback_function(
             execution_id,
-            handler_module_path,
-            "importer.import_resource",
-            None,
-            None,
-            "rollback",
+            handlers_module_path=handler_module_path,
+            prev_action=exa.IMPORT.value,
+            layer=None,
+            alternate=None,
+            error=e,
+            **kwargs      
         )
-        kwargs['previous_action'] = action
-        import_orchestrator.apply_async(task_params, kwargs)
         raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
 
@@ -263,16 +260,14 @@ def publish_resource(
         return self.name, execution_id
 
     except Exception as e:
-        import_orchestrator.apply_async(
-            (
-                None,
-                execution_id,
-                handler_module_path,
-                step_name,
-                layer_name,
-                alternate,
-                "rollback",
-            )
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
         )
         raise PublishResourceException(detail=error_handler(e, execution_id))
 
@@ -357,6 +352,15 @@ def create_geonode_resource(
         return self.name, execution_id
 
     except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise ResourceCreationException(detail=error_handler(e))
 
 
@@ -435,6 +439,15 @@ def copy_geonode_resource(
         import_orchestrator.apply_async(task_params, kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise CopyResourceException(detail=e)
     return exec_id, new_alternate
 
@@ -586,6 +599,15 @@ def copy_dynamic_model(
         import_orchestrator.apply_async(task_params, additional_kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
 
@@ -633,6 +655,15 @@ def copy_geonode_data_table(
         import_orchestrator.apply_async(task_params, kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
 
@@ -640,15 +671,24 @@ def copy_geonode_data_table(
 @importer_app.task(
     bind=True,
     base=ErrorBaseTaskClass,
+    queue="importer.rollback",
     name="importer.rollback",
     task_track_started=True,
 )
-def rollback(
-    self, exec_id, actual_step, layer_name, alternate, handler_module_path, action, **kwargs
-):
+def rollback(self, *args, **kwargs):
     """
     Once the base resource is copied, is time to copy also the dynamic model
     """
+    
+    exec_id = get_uuid(args)
+
+    logger.info(f"Calling rollback for execution_id {exec_id} in progress")
+
+    exec_object = orchestrator.get_execution_object(exec_id)
+    rollback_from_step = exec_object.step
+    action_to_rollback = exec_object.action
+    handler_module_path = exec_object.input_params.get("handler_module_path")
+
     orchestrator.update_execution_request_status(
         execution_id=exec_id,
         last_updated=timezone.now(),
@@ -658,7 +698,14 @@ def rollback(
     )
 
     handler = import_string(handler_module_path)()
-    handler.rollback(actual_step, action)
+    handler.rollback(
+        exec_id,
+        rollback_from_step,
+        action_to_rollback,
+        *args,
+        **kwargs
+    )
+    orchestrator.set_as_failed(exec_id, reason=kwargs['kwargs'].get("error", "Some issue has occured, please check the logs"))
     return exec_id, kwargs
 
 

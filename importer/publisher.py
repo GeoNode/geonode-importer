@@ -1,5 +1,6 @@
 import logging
 import os
+from re import purge
 from typing import List
 
 from geonode import settings
@@ -64,6 +65,14 @@ class DataPublisher:
             store=self.store,
             workspace=self.workspace,
         )
+    
+    def delete_resource(self, resource_name):
+        layer = self.get_resource(resource_name)
+        if layer:
+            self.cat.delete(layer.resource, purge='all', recurse=True)
+    
+    def get_resource(self, dataset_name):
+        return self.cat.get_layer(dataset_name)
 
     def overwrite_resources(self, resources: List[str]):
         '''
