@@ -45,3 +45,16 @@ def call_rollback_function(execution_id, handlers_module_path, prev_action, laye
     kwargs['previous_action'] = prev_action
     kwargs["error"] = error_handler(error, exec_id=execution_id)
     import_orchestrator.apply_async(task_params, kwargs)
+
+
+def find_key_recursively(obj, key):
+    '''
+    Celery (unluckly) append the kwargs for each task
+    under a new kwargs key, so sometimes is faster
+    to look into the key recursively instead of
+    parsing the dict
+    '''
+    if key in obj: return obj.get(key, None)
+    for _, v in obj.items():
+        if isinstance(v, dict):
+            return find_key_recursively(v, key)

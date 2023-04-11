@@ -380,6 +380,12 @@ def copy_geonode_resource(
     Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
     have the new generated alternate
     """
+    orchestrator.update_execution_request_status(
+        execution_id=exec_id,
+        last_updated=timezone.now(),
+        func_name="copy_geonode_resource",
+        step=ugettext("importer.copy_geonode_resource"),
+    )
     original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
     new_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
     from importer.celery_tasks import import_orchestrator
@@ -550,6 +556,13 @@ def copy_dynamic_model(
     from importer.celery_tasks import import_orchestrator
 
     try:
+        orchestrator.update_execution_request_status(
+            execution_id=exec_id,
+            last_updated=timezone.now(),
+            func_name="copy_dynamic_model",
+            step=ugettext("importer.copy_dynamic_model"),
+        )
+        additional_kwargs = {}
 
         resource = ResourceBase.objects.filter(alternate=alternate)
 
@@ -569,6 +582,7 @@ def copy_dynamic_model(
             # Creating the dynamic schema object
             new_schema = dynamic_schema.first()
             new_schema.name = new_dataset_alternate
+            new_schema.db_table_name = new_dataset_alternate
             new_schema.pk = None
             new_schema.save()
             # create the field_schema object
@@ -606,7 +620,7 @@ def copy_dynamic_model(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **{**kwargs, **additional_kwargs}
         )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
@@ -624,9 +638,17 @@ def copy_geonode_data_table(
     """
     Once the base resource is copied, is time to copy also the dynamic model
     """
+    orchestrator.update_execution_request_status(
+        execution_id=exec_id,
+        last_updated=timezone.now(),
+        func_name="copy_geonode_data_table",
+        step=ugettext("importer.copy_geonode_data_table"),
+    )
+
     original_dataset_alternate = (
         kwargs.get("kwargs").get("original_dataset_alternate").split(":")[1]
     )
+
     new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
 
     from importer.celery_tasks import import_orchestrator
@@ -657,7 +679,7 @@ def copy_geonode_data_table(
     except Exception as e:
         call_rollback_function(
             exec_id,
-            handlers_module_path=handler_module_path,
+            handlers_module_path=handlers_module_path,
             prev_action=action,
             layer=layer_name,
             alternate=alternate,
