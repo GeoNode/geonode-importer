@@ -631,27 +631,31 @@ class BaseVectorFileHandler(BaseHandler):
             return
         # reversing the tuple to going backwards with the rollback
         reversed_steps = steps_to_rollback[::-1]
-        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {args[3]}")
+        istance_name = None
+        try:
+            istance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
+        except:
+            pass
+        
+        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {istance_name}")
 
         for step in reversed_steps:
             normalized_step_name = step.split(".")[-1]
-            istance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
             if getattr(self, f"_{normalized_step_name}_rollback", None):
                 function = getattr(self, f"_{normalized_step_name}_rollback")
                 function(exec_id, istance_name, *args, **kwargs)
 
-        logger.warning(f"Rollback for execid: {exec_id} resource published was: {args[3]} completed")
+        logger.warning(f"Rollback for execid: {exec_id} resource published was: {istance_name} completed")
 
     def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
         '''
         We use the schema editor directly, because the model itself is not managed
         on creation, but for the delete since we are going to handle, we can use it
         '''
-        name = istance_name or args[3]
-        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {name}")
-        schema = ModelSchema.objects.filter(name=name).first()
+        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {istance_name}")
+        schema = ModelSchema.objects.filter(name=istance_name).first()
         if schema is not None:
-            _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
+            _model_editor = ModelSchemaEditor(initial_model=istance_name, db_name=schema.db_name)
             _model_editor.drop_table(schema.as_model())
             schema.delete()
 
@@ -669,9 +673,8 @@ class BaseVectorFileHandler(BaseHandler):
         '''
         The handler will remove the resource from geonode
         '''
-        name = istance_name or args[3]        
-        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {name}")
-        resource = ResourceBase.objects.filter(alternate__icontains=name)
+        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}")
+        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
         if resource.exists():
             resource.delete()
     
