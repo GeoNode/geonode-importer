@@ -28,7 +28,7 @@ from importer.settings import (
     IMPORTER_PUBLISHING_RATE_LIMIT,
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
-from importer.utils import call_rollback_function, error_handler
+from importer.utils import call_rollback_function, error_handler, find_key_recursively
 from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
@@ -727,7 +727,8 @@ def rollback(self, *args, **kwargs):
         *args,
         **kwargs
     )
-    orchestrator.set_as_failed(exec_id, reason=kwargs['kwargs'].get("error", "Some issue has occured, please check the logs"))
+    error = find_key_recursively(kwargs, "error") or "Some issue has occured, please check the logs"
+    orchestrator.set_as_failed(exec_id, reason=error)
     return exec_id, kwargs
 
 
