@@ -2,11 +2,14 @@ from django.db import migrations
 
 
 def fixup_table_name(apps, schema_editor):
-    schema = apps.get_model('dynamic_models', 'ModelSchema')
-    for val in schema.objects.all():
-        if val.name != val.db_table_name:
-            val.db_table_name = val.name
-            val.save()
+    try:
+        schema = apps.get_model('dynamic_models', 'ModelSchema')
+        for val in schema.objects.all():
+            if val.name != val.db_table_name:
+                val.db_table_name = val.name
+                val.save()
+    except Exception:
+        pass
 
 
 class Migration(migrations.Migration):
