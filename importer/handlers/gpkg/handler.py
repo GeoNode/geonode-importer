@@ -8,6 +8,7 @@ from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from osgeo import ogr
 
 from importer.handlers.common.vector import BaseVectorFileHandler
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,10 @@ class GPKGFileHandler(BaseVectorFileHandler):
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
             "importer.copy_geonode_resource",
+        ),
+        ira.ROLLBACK.value: (
+            "start_rollback",
+            "importer.rollback",
         ),
     }
 

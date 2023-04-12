@@ -699,7 +699,9 @@ def copy_geonode_data_table(
 )
 def rollback(self, *args, **kwargs):
     """
-    Once the base resource is copied, is time to copy also the dynamic model
+    Task used to rollback the partially imported resource
+    The handler must implement the code to rollback each step that
+    is declared
     """
     
     exec_id = get_uuid(args)

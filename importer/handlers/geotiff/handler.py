@@ -5,6 +5,7 @@ from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.raster import BaseRasterFileHandler
 from importer.handlers.geotiff.exceptions import InvalidGeoTiffException
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,10 @@ class GeoTiffFileHandler(BaseRasterFileHandler):
             "importer.copy_raster_file",
             "importer.publish_resource",
             "importer.copy_geonode_resource",
+        ),
+        ira.ROLLBACK.value: (
+            "start_rollback",
+            "importer.rollback",
         ),
     }
 

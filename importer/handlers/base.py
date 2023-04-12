@@ -1,14 +1,10 @@
 from abc import ABC
-from geonode.base.models import ResourceBase
-from importer.publisher import DataPublisher
 import logging
 from typing import List
 
-from dynamic_models.models import ModelSchema
-from dynamic_models.schema import ModelSchemaEditor
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.layers.models import Dataset
-from importer.utils import ImporterRequestAction as ira, find_key_recursively
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -167,69 +163,3 @@ class BaseHandler(ABC):
         Base function to delete the resource with all the dependencies (example: dynamic model)
         """
         return NotImplementedError
-
-    def rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
-        
-        steps = self.ACTIONS.get(action_to_rollback)
-        step_index = steps.index(rollback_from_step)
-        # the start_import, start_copy etc.. dont do anything as step, is just the start
-        # so there is nothing to rollback
-        steps_to_rollback = steps[1:step_index+1]
-        if not steps_to_rollback:
-            return
-        # reversing the tuple to going backwards with the rollback
-        reversed_steps = steps_to_rollback[::-1]
-        istance_name = None
-        try:
-            istance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
-        except:
-            pass
-        
-        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {istance_name}")
-
-        for step in reversed_steps:
-            normalized_step_name = step.split(".")[-1]
-            if getattr(self, f"_{normalized_step_name}_rollback", None):
-                function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, istance_name, *args, **kwargs)
-
-        logger.warning(f"Rollback for execid: {exec_id} resource published was: {istance_name} completed")
-
-    def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        '''
-        We use the schema editor directly, because the model itself is not managed
-        on creation, but for the delete since we are going to handle, we can use it
-        '''
-        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {istance_name}")
-        schema = ModelSchema.objects.filter(name=istance_name).first()
-        if schema is not None:
-            _model_editor = ModelSchemaEditor(initial_model=istance_name, db_name=schema.db_name)
-            _model_editor.drop_table(schema.as_model())
-            ModelSchema.objects.filter(name=istance_name).delete()
-
-    def _publish_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        from importer.orchestrator import orchestrator
-        
-        '''
-        We delete the resource from geoserver
-        '''
-        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {istance_name}")
-        exec_object = orchestrator.get_execution_object(exec_id)
-        handler_module_path = exec_object.input_params.get("handler_module_path")
-        publisher = DataPublisher(handler_module_path=handler_module_path)
-        publisher.delete_resource(istance_name)
-    
-    def _create_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        '''
-        The handler will remove the resource from geonode
-        '''
-        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}")
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
-        if resource.exists():
-            resource.delete()
-    
-    def _copy_dynamic_model_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._import_resource_rollback(exec_id, istance_name=istance_name)
-    
-    def _copy_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._create_geonode_resource_rollback(exec_id, istance_name=istance_name)

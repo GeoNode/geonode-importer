@@ -5,6 +5,7 @@ from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
 from importer.handlers.common.vector import BaseVectorFileHandler
 from osgeo import ogr
+from importer.utils import ImporterRequestAction as ira
 
 from importer.handlers.geojson.exceptions import InvalidGeoJsonException
 
@@ -30,6 +31,10 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
             "importer.copy_geonode_data_table",
             "importer.publish_resource",
             "importer.copy_geonode_resource",
+        ),
+        ira.ROLLBACK.value: (
+            "start_rollback",
+            "importer.rollback",
         ),
     }
 
