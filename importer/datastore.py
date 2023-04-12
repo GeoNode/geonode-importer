@@ -26,8 +26,15 @@ class DataStoreManager:
         """
         return self.handler.is_valid(self.files, self.user)
 
+    def prepare_import(self, **kwargs):
+        """
+        prepares the data before the actual import
+        """
+        return self.handler().prepare_import(self.files, self.execution_id, **kwargs)
+
     def start_import(self, execution_id, **kwargs):
         """
         call the resource handler object to perform the import phase
         """
         return self.handler().import_resource(self.files, execution_id,  **kwargs)
+    
