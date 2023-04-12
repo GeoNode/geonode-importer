@@ -582,7 +582,7 @@ def copy_dynamic_model(
             # Creating the dynamic schema object
             new_schema = dynamic_schema.first()
             new_schema.name = new_dataset_alternate
-            new_schema.db_table_name = new_dataset_alternate
+            new_schema.db_table_name = new_dataset_alternate            
             new_schema.pk = None
             new_schema.save()
             # create the field_schema object

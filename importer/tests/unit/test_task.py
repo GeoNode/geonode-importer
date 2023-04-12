@@ -22,7 +22,7 @@ from geonode.base.populate_test_data import create_single_dataset
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 
-from importer.tests.utils import ImporterBaseTestSupport
+from importer.tests.utils import ImporterBaseTestSupport, TransactionImporterBaseTestSupport
 
 # Create your tests here.
 
@@ -340,7 +340,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 Dataset.objects.filter(alternate=new_alternate).delete()
 
 
-class TestDynamicModelSchema(SimpleTestCase):
+class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
     databases = ("default", "datastore")
 
     def setUp(self):
@@ -431,7 +431,7 @@ class TestDynamicModelSchema(SimpleTestCase):
             name = str(self.exec_id)
             # setup model schema to be copied
             schema = ModelSchema.objects.create(
-                name=f"schema_{name}", db_name="datastore"
+                name=f"schema_{name}", db_name="datastore", db_table_name=f"schema_{name}"
             )
             FieldSchema.objects.create(
                 name=f"field_{name}",
@@ -443,6 +443,8 @@ class TestDynamicModelSchema(SimpleTestCase):
             layer.alternate = f"geonode:schema_{name}"
             layer.save()
 
+            self.assertTrue(ModelSchema.objects.filter(name__icontains=f"schema_").count() == 1)
+            
             copy_dynamic_model(
                 exec_id=str(self.exec_id),
                 actual_step="copy",
@@ -452,21 +454,21 @@ class TestDynamicModelSchema(SimpleTestCase):
                 action=ExecutionRequestAction.COPY.value,
                 kwargs={
                     "original_dataset_alternate": f"geonode:schema_{name}",
-                    "new_dataset_alternate": f"geonode:schema_copy_{name}",  # this alternate is generated dring the geonode resource copy
                 },
             )
-
+            # the alternate is generated internally
             self.assertTrue(ModelSchema.objects.filter(name=f"schema_{name}").exists())
-            self.assertTrue(
-                ModelSchema.objects.filter(name__icontains="schema_copy").exists()
-            )
+            self.assertTrue(ModelSchema.objects.filter(name__icontains=f"schema_").count() == 2)
+
+            schema = ModelSchema.objects.all()
+            for val in schema:
+                self.assertEqual(val.name , val.db_table_name)
 
             async_call.assert_called_once()
 
         finally:
-            ModelSchema.objects.filter(name=f"schema_{name}").delete()
-            ModelSchema.objects.filter(name__icontains="geonode:schema_copy").delete()
-            FieldSchema.objects.filter(name=f"field_{name}").delete()
+            ModelSchema.objects.filter(name=f"schema_").delete()
+            FieldSchema.objects.filter(name=f"field_").delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
     @patch("importer.celery_tasks.connections")
