@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from celery import Task
@@ -521,7 +522,7 @@ def copy_dynamic_model(
 
         resource = resource.first()
 
-        new_dataset_alternate = create_alternate(resource.title, exec_id)
+        new_dataset_alternate = create_alternate(resource.title, exec_id).lower()
 
         dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
         alternative_dynamic_schema = ModelSchema.objects.filter(
@@ -544,6 +545,8 @@ def copy_dynamic_model(
                 fields.append(obj)
 
             FieldSchema.objects.bulk_create(fields)
+        else:
+            logger.info("The dynamic model of the original table does not exists, skipping...")
 
         additional_kwargs = {
             "original_dataset_alternate": resource.alternate,
@@ -588,11 +591,15 @@ def copy_geonode_data_table(
 
     try:
 
-        db_name = ModelSchema.objects.filter(name=new_dataset_alternate).first().db_name
+        db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
+        schema_exists = ModelSchema.objects.filter(name=new_dataset_alternate).first()
+        if schema_exists:
+            db_name = schema_exists.db_name
+
         with transaction.atomic():
             with connections[db_name].cursor() as cursor:
                 cursor.execute(
-                    f"CREATE TABLE {new_dataset_alternate} AS TABLE {original_dataset_alternate};"
+                    f'CREATE TABLE {new_dataset_alternate} AS TABLE "{original_dataset_alternate}";'
                 )
 
         task_params = (
