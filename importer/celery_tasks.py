@@ -640,23 +640,23 @@ def copy_geonode_data_table(
 ):
     """
     Once the base resource is copied, is time to copy also the dynamic model
-    """
-    orchestrator.update_execution_request_status(
-        execution_id=exec_id,
-        last_updated=timezone.now(),
-        func_name="copy_geonode_data_table",
-        step=ugettext("importer.copy_geonode_data_table"),
-    )
-
-    original_dataset_alternate = (
-        kwargs.get("kwargs").get("original_dataset_alternate").split(":")[1]
-    )
-
-    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
-
-    from importer.celery_tasks import import_orchestrator
-
+    """ 
     try:
+
+        orchestrator.update_execution_request_status(
+            execution_id=exec_id,
+            last_updated=timezone.now(),
+            func_name="copy_geonode_data_table",
+            step=ugettext("importer.copy_geonode_data_table"),
+        )
+
+        original_dataset_alternate = (
+            kwargs.get("kwargs").get("original_dataset_alternate").split(":")[1]
+        )
+
+        new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
+
+        from importer.celery_tasks import import_orchestrator
 
         db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
         if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
