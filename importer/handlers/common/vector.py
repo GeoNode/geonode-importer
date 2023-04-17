@@ -172,9 +172,9 @@ class BaseVectorFileHandler(BaseHandler):
                 We use the schema editor directly, because the model itself is not managed
                 on creation, but for the delete since we are going to handle, we can use it
                 '''
-                schema.delete()
                 _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
                 _model_editor.drop_table(schema.as_model())
+                ModelSchema.objects.filter(name=name).delete()
             # Removing Field Schema
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
@@ -264,6 +264,7 @@ class BaseVectorFileHandler(BaseHandler):
         _input = {**_exec.input_params, **{"total_layers": layer_count}}
         orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
         dynamic_model = None
+        celery_group = None
         try:
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
@@ -285,11 +286,14 @@ class BaseVectorFileHandler(BaseHandler):
                 ):
                     # update the execution request object
                     # setup dynamic model and retrieve the group task needed for tun the async workflow
-                    dynamic_model, alternate, celery_group = self.setup_dynamic_model(
-                        layer, execution_id, should_be_overwritten, username=_exec.user
-                    )
-                    # evaluate if a new alternate is created by the previous flow
-                    # create the async task for create the resource into geonode_data with ogr2ogr
+                    # create the async task for create the resource into geonode_data with ogr2ogr                    
+                    if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+                        dynamic_model, alternate, celery_group = self.setup_dynamic_model(
+                            layer, execution_id, should_be_overwritten, username=_exec.user
+                        )
+                    else:
+                        alternate = self.find_alternate_by_dataset(_exec, layer_name, should_be_overwritten)
+                    
                     ogr_res = self.get_ogr2ogr_task_group(
                         execution_id,
                         files,
@@ -297,15 +301,21 @@ class BaseVectorFileHandler(BaseHandler):
                         should_be_overwritten,
                         alternate,
                     )
-                    # prepare the async chord workflow with the on_success and on_fail methods
-                    workflow = chord(  # noqa
-                        group(
+
+                    if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+                        group_to_call = group(
                             celery_group.set(
                                 link_error=["dynamic_model_error_callback"]
                             ),
                             ogr_res.set(link_error=["dynamic_model_error_callback"]),
                         )
-                    )(
+                    else:
+                        group_to_call = group(
+                            ogr_res.set(link_error=["dynamic_model_error_callback"]),
+                        )
+
+                    # prepare the async chord workflow with the on_success and on_fail methods
+                    workflow = chord(group_to_call)(
                         import_next_step.s(
                             execution_id,
                             str(self),  # passing the handler module path
@@ -326,6 +336,21 @@ class BaseVectorFileHandler(BaseHandler):
             raise e
         return
 
+    def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
+        workspace = get_geoserver_cascading_workspace(create=False)
+        dataset_available = Dataset.objects.filter(alternate=f"{workspace.name}:{layer_name}")
+
+        dataset_exists = dataset_available.exists()
+
+        if dataset_exists and should_be_overwritten:
+            alternate = dataset_available.first().alternate
+        elif not dataset_exists:
+            alternate = layer_name
+        else:
+            alternate = create_alternate(layer_name, str(_exec_obj.exec_id))
+
+        return alternate
+        
     def setup_dynamic_model(
         self,
         layer: ogr.Layer,

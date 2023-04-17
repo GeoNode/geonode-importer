@@ -523,6 +523,7 @@ def copy_dynamic_model(
 
         new_dataset_alternate = create_alternate(resource.title, exec_id)
 
+
         dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
         alternative_dynamic_schema = ModelSchema.objects.filter(
             name=new_dataset_alternate
