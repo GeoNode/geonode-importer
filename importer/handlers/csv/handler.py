@@ -11,7 +11,6 @@ from geonode.base.models import ResourceBase
 from dynamic_models.models import ModelSchema
 from importer.handlers.common.vector import BaseVectorFileHandler
 from importer.handlers.utils import GEOM_TYPE_MAPPING
-from django.db.models import Q
 from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
@@ -42,6 +41,11 @@ class CSVFileHandler(BaseVectorFileHandler):
             "importer.rollback",
         ),
     }
+
+    possible_geometry_column_name = ['geom', 'geometry', 'wkt_geom', 'the_geom']
+    possible_lat_column = ['latitude', 'lat', 'y']
+    possible_long_column = ['longitude', 'long', 'x']
+    possible_latlong_column = possible_lat_column + possible_long_column
 
     @property
     def supported_file_extension_config(self):
@@ -89,11 +93,29 @@ class CSVFileHandler(BaseVectorFileHandler):
                 detail=f"With the provided CSV, the number of max parallel upload will exceed the limit of {max_upload}"
             )
 
+        schema_keys = [
+            x.name.lower()
+            for layer in layers
+            for x in layer.schema
+        ]
+        geom_is_in_schema = any(x in schema_keys for x in CSVFileHandler().possible_geometry_column_name)
+        has_lat = any(x in CSVFileHandler().possible_lat_column for x in schema_keys)
+        has_long = any(x in CSVFileHandler().possible_long_column for x in schema_keys)
+
+        fields = CSVFileHandler().possible_geometry_column_name + CSVFileHandler().possible_latlong_column
+        if has_lat and not has_long:
+            raise InvalidCSVException(f"Longitude is missing. Supported names: {', '.join(CSVFileHandler().possible_long_column)}")
+
+        if not has_lat and has_long:
+            raise InvalidCSVException(f"Latitude is missing. Supported names: {', '.join(CSVFileHandler().possible_lat_column)}")
+
+        if not geom_is_in_schema and not has_lat and not has_long:
+            raise InvalidCSVException(f"Not enough geometry field are set. The possibilities are: {','.join(fields)}")
+
         return True
 
     def get_ogr2ogr_driver(self):
         return ogr.GetDriverByName("CSV")
-
 
     @staticmethod
     def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
@@ -121,12 +143,10 @@ class CSVFileHandler(BaseVectorFileHandler):
         if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             # checking if the geometry has been wrogly read as string
-            possible_geometry_column_name = ['geom', 'geometry', 'wkt_geom', 'the_geom']
-            possible_latlong_column = ['latitude', 'longitude', 'lat', 'long', 'x', 'y']
             schema_keys = [x['name'] for x in layer_schema]
-            geom_is_in_schema = (x in schema_keys for x in possible_geometry_column_name)
+            geom_is_in_schema = (x in schema_keys for x in self.possible_geometry_column_name)
             if any(geom_is_in_schema) and layer.GetGeomType() == 100:  # 100 means None so Geometry not found
-                field_name = [x for x in possible_geometry_column_name if x in schema_keys][0]
+                field_name = [x for x in self.possible_geometry_column_name if x in schema_keys][0]
                 index = layer.GetFeature(1).keys().index(field_name)
                 geom = [x for x in layer.GetFeature(1)][index]
                 class_name = GEOM_TYPE_MAPPING.get(
@@ -135,7 +155,7 @@ class CSVFileHandler(BaseVectorFileHandler):
                     )
                 )
                 layer_schema = [x for x in layer_schema if field_name not in x['name']]
-            elif any(x in possible_latlong_column for x in schema_keys):
+            elif any(x in self.possible_latlong_column for x in schema_keys):
                 class_name = GEOM_TYPE_MAPPING.get(self.promote_to_multi('Point'))
             else:
                 class_name = GEOM_TYPE_MAPPING.get(self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType())))

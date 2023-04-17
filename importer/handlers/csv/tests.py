@@ -22,6 +22,9 @@ class TestCSVHandler(TestCase):
         cls.handler = CSVFileHandler()
         cls.valid_csv = f"{project_dir}/tests/fixture/valid.csv"
         cls.invalid_csv = f"{project_dir}/tests/fixture/invalid.csv"
+        cls.missing_lat = f"{project_dir}/tests/fixture/missing_lat.csv"
+        cls.missing_long = f"{project_dir}/tests/fixture/missing_long.csv"
+        cls.missing_geom = f"{project_dir}/tests/fixture/missing_geom.csv"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_csv}
         cls.valid_files = {"base_file": cls.valid_csv}
@@ -58,6 +61,36 @@ class TestCSVHandler(TestCase):
         self.assertIsNotNone(_exc)
         self.assertTrue(
             "The CSV provided is invalid, no layers found"
+            in str(_exc.exception.detail)
+        )
+
+    def test_is_valid_should_raise_exception_if_the_csv_missing_geom(self):
+        with self.assertRaises(InvalidCSVException) as _exc:
+            self.handler.is_valid(files={"base_file": self.missing_geom}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "Not enough geometry field are set"
+            in str(_exc.exception.detail)
+        )
+
+    def test_is_valid_should_raise_exception_if_the_csv_missing_lat(self):
+        with self.assertRaises(InvalidCSVException) as _exc:
+            self.handler.is_valid(files={"base_file": self.missing_lat}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "Latitude is missing"
+            in str(_exc.exception.detail)
+        )
+
+    def test_is_valid_should_raise_exception_if_the_csv_missing_long(self):
+        with self.assertRaises(InvalidCSVException) as _exc:
+            self.handler.is_valid(files={"base_file": self.missing_long}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "Longitude is missing"
             in str(_exc.exception.detail)
         )
 
@@ -136,5 +169,5 @@ class TestCSVHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_csv}" -lco DIM=2 -nln alternate "dataset" -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME=geometry  -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"', stdout=-1, stderr=-1, shell=True # noqa
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_csv}" -lco DIM=2 -nln alternate "dataset" -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME=geometry  -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*,wkt_geom" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"', stdout=-1, stderr=-1, shell=True # noqa
         )

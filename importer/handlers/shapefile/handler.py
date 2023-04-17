@@ -144,7 +144,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
         additional_option = " -nlt PROMOTE_TO_MULTI" if layer is not None and 'Point' not in ogr.GeometryTypeToName(layer.GetGeomType()) else " "
-        return f"{base_command } -lco precision=no -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}" + additional_option
+        return f"{base_command } -lco precision=no -lco DIM=2 -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}" + additional_option
 
     def promote_to_multi(self, geometry_name):
         '''

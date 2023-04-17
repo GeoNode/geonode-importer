@@ -92,9 +92,11 @@ class TestCeleryTasks(ImporterBaseTestSupport):
 
     @patch("importer.celery_tasks.orchestrator.perform_next_step")
     @patch("importer.celery_tasks.DataStoreManager.input_is_valid")
+    @patch("importer.celery_tasks.DataStoreManager.prepare_import")
     @patch("importer.celery_tasks.DataStoreManager.start_import")
     def test_import_resource_should_work(
         self,
+        prepare_import,
         start_import,
         is_valid,
         importer,
@@ -117,6 +119,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
         )
 
+        prepare_import.assert_called_once()
         start_import.assert_called_once()
         ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 

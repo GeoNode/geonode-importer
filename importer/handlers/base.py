@@ -123,6 +123,13 @@ class BaseHandler(ABC):
         """
         return f"Task: {task_name} raised an error during actions for layer: {args[-1]}: {exc}"
 
+    def prepare_import(self, files, execution_id, **kwargs):
+        """
+        Optional preparation step to before the actual import begins.
+        By default this does nothing.
+        """
+        pass
+
     def import_resource(self, files: dict, execution_id: str, **kwargs):
         """
         Define the step to perform the import of the data

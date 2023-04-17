@@ -13,8 +13,8 @@ def fixup_table_name(apps, schema_editor):
                 val.save()
     except ProgrammingError as e:
         '''
-        The dynamic model should exists for apply the above migration.
-        In case does not exists we can skip it
+        The dynamic model should exists to apply the above migration.
+        In case it does not exists we can skip it
         '''
         if 'relation "dynamic_models_modelschema" does not exist' in e.args[0]:
             logging.debug("Dynamic model does not exists yet, skipping")
