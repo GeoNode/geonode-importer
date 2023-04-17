@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from celery import Task
@@ -521,30 +522,30 @@ def copy_dynamic_model(
 
         resource = resource.first()
 
-        new_dataset_alternate = create_alternate(resource.title, exec_id)
+        new_dataset_alternate = create_alternate(resource.title, exec_id).lower()
 
+        if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+            dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
+            alternative_dynamic_schema = ModelSchema.objects.filter(
+                name=new_dataset_alternate
+            )
 
-        dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
-        alternative_dynamic_schema = ModelSchema.objects.filter(
-            name=new_dataset_alternate
-        )
+            if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
+                # Creating the dynamic schema object
+                new_schema = dynamic_schema.first()
+                new_schema.name = new_dataset_alternate
+                new_schema.db_table_name = new_dataset_alternate            
+                new_schema.pk = None
+                new_schema.save()
+                # create the field_schema object
+                fields = []
+                for field in dynamic_schema.first().fields.all():
+                    obj = field
+                    obj.model_schema = new_schema
+                    obj.pk = None
+                    fields.append(obj)
 
-        if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
-            # Creating the dynamic schema object
-            new_schema = dynamic_schema.first()
-            new_schema.name = new_dataset_alternate
-            new_schema.db_table_name = new_dataset_alternate            
-            new_schema.pk = None
-            new_schema.save()
-            # create the field_schema object
-            fields = []
-            for field in dynamic_schema.first().fields.all():
-                obj = field
-                obj.model_schema = new_schema
-                obj.pk = None
-                fields.append(obj)
-
-            FieldSchema.objects.bulk_create(fields)
+                FieldSchema.objects.bulk_create(fields)
 
         additional_kwargs = {
             "original_dataset_alternate": resource.alternate,
@@ -589,11 +590,16 @@ def copy_geonode_data_table(
 
     try:
 
-        db_name = ModelSchema.objects.filter(name=new_dataset_alternate).first().db_name
+        db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
+        if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+            schema_exists = ModelSchema.objects.filter(name=new_dataset_alternate).first()
+            if schema_exists:
+                db_name = schema_exists.db_name
+
         with transaction.atomic():
             with connections[db_name].cursor() as cursor:
                 cursor.execute(
-                    f"CREATE TABLE {new_dataset_alternate} AS TABLE {original_dataset_alternate};"
+                    f'CREATE TABLE {new_dataset_alternate} AS TABLE "{original_dataset_alternate}";'
                 )
 
         task_params = (
@@ -620,7 +626,7 @@ def dynamic_model_error_callback(*args, **kwargs):
     # revert eventually the import in ogr2ogr or the creation of the model in case of failing
     alternate = args[0].args[-1]
     schema_model = ModelSchema.objects.filter(name=alternate).first()
-
-    drop_dynamic_model_schema(schema_model)
+    if schema_model:
+        drop_dynamic_model_schema(schema_model)
 
     return "error"
