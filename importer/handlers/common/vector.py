@@ -340,7 +340,7 @@ class BaseVectorFileHandler(BaseHandler):
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
         workspace = get_geoserver_cascading_workspace(create=False)
-        dataset_available = Dataset.objects.filter(alternate=f"{workspace.name}:{layer_name}")
+        dataset_available = Dataset.objects.filter(alternate__iexact=f"{workspace.name}:{layer_name}")
 
         dataset_exists = dataset_available.exists()
 
@@ -372,9 +372,9 @@ class BaseVectorFileHandler(BaseHandler):
         layer_name = self.fixup_name(layer.GetName())
         workspace = get_geoserver_cascading_workspace(create=False)
         user_datasets = Dataset.objects.filter(
-            owner=username, alternate=f"{workspace.name}:{layer_name}"
+            owner=username, alternate__iexact=f"{workspace.name}:{layer_name}"
         )
-        dynamic_schema = ModelSchema.objects.filter(name=layer_name)
+        dynamic_schema = ModelSchema.objects.filter(name__iexact=layer_name)
 
         dynamic_schema_exists = dynamic_schema.exists()
         dataset_exists = user_datasets.exists()
