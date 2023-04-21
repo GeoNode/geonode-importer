@@ -2,11 +2,11 @@
 
 from django.db import migrations
 from importer.orchestrator import orchestrator
-from geonode.base.models import ResourceBase
+from geonode.layers.models import Dataset
 
 def dataset_migration(apps, _):
     NewResources = apps.get_model('importer', 'ResourceHandlerInfo')
-    for old_resource in ResourceBase.objects.exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True)):
+    for old_resource in Dataset.objects.exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True)):
         # generating orchestrator expected data file
         converted_files = [{"base_file": x} for x in old_resource.files]
         # try to get the handler for the file of the old resource
