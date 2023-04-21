@@ -6,6 +6,7 @@ from uuid import UUID
 from celery import states
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.db.transaction import rollback
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
@@ -20,6 +21,7 @@ from importer.api.serializer import ImporterSerializer
 from importer.celery_app import importer_app
 from importer.handlers.base import BaseHandler
 from importer.utils import error_handler
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 

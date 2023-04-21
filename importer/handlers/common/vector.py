@@ -1,3 +1,5 @@
+from importer.publisher import DataPublisher
+from importer.utils import call_rollback_function, find_key_recursively
 from itertools import chain
 import json
 import logging
@@ -14,7 +16,7 @@ from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
-from importer.celery_tasks import create_dynamic_structure
+from importer.celery_tasks import ErrorBaseTaskClass, create_dynamic_structure
 from importer.handlers.base import BaseHandler
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 from importer.handlers.utils import (
@@ -172,9 +174,9 @@ class BaseVectorFileHandler(BaseHandler):
                 We use the schema editor directly, because the model itself is not managed
                 on creation, but for the delete since we are going to handle, we can use it
                 '''
-                schema.delete()
                 _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
                 _model_editor.drop_table(schema.as_model())
+                ModelSchema.objects.filter(name=name).delete()
             # Removing Field Schema
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
@@ -264,6 +266,7 @@ class BaseVectorFileHandler(BaseHandler):
         _input = {**_exec.input_params, **{"total_layers": layer_count}}
         orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
         dynamic_model = None
+        celery_group = None
         try:
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
@@ -285,11 +288,14 @@ class BaseVectorFileHandler(BaseHandler):
                 ):
                     # update the execution request object
                     # setup dynamic model and retrieve the group task needed for tun the async workflow
-                    dynamic_model, alternate, celery_group = self.setup_dynamic_model(
-                        layer, execution_id, should_be_overwritten, username=_exec.user
-                    )
-                    # evaluate if a new alternate is created by the previous flow
-                    # create the async task for create the resource into geonode_data with ogr2ogr
+                    # create the async task for create the resource into geonode_data with ogr2ogr                    
+                    if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+                        dynamic_model, alternate, celery_group = self.setup_dynamic_model(
+                            layer, execution_id, should_be_overwritten, username=_exec.user
+                        )
+                    else:
+                        alternate = self.find_alternate_by_dataset(_exec, layer_name, should_be_overwritten)
+                    
                     ogr_res = self.get_ogr2ogr_task_group(
                         execution_id,
                         files,
@@ -297,15 +303,21 @@ class BaseVectorFileHandler(BaseHandler):
                         should_be_overwritten,
                         alternate,
                     )
-                    # prepare the async chord workflow with the on_success and on_fail methods
-                    workflow = chord(  # noqa
-                        group(
+
+                    if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+                        group_to_call = group(
                             celery_group.set(
                                 link_error=["dynamic_model_error_callback"]
                             ),
                             ogr_res.set(link_error=["dynamic_model_error_callback"]),
                         )
-                    )(
+                    else:
+                        group_to_call = group(
+                            ogr_res.set(link_error=["dynamic_model_error_callback"]),
+                        )
+
+                    # prepare the async chord workflow with the on_success and on_fail methods
+                    workflow = chord(group_to_call)(
                         import_next_step.s(
                             execution_id,
                             str(self),  # passing the handler module path
@@ -326,6 +338,21 @@ class BaseVectorFileHandler(BaseHandler):
             raise e
         return
 
+    def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
+        workspace = get_geoserver_cascading_workspace(create=False)
+        dataset_available = Dataset.objects.filter(alternate__iexact=f"{workspace.name}:{layer_name}")
+
+        dataset_exists = dataset_available.exists()
+
+        if dataset_exists and should_be_overwritten:
+            alternate = dataset_available.first().alternate
+        elif not dataset_exists:
+            alternate = layer_name
+        else:
+            alternate = create_alternate(layer_name, str(_exec_obj.exec_id))
+
+        return alternate
+        
     def setup_dynamic_model(
         self,
         layer: ogr.Layer,
@@ -345,9 +372,9 @@ class BaseVectorFileHandler(BaseHandler):
         layer_name = self.fixup_name(layer.GetName())
         workspace = get_geoserver_cascading_workspace(create=False)
         user_datasets = Dataset.objects.filter(
-            owner=username, alternate=f"{workspace.name}:{layer_name}"
+            owner=username, alternate__iexact=f"{workspace.name}:{layer_name}"
         )
-        dynamic_schema = ModelSchema.objects.filter(name=layer_name)
+        dynamic_schema = ModelSchema.objects.filter(name__iexact=layer_name)
 
         dynamic_schema_exists = dynamic_schema.exists()
         dataset_exists = user_datasets.exists()
@@ -515,9 +542,7 @@ class BaseVectorFileHandler(BaseHandler):
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
-            resource_manager.update(dataset.uuid, instance=dataset, files=files)
-
-            dataset.refresh_from_db()
+            dataset = resource_manager.update(dataset.uuid, instance=dataset, files=files)
 
             self.handle_xml_file(dataset, _exec)
             self.handle_sld_file(dataset, _exec)
@@ -621,8 +646,73 @@ class BaseVectorFileHandler(BaseHandler):
         """
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
 
+    def rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
+        
+        steps = self.ACTIONS.get(action_to_rollback)
+        step_index = steps.index(rollback_from_step)
+        # the start_import, start_copy etc.. dont do anything as step, is just the start
+        # so there is nothing to rollback
+        steps_to_rollback = steps[1:step_index+1]
+        if not steps_to_rollback:
+            return
+        # reversing the tuple to going backwards with the rollback
+        reversed_steps = steps_to_rollback[::-1]
+        istance_name = None
+        try:
+            istance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
+        except:
+            pass
+        
+        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {istance_name}")
+
+        for step in reversed_steps:
+            normalized_step_name = step.split(".")[-1]
+            if getattr(self, f"_{normalized_step_name}_rollback", None):
+                function = getattr(self, f"_{normalized_step_name}_rollback")
+                function(exec_id, istance_name, *args, **kwargs)
+
+        logger.warning(f"Rollback for execid: {exec_id} resource published was: {istance_name} completed")
+
+    def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+        '''
+        We use the schema editor directly, because the model itself is not managed
+        on creation, but for the delete since we are going to handle, we can use it
+        '''
+        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {istance_name}")
+        schema = ModelSchema.objects.filter(name=istance_name).first()
+        if schema is not None:
+            _model_editor = ModelSchemaEditor(initial_model=istance_name, db_name=schema.db_name)
+            _model_editor.drop_table(schema.as_model())
+            ModelSchema.objects.filter(name=istance_name).delete()
+
+    def _publish_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):       
+        '''
+        We delete the resource from geoserver
+        '''
+        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {istance_name}")
+        exec_object = orchestrator.get_execution_object(exec_id)
+        handler_module_path = exec_object.input_params.get("handler_module_path")
+        publisher = DataPublisher(handler_module_path=handler_module_path)
+        publisher.delete_resource(istance_name)
+    
+    def _create_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+        '''
+        The handler will remove the resource from geonode
+        '''
+        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}")
+        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
+        if resource.exists():
+            resource.delete()
+    
+    def _copy_dynamic_model_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+        self._import_resource_rollback(exec_id, istance_name=istance_name)
+    
+    def _copy_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+        self._create_geonode_resource_rollback(exec_id, istance_name=istance_name)
+
 
 @importer_app.task(
+    base=ErrorBaseTaskClass,
     name="importer.import_next_step",
     queue="importer.import_next_step",
     task_track_started=True,
@@ -640,25 +730,37 @@ def import_next_step(
     If the ingestion of the resource is successfuly, the next step for the layer is called
     """
     from importer.celery_tasks import import_orchestrator
+    try:
+        _exec = orchestrator.get_execution_object(execution_id)
 
-    _exec = orchestrator.get_execution_object(execution_id)
+        _files = _exec.input_params.get("files")
+        # at the end recall the import_orchestrator for the next step
 
-    _files = _exec.input_params.get("files")
-    # at the end recall the import_orchestrator for the next step
+        task_params = (
+            _files,
+            execution_id,
+            handlers_module_path,
+            actual_step,
+            layer_name,
+            alternate,
+            exa.IMPORT.value,
+        )
 
-    task_params = (
-        _files,
-        execution_id,
-        handlers_module_path,
-        actual_step,
-        layer_name,
-        alternate,
-        exa.IMPORT.value,
-    )
+        import_orchestrator.apply_async(task_params, kwargs)
+    except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handlers_module_path,
+            prev_action=exa.IMPORT.value,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
 
-    import_orchestrator.apply_async(task_params, kwargs)
+    finally:
+        return "import_next_step", alternate, execution_id
 
-    return "import_next_step", alternate, execution_id
 
 
 @importer_app.task(

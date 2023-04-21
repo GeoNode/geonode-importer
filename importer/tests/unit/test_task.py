@@ -13,6 +13,7 @@ from importer.celery_tasks import (
     import_resource,
     orchestrator,
     publish_resource,
+    rollback
 )
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
@@ -341,6 +342,97 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 Dataset.objects.filter(alternate=alternate).delete()
             if new_alternate:
                 Dataset.objects.filter(alternate=new_alternate).delete()
+
+    @patch("importer.handlers.gpkg.handler.GPKGFileHandler._import_resource_rollback")
+    @patch("importer.handlers.gpkg.handler.GPKGFileHandler._publish_resource_rollback")
+    @patch("importer.handlers.gpkg.handler.GPKGFileHandler._create_geonode_resource_rollback")
+    def test_rollback_works_as_expected_vector_step(
+        self,
+        _create_geonode_resource_rollback,
+        _publish_resource_rollback,
+        _import_resource_rollback
+    ):
+        '''
+        rollback should remove the resource based on the step it has reached
+        '''
+        test_config = [
+            ("importer.import_resource", [_import_resource_rollback]),
+            ("importer.publish_resource", [_import_resource_rollback, _publish_resource_rollback]),
+            ("importer.create_geonode_resource", [_import_resource_rollback, _publish_resource_rollback, _create_geonode_resource_rollback])
+        ]
+        for conf in test_config:
+            try:
+                exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=self.user),
+                    func_name="dummy_func",
+                    step=conf[0],  # step name
+                    action='import',
+                    input_params={
+                        "files": {"base_file": "/filepath"},
+                        "overwrite_existing_layer": True,
+                        "store_spatial_files": True,
+                        "handler_module_path": "importer.handlers.gpkg.handler.GPKGFileHandler"
+                    },
+                )
+                rollback(str(exec_id))
+
+                # Evaluation
+                req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+                self.assertEqual("importer.rollback", req.step)
+                self.assertTrue(req.status=='failed')
+                for expected_function in conf[1]:
+                    expected_function.assert_called_once()
+                    expected_function.reset_mock()
+            finally:
+                # cleanup
+                if exec_id:
+                    ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+
+    @patch("importer.handlers.geotiff.handler.GeoTiffFileHandler._import_resource_rollback")
+    @patch("importer.handlers.geotiff.handler.GeoTiffFileHandler._publish_resource_rollback")
+    @patch("importer.handlers.geotiff.handler.GeoTiffFileHandler._create_geonode_resource_rollback")
+    def test_rollback_works_as_expected_raster(
+        self,
+        _create_geonode_resource_rollback,
+        _publish_resource_rollback,
+        _import_resource_rollback
+    ):
+        '''
+        rollback should remove the resource based on the step it has reached
+        '''
+        test_config = [
+            ("importer.import_resource", [_import_resource_rollback]),
+            ("importer.publish_resource", [_import_resource_rollback, _publish_resource_rollback]),
+            ("importer.create_geonode_resource", [_import_resource_rollback, _publish_resource_rollback, _create_geonode_resource_rollback])
+        ]
+        for conf in test_config:
+            try:
+                exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=self.user),
+                    func_name="dummy_func",
+                    step=conf[0],  # step name
+                    action='import',
+                    input_params={
+                        "files": {"base_file": "/filepath"},
+                        "overwrite_existing_layer": True,
+                        "store_spatial_files": True,
+                        "handler_module_path": "importer.handlers.geotiff.handler.GeoTiffFileHandler"
+                    },
+                )
+                rollback(str(exec_id))
+
+                # Evaluation
+                req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+                self.assertEqual("importer.rollback", req.step)
+                self.assertTrue(req.status=='failed')
+                for expected_function in conf[1]:
+                    expected_function.assert_called_once()
+                    expected_function.reset_mock()
+            finally:
+                # cleanup
+                if exec_id:
+                    ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
 
 class TestDynamicModelSchema(TransactionImporterBaseTestSupport):

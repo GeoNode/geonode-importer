@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from celery import Task
@@ -20,7 +21,7 @@ from importer.api.exception import (
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error
+from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error, get_uuid
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -28,7 +29,7 @@ from importer.settings import (
     IMPORTER_PUBLISHING_RATE_LIMIT,
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
-from importer.utils import error_handler
+from importer.utils import call_rollback_function, error_handler, find_key_recursively
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def import_orchestrator(
 
 @importer_app.task(
     bind=True,
-    base=ErrorBaseTaskClass,
+    #base=ErrorBaseTaskClass,
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=1,
@@ -154,6 +155,15 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
         return self.name, execution_id
 
     except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=exa.IMPORT.value,
+            layer=None,
+            alternate=None,
+            error=e,
+            **kwargs      
+        )
         raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
 
@@ -193,6 +203,8 @@ def publish_resource(
     """
     # Updating status to running
     try:
+        kwargs = kwargs.get("kwargs") if "kwargs" in kwargs else kwargs
+
         orchestrator.update_execution_request_status(
             execution_id=execution_id,
             last_updated=timezone.now(),
@@ -243,13 +255,21 @@ def publish_resource(
         )
         # for some reason celery will always put the kwargs into a key kwargs
         # so we need to remove it
-        kwargs = kwargs.get("kwargs") if "kwargs" in kwargs else kwargs
 
         import_orchestrator.apply_async(task_params, kwargs)
 
         return self.name, execution_id
 
     except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise PublishResourceException(detail=error_handler(e, execution_id))
 
 
@@ -333,6 +353,15 @@ def create_geonode_resource(
         return self.name, execution_id
 
     except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise ResourceCreationException(detail=error_handler(e))
 
 
@@ -352,6 +381,12 @@ def copy_geonode_resource(
     Copy the geonode resource and create a new one. an assert is performed to be sure that the new resource
     have the new generated alternate
     """
+    orchestrator.update_execution_request_status(
+        execution_id=exec_id,
+        last_updated=timezone.now(),
+        func_name="copy_geonode_resource",
+        step=ugettext("importer.copy_geonode_resource"),
+    )
     original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
     new_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
     from importer.celery_tasks import import_orchestrator
@@ -411,6 +446,15 @@ def copy_geonode_resource(
         import_orchestrator.apply_async(task_params, kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise CopyResourceException(detail=e)
     return exec_id, new_alternate
 
@@ -513,6 +557,13 @@ def copy_dynamic_model(
     from importer.celery_tasks import import_orchestrator
 
     try:
+        orchestrator.update_execution_request_status(
+            execution_id=exec_id,
+            last_updated=timezone.now(),
+            func_name="copy_dynamic_model",
+            step=ugettext("importer.copy_dynamic_model"),
+        )
+        additional_kwargs = {}
 
         resource = ResourceBase.objects.filter(alternate=alternate)
 
@@ -521,29 +572,30 @@ def copy_dynamic_model(
 
         resource = resource.first()
 
-        new_dataset_alternate = create_alternate(resource.title, exec_id)
+        new_dataset_alternate = create_alternate(resource.title, exec_id).lower()
 
-        dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
-        alternative_dynamic_schema = ModelSchema.objects.filter(
-            name=new_dataset_alternate
-        )
+        if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+            dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
+            alternative_dynamic_schema = ModelSchema.objects.filter(
+                name=new_dataset_alternate
+            )
 
-        if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
-            # Creating the dynamic schema object
-            new_schema = dynamic_schema.first()
-            new_schema.name = new_dataset_alternate
-            new_schema.db_table_name = new_dataset_alternate            
-            new_schema.pk = None
-            new_schema.save()
-            # create the field_schema object
-            fields = []
-            for field in dynamic_schema.first().fields.all():
-                obj = field
-                obj.model_schema = new_schema
-                obj.pk = None
-                fields.append(obj)
+            if dynamic_schema.exists() and not alternative_dynamic_schema.exists():
+                # Creating the dynamic schema object
+                new_schema = dynamic_schema.first()
+                new_schema.name = new_dataset_alternate
+                new_schema.db_table_name = new_dataset_alternate            
+                new_schema.pk = None
+                new_schema.save()
+                # create the field_schema object
+                fields = []
+                for field in dynamic_schema.first().fields.all():
+                    obj = field
+                    obj.model_schema = new_schema
+                    obj.pk = None
+                    fields.append(obj)
 
-            FieldSchema.objects.bulk_create(fields)
+                FieldSchema.objects.bulk_create(fields)
 
         additional_kwargs = {
             "original_dataset_alternate": resource.alternate,
@@ -563,6 +615,15 @@ def copy_dynamic_model(
         import_orchestrator.apply_async(task_params, additional_kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handler_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **{**kwargs, **additional_kwargs}
+        )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
 
@@ -578,21 +639,34 @@ def copy_geonode_data_table(
 ):
     """
     Once the base resource is copied, is time to copy also the dynamic model
-    """
-    original_dataset_alternate = (
-        kwargs.get("kwargs").get("original_dataset_alternate").split(":")[1]
-    )
-    new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
-
-    from importer.celery_tasks import import_orchestrator
-
+    """ 
     try:
 
-        db_name = ModelSchema.objects.filter(name=new_dataset_alternate).first().db_name
+        orchestrator.update_execution_request_status(
+            execution_id=exec_id,
+            last_updated=timezone.now(),
+            func_name="copy_geonode_data_table",
+            step=ugettext("importer.copy_geonode_data_table"),
+        )
+
+        original_dataset_alternate = (
+            kwargs.get("kwargs").get("original_dataset_alternate").split(":")[1]
+        )
+
+        new_dataset_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
+
+        from importer.celery_tasks import import_orchestrator
+
+        db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
+        if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+            schema_exists = ModelSchema.objects.filter(name=new_dataset_alternate).first()
+            if schema_exists:
+                db_name = schema_exists.db_name
+
         with transaction.atomic():
             with connections[db_name].cursor() as cursor:
                 cursor.execute(
-                    f"CREATE TABLE {new_dataset_alternate} AS TABLE {original_dataset_alternate};"
+                    f'CREATE TABLE {new_dataset_alternate} AS TABLE "{original_dataset_alternate}";'
                 )
 
         task_params = (
@@ -610,7 +684,60 @@ def copy_geonode_data_table(
         import_orchestrator.apply_async(task_params, kwargs)
 
     except Exception as e:
+        call_rollback_function(
+            exec_id,
+            handlers_module_path=handlers_module_path,
+            prev_action=action,
+            layer=layer_name,
+            alternate=alternate,
+            error=e,
+            **kwargs      
+        )
         raise CopyResourceException(detail=e)
+    return exec_id, kwargs
+
+
+@importer_app.task(
+    bind=True,
+    base=ErrorBaseTaskClass,
+    queue="importer.rollback",
+    name="importer.rollback",
+    task_track_started=True,
+)
+def rollback(self, *args, **kwargs):
+    """
+    Task used to rollback the partially imported resource
+    The handler must implement the code to rollback each step that
+    is declared
+    """
+    
+    exec_id = get_uuid(args)
+
+    logger.info(f"Calling rollback for execution_id {exec_id} in progress")
+
+    exec_object = orchestrator.get_execution_object(exec_id)
+    rollback_from_step = exec_object.step
+    action_to_rollback = exec_object.action
+    handler_module_path = exec_object.input_params.get("handler_module_path")
+
+    orchestrator.update_execution_request_status(
+        execution_id=exec_id,
+        last_updated=timezone.now(),
+        func_name="rollback",
+        step=ugettext("importer.rollback"),
+        celery_task_request=self.request,
+    )
+
+    handler = import_string(handler_module_path)()
+    handler.rollback(
+        exec_id,
+        rollback_from_step,
+        action_to_rollback,
+        *args,
+        **kwargs
+    )
+    error = find_key_recursively(kwargs, "error") or "Some issue has occured, please check the logs"
+    orchestrator.set_as_failed(exec_id, reason=error)
     return exec_id, kwargs
 
 
@@ -619,7 +746,7 @@ def dynamic_model_error_callback(*args, **kwargs):
     # revert eventually the import in ogr2ogr or the creation of the model in case of failing
     alternate = args[0].args[-1]
     schema_model = ModelSchema.objects.filter(name=alternate).first()
-
-    drop_dynamic_model_schema(schema_model)
+    if schema_model:
+        drop_dynamic_model_schema(schema_model)
 
     return "error"
