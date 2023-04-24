@@ -1,3 +1,4 @@
+from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
 from itertools import chain
@@ -657,58 +658,67 @@ class BaseVectorFileHandler(BaseHandler):
             return
         # reversing the tuple to going backwards with the rollback
         reversed_steps = steps_to_rollback[::-1]
-        istance_name = None
+        instance_name = None
         try:
-            istance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
+            instance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
         except:
             pass
         
-        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {istance_name}")
+        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {instance_name}")
 
         for step in reversed_steps:
             normalized_step_name = step.split(".")[-1]
             if getattr(self, f"_{normalized_step_name}_rollback", None):
                 function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, istance_name, *args, **kwargs)
+                function(exec_id, instance_name, *args, **kwargs)
 
-        logger.warning(f"Rollback for execid: {exec_id} resource published was: {istance_name} completed")
+        logger.warning(f"Rollback for execid: {exec_id} resource published was: {instance_name} completed")
 
-    def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+    def _import_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
         '''
         We use the schema editor directly, because the model itself is not managed
         on creation, but for the delete since we are going to handle, we can use it
         '''
-        logger.info(f"Rollback dynamic model step in progress for execid: {exec_id} resource published was: {istance_name}")
-        schema = ModelSchema.objects.filter(name=istance_name).first()
+        logger.info(f"Rollback dynamic model & ogr2ogr step in progress for execid: {exec_id} resource published was: {instance_name}")
+        schema = ModelSchema.objects.filter(name=instance_name).first()
         if schema is not None:
-            _model_editor = ModelSchemaEditor(initial_model=istance_name, db_name=schema.db_name)
+            _model_editor = ModelSchemaEditor(initial_model=instance_name, db_name=schema.db_name)
             _model_editor.drop_table(schema.as_model())
-            ModelSchema.objects.filter(name=istance_name).delete()
+            ModelSchema.objects.filter(name=instance_name).delete()
+        elif schema is None:
+            try:
+                logger.info("Dynamic model does not exists, removing ogr2ogr table in progress")
+                db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
+                with connections[db_name].cursor() as cursor:
+                    cursor.execute(f"DROP TABLE {instance_name}")
+            except Exception as e:
+                logger.info(e)
+                pass
 
-    def _publish_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):       
+    def _publish_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):       
         '''
         We delete the resource from geoserver
         '''
-        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {istance_name}")
+        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {instance_name}")
         exec_object = orchestrator.get_execution_object(exec_id)
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
-        publisher.delete_resource(istance_name)
+        publisher.delete_resource(instance_name)
     
-    def _create_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
+    def _create_geonode_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
         '''
         The handler will remove the resource from geonode
         '''
-        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}")
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
+        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {instance_name}")
+        resource = ResourceBase.objects.filter(alternate__icontains=instance_name)
         if resource.exists():
             resource.delete()
     
-    def _copy_dynamic_model_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._import_resource_rollback(exec_id, istance_name=istance_name)
+    def _copy_dynamic_model_rollback(self, exec_id, instance_name=None, *args, **kwargs):
+        self._import_resource_rollback(exec_id, instance_name=instance_name)
     
-    def _copy_geonode_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._create_geonode_resource_rollback(exec_id, istance_name=istance_name)
+    def _copy_geonode_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
+        self._create_geonode_resource_rollback(exec_id, instance_name=instance_name)
 
 
 @importer_app.task(
@@ -784,25 +794,38 @@ def import_with_ogr2ogr(
     Perform the ogr2ogr command to import he gpkg inside geonode_data
     If the layer should be overwritten, the option is appended dynamically
     """
+    try:
+        ogr_exe = "/usr/bin/ogr2ogr"
 
-    ogr_exe = "/usr/bin/ogr2ogr"
+        options = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
+            files, original_name, ovverwrite_layer, alternate
+        )
 
-    options = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
-        files, original_name, ovverwrite_layer, alternate
-    )
-
-    commands = [ogr_exe] + options.split(" ")
-
-    process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
-    stdout, stderr = process.communicate()
-    if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
-        try:
-            err = stderr.decode()
-        except Exception:
-            err = stderr.decode("latin1")
-        message = normalize_ogr2ogr_error(err, original_name)
-        raise Exception(f"{message} for layer {alternate}")
-    return "ogr2ogr", alternate, execution_id
+        commands = [ogr_exe] + options.split(" ")
+        logger.info("ogr2ogr command to be executed:")
+        logger.info(" ".join(commands))
+        process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
+        stdout, stderr = process.communicate()
+        if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
+            try:
+                err = stderr.decode()
+            except Exception:
+                err = stderr.decode("latin1")
+            logger.error(f"Original error returned: {err}")
+            message = normalize_ogr2ogr_error(err, original_name)
+            raise Exception(f"{message} for layer {alternate}")
+        return "ogr2ogr", alternate, execution_id
+    except Exception as e:
+        call_rollback_function(
+            execution_id,
+            handlers_module_path=handler_module_path,
+            prev_action=exa.IMPORT.value,
+            layer=original_name,
+            alternate=alternate,
+            error=e,
+            **{}      
+        )
+        raise Exception(e)
 
 
 def normalize_ogr2ogr_error(err, original_name):

@@ -2,6 +2,7 @@ import hashlib
 
 from django.contrib.auth import get_user_model
 from geonode.base.models import ResourceBase
+from geonode.resource.models import ExecutionRequest
 from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 import logging
 from dynamic_models.schema import ModelSchemaEditor
@@ -102,6 +103,10 @@ def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
 
     exec_id = orchestrator.get_execution_object(exec_id=get_uuid(args))
     output_params = exec_id.output_params.copy()
+
+    if exec_id.status == ExecutionRequest.STATUS_FAILED:
+        logger.info("Execution is already in status FAILED")
+        return
 
     logger.error(f"Task FAILED with ID: {str(exec_id.exec_id)}, reason: {exc}")
 
