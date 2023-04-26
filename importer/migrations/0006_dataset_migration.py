@@ -6,7 +6,9 @@ from geonode.layers.models import Dataset
 
 def dataset_migration(apps, _):
     NewResources = apps.get_model('importer', 'ResourceHandlerInfo')
-    for old_resource in Dataset.objects.exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True)):
+    for old_resource in Dataset.objects\
+        .exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True))\
+        .exclude(subtype__in=['remote', None]):        
         # generating orchestrator expected data file
         converted_files = [{"base_file": x} for x in old_resource.files]
         # try to get the handler for the file of the old resource
