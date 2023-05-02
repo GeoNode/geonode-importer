@@ -1,3 +1,4 @@
+import pyproj
 from importer.publisher import DataPublisher
 from importer.utils import find_key_recursively
 from itertools import chain
@@ -168,12 +169,6 @@ class BaseRasterFileHandler(BaseHandler):
             ]
         })
 
-        if _exec and not _exec.input_params.get("store_spatial_file", False):
-            resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
-            # getting all files list
-            resources_files = list(set(chain(*[x.resource.files for x in resources])))
-            # better to delete each single file since it can be a remove storage service
-            list(map(storage_manager.delete, resources_files))
 
     def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
         if action == exa.COPY.value:
@@ -197,10 +192,18 @@ class BaseRasterFileHandler(BaseHandler):
             }]
 
     def identify_authority(self, layer):
-        spatial_ref = layer.GetSpatialRef()
-        spatial_ref.AutoIdentifyEPSG()
-        _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
-        _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
+        try:
+            layer_wkt = layer.GetSpatialRef().ExportToWkt()
+            x = pyproj.CRS(layer_wkt)
+            _name = "EPSG"
+            _code = x.to_epsg(min_confidence=20)
+            if _code is None:
+                raise Exception("authority code not found, fallback to default behaviour")
+        except:
+            spatial_ref = layer.GetSpatialRef()
+            spatial_ref.AutoIdentifyEPSG()
+            _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
+            _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
         return f"{_name}:{_code}"
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:

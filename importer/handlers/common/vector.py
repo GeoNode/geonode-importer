@@ -36,6 +36,7 @@ from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from django.db.models import Q
+import pyproj
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +242,17 @@ class BaseVectorFileHandler(BaseHandler):
         ]
 
     def identify_authority(self, layer):
-        spatial_ref = layer.GetSpatialRef()
-        spatial_ref.AutoIdentifyEPSG()
-        _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
-        _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
+        try:
+            layer_wkt = layer.GetSpatialRef().ExportToWkt()
+            _name = "EPSG"
+            _code = pyproj.CRS(layer_wkt).to_epsg(min_confidence=20)
+            if _code is None:
+                raise Exception("authority code not found, fallback to default behaviour")
+        except:
+            spatial_ref = layer.GetSpatialRef()
+            spatial_ref.AutoIdentifyEPSG()
+            _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
+            _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
         return f"{_name}:{_code}"
 
     def get_ogr2ogr_driver(self):
@@ -802,8 +810,7 @@ def import_with_ogr2ogr(
         )
 
         commands = [ogr_exe] + options.split(" ")
-        logger.info("ogr2ogr command to be executed:")
-        logger.info(" ".join(commands))
+
         process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = process.communicate()
         if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
