@@ -134,7 +134,9 @@ class BaseVectorFileHandler(BaseHandler):
                     f"Resource named {_resource.get('name')} already exists in store:"
                     in str(e)
                 ):
+                    logger.error(f"error during publishing: {e}")
                     continue
+                logger.error(f"error during publishing: {e}")
                 raise e
         return True
 
