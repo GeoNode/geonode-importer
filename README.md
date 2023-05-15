@@ -4,7 +4,7 @@ A GeoNode 4.0 app that implements a brand new upload/import flow.
 The modular logic adapts to different file types, and can be extended by implementing custom handlers.  
 
 
-## Supported file format
+## Supported file formats
 - **ESRI Shapefile** - Vector
 - **GeoPackage** - Vector
 - **GeoJSON** - Vector
@@ -21,7 +21,7 @@ The modular logic adapts to different file types, and can be extended by impleme
 ### GeoJSON
 - The filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
 
-#### CSV
+### CSV
 - The CSV colum accepted for lat/long CSVs (`POINTS`) are the followings:
   - `lat`, `latitude`, `y`
   - `long`, `longitude`, `x`
