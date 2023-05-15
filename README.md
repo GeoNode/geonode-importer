@@ -12,7 +12,9 @@ The modular logic adapts to different file types, and can be extended by impleme
 - **CSV** - Vector
 - **GeoTiff** - Raster
 
-**IMPORTANT**: At the moment the importer doesn't support overwriting/skipping existing layers. Every upload will create a new dataset.
+**IMPORTANT**: At the moment the importer doesn't support overwriting/skipping existing layers from the UI. Every upload will create a new dataset.
+Overwriting a layer (`overwrite_existing_layer`) and skipping an already existing layer (`skip_existing_layers`) is supported through the API. 
+Refer to the [API documentation](http://localhost:5500/_build/html/en/devel/api/usage/index.html#resource-upload) for more details and exmplaes.
 
 ### GeoPackage
 - Features in the same table must have the same geometry type. Mixed geometry tpyes are not supported, therefore `GEOMETRY` columns are not accepted
