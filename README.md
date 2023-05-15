@@ -1,19 +1,39 @@
 # geonode-importer
 
 A GeoNode 4.0 app that implements a brand new upload/import flow.  
-The logic which adapts to different file types is modular.  
-The implemented file type handlers so far are:
-- GeoPackage - Vector
-- GeoJSON - Vector
-- Shapefiles - Vector
-- KML - Vector
-- CSV - Vector
-- GeoTiff - Raster
+The modular logic adapts to different file types, and can be extended by implementing custom handlers.  
 
 
-## System dependencies
+## Supported file format
+- **ESRI Shapefile** - Vector
+- **GeoPackage** - Vector
+- **GeoJSON** - Vector
+- **KML** - Vector
+- **CSV** - Vector
+- **GeoTiff** - Raster
 
-### gdal-bin
+**IMPORTANT**: At the moment the importer doesn't support overwriting/skipping existing layers. Every upload will create a new dataset.
+
+### GeoPackage
+- Features in the same table must have the same geometry type. Mixed geometry tpyes are not supported, therefore `GEOMETRY` columns are not accepted
+- The XML file and the SLD file uploaded along with the GPKG are ignored
+- The number of layers in a GPKG must be lower than the `max_parallel_upload` configuration value
+### GeoJSON
+- The filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
+
+#### CSV
+- The CSV colum accepted for lat/long CSVs (`POINTS`) are the followings:
+  - `lat`, `latitude`, `y`
+  - `long`, `longitude`, `x`
+- For any other geometry type the following columns are accepted:
+  - `geom`, `geometry`, `the_geom`, `wkt_geom`
+
+
+## Installation
+**Starting from GeoNode 4.1.0 the new importer is installed and configured by default**. 
+
+The following documentation is only meant to report what is automatically done under the hood.
+### System dependencies
 
 The importer relies on the gdal utilities to perform format conversions and manipulations. 
 
@@ -35,9 +55,6 @@ or
 
 To install `gdal-bin` on other platforms please refer to https://gdal.org/download.html.
 
-
-## Installation
-
 ### Install the package
 
 Make sure you activated the virtualenv if you are using one.
@@ -47,7 +64,7 @@ pip install -e git+https://github.com/geosolutions-it/geonode-importer.git@maste
 
 ### Configuration
 
-Add to your project's (or geonode's) `settings.py`:
+The following settings in GeoNode's `settings.py` drive the importer functionality:
 
 ```python
 INSTALLED_APPS += ('dynamic_models', 'importer', 'importer.handlers',)
@@ -83,7 +100,7 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
 ```
 
 NOTE:
-In case of local environment, Geoserver and Geonode should be able to reach the default `MEDIA_ROOT`.
+In case of a local environment, Geoserver and Geonode should be able to reach the default `MEDIA_ROOT`.
 
 If some permission is missing, please change the `FILE_UPLOAD_DIRECTORY_PERMISSIONS` to make the folder accessible to both
 
@@ -96,7 +113,6 @@ python manage.py migrate
 python manage.py migrate --database datastore
 ```
 
-
 ## Available environment variables
 
 To change the task rate limit, please update the following env variables:
@@ -107,20 +123,6 @@ IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
 IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
 IMPORTER_RESOURCE_COPY_RATE_LIMIT = # default 10
 ```
-
-## Supported file format
-
-The importer will accept only:
-- Vector GPKG
-- Vector GeoJson
-
-
-## Limitations
-
-- The XML file and the SLD file uploaded along with the GPKG are ignored
-- Every upload will create a new layer. There is no option for overwriting/skipping the existing layers
-- The number of the layer in the GPKG should be lower than the `max_parallel_upload` configuration value
-
 
 ## Troubleshooting
 
@@ -137,23 +139,3 @@ Here a description of the various codes:
 | `RQ14`  | Unknown geometry type  | The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON|
 | `RQ15`  | Geometry type mismatch | All table geometries must match the geometry_type_name from the gpkg_geometry_columns table|
 | `RC18`  | Geometry attr mismatch | It is recommended to give all GEOMETRY type columns the same name.|
-
-
-### GeoJson
-
-- Filename should not contain dots, for example "invalid.file.name.geojson" -> "valid_file_name.geojson"
-
-
-### CSV
-
-
-The CSV colum accepted for lat/long CSVs are the followings:
-
-- `lat`, `latitude`, `y`
-- `long`, `longitude`, `x`
-
-NB: The CSV with the above, are treated as `POINTS`
-
-Otherwise if you have to pass a geometry column, the accepted column names are:
-
-- `geom`, `geometry`, `the_geom`, `wkt_geom`
