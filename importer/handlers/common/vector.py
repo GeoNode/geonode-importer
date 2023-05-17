@@ -168,11 +168,13 @@ class BaseVectorFileHandler(BaseHandler):
     @staticmethod
     def delete_resource(instance):
         """
-        Base function to delete the resource with all the dependencies (example: dynamic model)
+        Base function to delete the resource with all the dependencies (dynamic model)
         """
         try:
             name = instance.alternate.split(":")[1]
-            schema = ModelSchema.objects.filter(name=name).first()
+            schema = None
+            if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+                schema = ModelSchema.objects.filter(name=name).first()
             if schema:
                 '''
                 We use the schema editor directly, because the model itself is not managed
@@ -181,7 +183,6 @@ class BaseVectorFileHandler(BaseHandler):
                 _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
                 _model_editor.drop_table(schema.as_model())
                 ModelSchema.objects.filter(name=name).delete()
-            # Removing Field Schema
         except Exception as e:
             logger.error(f"Error during deletion of Dynamic Model schema: {e.args[0]}")
 
@@ -690,7 +691,9 @@ class BaseVectorFileHandler(BaseHandler):
         on creation, but for the delete since we are going to handle, we can use it
         '''
         logger.info(f"Rollback dynamic model & ogr2ogr step in progress for execid: {exec_id} resource published was: {instance_name}")
-        schema = ModelSchema.objects.filter(name=instance_name).first()
+        schema = None
+        if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
+            schema = ModelSchema.objects.filter(name=instance_name).first()
         if schema is not None:
             _model_editor = ModelSchemaEditor(initial_model=instance_name, db_name=schema.db_name)
             _model_editor.drop_table(schema.as_model())
