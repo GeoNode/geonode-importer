@@ -10,7 +10,13 @@ def dataset_migration(apps, _):
         .exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True))\
         .exclude(subtype__in=['remote', None]):        
         # generating orchestrator expected data file
-        converted_files = [{"base_file": x} for x in old_resource.files]
+        if not old_resource.files:
+            if old_resource.is_vector():
+                converted_files = [{"base_file": "placeholder.shp"}]
+            else:
+                converted_files = [{"base_file": "placeholder.tiff"}]
+        else:
+            converted_files = [{"base_file": x} for x in old_resource.files]
         # try to get the handler for the file of the old resource
         # when is found, we can exit
         handler_to_use = None
