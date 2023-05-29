@@ -504,6 +504,9 @@ def copy_raster_file(
 
     original_dataset = original_dataset.first()
 
+    if not original_dataset.files:
+        raise InvalidGeoTiffException("The original file of the dataset is not available, Is not possible to copy the dataset")
+
     new_file_location = orchestrator.load_handler(handler_module_path).copy_original_file(original_dataset)
 
     new_dataset_alternate = create_alternate(original_dataset.title, exec_id)
