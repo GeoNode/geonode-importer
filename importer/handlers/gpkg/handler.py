@@ -106,8 +106,16 @@ class GPKGFileHandler(BaseVectorFileHandler):
             validations="RQ1, RQ2, RQ13, RQ14, RQ15, RC18",
         )
         if not validator[-1]:
+            error_to_raise = []
+            for error in validator[0]:
+                logger.error(error)
+                if 'locations' in error:
+                    error_to_raise.extend(error['locations'])
+                else:
+                    error_to_raise.append(error['validation_description'])
+
             raise InvalidGeopackageException(
-                '. '.join([x.get("validation_description") for x in validator[0]])
+                '. '.join(error_to_raise)
             )
 
         return True

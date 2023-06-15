@@ -701,6 +701,9 @@ class BaseVectorFileHandler(BaseHandler):
         elif schema is None:
             try:
                 logger.info("Dynamic model does not exists, removing ogr2ogr table in progress")
+                if instance_name is None:
+                    logger.info("No table created, skipping...")
+                    return
                 db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
                 with connections[db_name].cursor() as cursor:
                     cursor.execute(f"DROP TABLE {instance_name}")
