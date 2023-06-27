@@ -194,11 +194,13 @@ class BaseRasterFileHandler(BaseHandler):
     def identify_authority(self, layer):
         try:
             layer_wkt = layer.GetSpatialRef().ExportToWkt()
-            x = pyproj.CRS(layer_wkt)
             _name = "EPSG"
-            _code = x.to_epsg(min_confidence=20)
+            _code = pyproj.CRS(layer_wkt).to_epsg(min_confidence=20)
             if _code is None:
-                raise Exception("authority code not found, fallback to default behaviour")
+                layer_proj4 = layer.GetSpatialRef().ExportToProj4()
+                _code = pyproj.CRS(layer_proj4).to_epsg(min_confidence=20)
+                if _code is None:
+                    raise Exception("authority code not found, fallback to default behaviour")
         except:
             spatial_ref = layer.GetSpatialRef()
             spatial_ref.AutoIdentifyEPSG()
