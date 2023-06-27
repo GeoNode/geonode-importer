@@ -250,7 +250,10 @@ class BaseVectorFileHandler(BaseHandler):
             _name = "EPSG"
             _code = pyproj.CRS(layer_wkt).to_epsg(min_confidence=20)
             if _code is None:
-                raise Exception("authority code not found, fallback to default behaviour")
+                layer_proj4 = layer.GetSpatialRef().ExportToProj4()
+                _code = pyproj.CRS(layer_proj4).to_epsg(min_confidence=20)
+                if _code is None:
+                    raise Exception("CRS authority code not found, fallback to default behaviour")
         except:
             spatial_ref = layer.GetSpatialRef()
             spatial_ref.AutoIdentifyEPSG()
