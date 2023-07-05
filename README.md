@@ -1,8 +1,12 @@
 # geonode-importer
 
-A GeoNode 4.0 app that implements a brand new upload/import flow.  
+A GeoNode app that implements a flow to upload/import data files.  
 The modular logic adapts to different file types, and can be extended by implementing custom handlers.  
 
+## Some history
+`geonode-importer` has been created as a GeoNode 4.0 app to handle some formats that at the time were unsupported by GeoNode.
+It has then been extended to include all previously handled formats.  
+In GeoNode 4.1 `geonode-importer` replaced the previous importer logic.
 
 ## Supported file formats
 - **ESRI Shapefile** - Vector
