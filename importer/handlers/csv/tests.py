@@ -29,9 +29,7 @@ class TestCSVHandler(TestCase):
         cls.invalid_files = {"base_file": cls.invalid_csv}
         cls.valid_files = {"base_file": cls.valid_csv}
         cls.owner = get_user_model().objects.first()
-        cls.layer = create_single_dataset(
-            name="test", owner=cls.owner
-        )
+        cls.layer = create_single_dataset(name="test", owner=cls.owner)
 
     def test_task_list_is_the_expected_one(self):
         expected = (
@@ -60,18 +58,18 @@ class TestCSVHandler(TestCase):
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "The CSV provided is invalid, no layers found"
-            in str(_exc.exception.detail)
+            "The CSV provided is invalid, no layers found" in str(_exc.exception.detail)
         )
 
     def test_is_valid_should_raise_exception_if_the_csv_missing_geom(self):
         with self.assertRaises(InvalidCSVException) as _exc:
-            self.handler.is_valid(files={"base_file": self.missing_geom}, user=self.user)
+            self.handler.is_valid(
+                files={"base_file": self.missing_geom}, user=self.user
+            )
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "Not enough geometry field are set"
-            in str(_exc.exception.detail)
+            "Not enough geometry field are set" in str(_exc.exception.detail)
         )
 
     def test_is_valid_should_raise_exception_if_the_csv_missing_lat(self):
@@ -79,20 +77,16 @@ class TestCSVHandler(TestCase):
             self.handler.is_valid(files={"base_file": self.missing_lat}, user=self.user)
 
         self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "Latitude is missing"
-            in str(_exc.exception.detail)
-        )
+        self.assertTrue("Latitude is missing" in str(_exc.exception.detail))
 
     def test_is_valid_should_raise_exception_if_the_csv_missing_long(self):
         with self.assertRaises(InvalidCSVException) as _exc:
-            self.handler.is_valid(files={"base_file": self.missing_long}, user=self.user)
+            self.handler.is_valid(
+                files={"base_file": self.missing_long}, user=self.user
+            )
 
         self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "Longitude is missing"
-            in str(_exc.exception.detail)
-        )
+        self.assertTrue("Longitude is missing" in str(_exc.exception.detail))
 
     def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
         parallelism, created = UploadParallelismLimit.objects.get_or_create(
@@ -146,8 +140,10 @@ class TestCSVHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
 
-    @patch('importer.handlers.common.vector.Popen')
-    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(self, _open):
+    @patch("importer.handlers.common.vector.Popen")
+    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(
+        self, _open
+    ):
         _uuid = uuid.uuid4()
 
         comm = MagicMock()
@@ -160,14 +156,17 @@ class TestCSVHandler(TestCase):
             original_name="dataset",
             handler_module_path=str(self.handler),
             ovverwrite_layer=False,
-            alternate="alternate"
+            alternate="alternate",
         )
 
-        self.assertEqual('ogr2ogr', _task)
+        self.assertEqual("ogr2ogr", _task)
         self.assertEqual(alternate, "alternate")
         self.assertEqual(str(_uuid), execution_id)
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_csv}" -lco DIM=2 -nln alternate "dataset" -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME=geometry  -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*,wkt_geom" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"', stdout=-1, stderr=-1, shell=True # noqa
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_csv}" -lco DIM=2 -nln alternate "dataset" -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME=geometry  -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*,wkt_geom" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"',
+            stdout=-1,
+            stderr=-1,
+            shell=True,  # noqa
         )

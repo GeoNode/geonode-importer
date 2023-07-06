@@ -1,4 +1,3 @@
-
 import uuid
 from django.test import TestCase
 from mock import MagicMock, patch
@@ -35,7 +34,7 @@ class TestGeoJsonFileHandler(TestCase):
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_geonode_resource"
+            "importer.create_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["import"]), 4)
         self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
@@ -106,8 +105,10 @@ class TestGeoJsonFileHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.gpkg"})
         self.assertFalse(actual)
 
-    @patch('importer.handlers.common.vector.Popen')
-    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(self, _open):
+    @patch("importer.handlers.common.vector.Popen")
+    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(
+        self, _open
+    ):
         _uuid = uuid.uuid4()
 
         comm = MagicMock()
@@ -120,14 +121,17 @@ class TestGeoJsonFileHandler(TestCase):
             original_name="dataset",
             handler_module_path=str(self.handler),
             ovverwrite_layer=False,
-            alternate="alternate"
+            alternate="alternate",
         )
 
-        self.assertEqual('ogr2ogr', _task)
+        self.assertEqual("ogr2ogr", _task)
         self.assertEqual(alternate, "alternate")
         self.assertEqual(str(_uuid), execution_id)
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry', stdout=-1, stderr=-1, shell=True # noqa
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry',
+            stdout=-1,
+            stderr=-1,
+            shell=True,  # noqa
         )

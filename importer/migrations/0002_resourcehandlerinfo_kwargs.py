@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('importer', '0001_initial'),
+        ("importer", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='resourcehandlerinfo',
-            name='kwargs',
-            field=models.JSONField(default=dict, verbose_name='Storing strictly related information of the handler'),
+            model_name="resourcehandlerinfo",
+            name="kwargs",
+            field=models.JSONField(
+                default=dict,
+                verbose_name="Storing strictly related information of the handler",
+            ),
         ),
     ]

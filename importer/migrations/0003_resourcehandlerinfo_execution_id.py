@@ -5,16 +5,20 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('resource', '0007_alter_executionrequest_action'),
-        ('importer', '0002_resourcehandlerinfo_kwargs'),
+        ("resource", "0007_alter_executionrequest_action"),
+        ("importer", "0002_resourcehandlerinfo_kwargs"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='resourcehandlerinfo',
-            name='execution_id',
-            field=models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.SET_NULL, to='resource.executionrequest'),
+            model_name="resourcehandlerinfo",
+            name="execution_id",
+            field=models.ForeignKey(
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="resource.executionrequest",
+            ),
         ),
     ]

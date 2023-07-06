@@ -5,7 +5,6 @@ from geonode.upload.models import Upload
 
 class ImporterSerializer(DynamicModelSerializer):
     class Meta:
-
         ref_name = "ImporterSerializer"
         model = Upload
         view_name = "importer_upload"

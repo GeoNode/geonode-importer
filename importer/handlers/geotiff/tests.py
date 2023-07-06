@@ -1,4 +1,3 @@
-
 from django.test import TestCase
 from importer.handlers.geotiff.exceptions import InvalidGeoTiffException
 from django.contrib.auth import get_user_model
@@ -22,16 +21,14 @@ class TestGeoTiffFileHandler(TestCase):
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_tiff = {"base_file": "invalid.file.foo"}
         cls.owner = get_user_model().objects.first()
-        cls.layer = create_single_dataset(
-            name="test_grid", owner=cls.owner
-        )
+        cls.layer = create_single_dataset(name="test_grid", owner=cls.owner)
 
     def test_task_list_is_the_expected_one(self):
         expected = (
             "start_import",
             "importer.import_resource",
             "importer.publish_resource",
-            "importer.create_geonode_resource"
+            "importer.create_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["import"]), 4)
         self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
@@ -41,7 +38,7 @@ class TestGeoTiffFileHandler(TestCase):
             "start_copy",
             "importer.copy_raster_file",
             "importer.publish_resource",
-            "importer.copy_geonode_resource"
+            "importer.copy_geonode_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["copy"]), 4)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
@@ -85,7 +82,8 @@ class TestGeoTiffFileHandler(TestCase):
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "Please remove the additional dots in the filename" in str(_exc.exception.detail)
+            "Please remove the additional dots in the filename"
+            in str(_exc.exception.detail)
         )
 
     def test_is_valid_should_raise_exception_if_the_tif_not_provided(self):
@@ -93,9 +91,7 @@ class TestGeoTiffFileHandler(TestCase):
             self.handler.is_valid(files={"foo": "bar"}, user=self.user)
 
         self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "base file is not provided" in str(_exc.exception.detail)
-        )
+        self.assertTrue("base file is not provided" in str(_exc.exception.detail))
 
     def test_can_handle_should_return_true_for_tif(self):
         actual = self.handler.can_handle(self.valid_files)

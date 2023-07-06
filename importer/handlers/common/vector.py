@@ -76,10 +76,10 @@ class BaseVectorFileHandler(BaseHandler):
 
     @staticmethod
     def has_serializer(_data) -> bool:
-        '''
+        """
         This endpoint will return True or False if with the info provided
         the handler is able to handle the file or not
-        '''
+        """
         return False
 
     @staticmethod
@@ -157,7 +157,7 @@ class BaseVectorFileHandler(BaseHandler):
             % (db_name, db_host, db_port, db_user, db_password)
         )
         options += f'"{files.get("base_file")}"' + " "
-#        options += "-lco DIM=2 "
+        #        options += "-lco DIM=2 "
         options += f'-nln {alternate} "{original_name}"'
 
         if ovverwrite_layer:
@@ -176,11 +176,13 @@ class BaseVectorFileHandler(BaseHandler):
             if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
                 schema = ModelSchema.objects.filter(name=name).first()
             if schema:
-                '''
+                """
                 We use the schema editor directly, because the model itself is not managed
                 on creation, but for the delete since we are going to handle, we can use it
-                '''
-                _model_editor = ModelSchemaEditor(initial_model=name, db_name=schema.db_name)
+                """
+                _model_editor = ModelSchemaEditor(
+                    initial_model=name, db_name=schema.db_name
+                )
                 _model_editor.drop_table(schema.as_model())
                 ModelSchema.objects.filter(name=name).delete()
         except Exception as e:
@@ -188,12 +190,12 @@ class BaseVectorFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        '''
+        """
         Override this method if there is some extra step to perform
         before considering the execution as completed.
         For example can be used to trigger an email-send to notify
         that the execution is completed
-        '''
+        """
         # as last step, we delete the celery task to keep the number of rows under control
         lower_exec_id = execution_id.replace("-", "_").lower()
         TaskResult.objects.filter(
@@ -207,12 +209,14 @@ class BaseVectorFileHandler(BaseHandler):
 
         _exec = orchestrator.get_execution_object(execution_id)
 
-        _exec.output_params.update(**{
-            "detail_url": [
-                x.resource.detail_url
-                for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-            ]
-        })
+        _exec.output_params.update(
+            **{
+                "detail_url": [
+                    x.resource.detail_url
+                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
+                ]
+            }
+        )
         _exec.save()
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
@@ -221,12 +225,17 @@ class BaseVectorFileHandler(BaseHandler):
             # better to delete each single file since it can be a remove storage service
             list(map(storage_manager.delete, resources_files))
 
-    def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
+    def extract_resource_to_publish(
+        self, files, action, layer_name, alternate, **kwargs
+    ):
         if action == exa.COPY.value:
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.filter(Q(alternate__icontains=layer_name) | Q(title__icontains=layer_name))
+                    "crs": ResourceBase.objects.filter(
+                        Q(alternate__icontains=layer_name)
+                        | Q(title__icontains=layer_name)
+                    )
                     .first()
                     .srid,
                 }
@@ -238,7 +247,7 @@ class BaseVectorFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(_l) if _l.GetSpatialRef() else None
+                "crs": self.identify_authority(_l) if _l.GetSpatialRef() else None,
             }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name
@@ -253,12 +262,20 @@ class BaseVectorFileHandler(BaseHandler):
                 layer_proj4 = layer.GetSpatialRef().ExportToProj4()
                 _code = pyproj.CRS(layer_proj4).to_epsg(min_confidence=20)
                 if _code is None:
-                    raise Exception("CRS authority code not found, fallback to default behaviour")
+                    raise Exception(
+                        "CRS authority code not found, fallback to default behaviour"
+                    )
         except:
             spatial_ref = layer.GetSpatialRef()
             spatial_ref.AutoIdentifyEPSG()
-            _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue('AUTHORITY', 0)
-            _code = spatial_ref.GetAuthorityCode('PROJCS') or spatial_ref.GetAuthorityCode('GEOGCS') or spatial_ref.GetAttrValue('AUTHORITY', 1)
+            _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue(
+                "AUTHORITY", 0
+            )
+            _code = (
+                spatial_ref.GetAuthorityCode("PROJCS")
+                or spatial_ref.GetAuthorityCode("GEOGCS")
+                or spatial_ref.GetAttrValue("AUTHORITY", 1)
+            )
         return f"{_name}:{_code}"
 
     def get_ogr2ogr_driver(self):
@@ -279,16 +296,19 @@ class BaseVectorFileHandler(BaseHandler):
         logger.info(f"Total number of layers available: {layer_count}")
         _exec = self._get_execution_request_object(execution_id)
         _input = {**_exec.input_params, **{"total_layers": layer_count}}
-        orchestrator.update_execution_request_status(execution_id=str(execution_id), input_params=_input)
+        orchestrator.update_execution_request_status(
+            execution_id=str(execution_id), input_params=_input
+        )
         dynamic_model = None
         celery_group = None
         try:
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
-
                 layer_name = self.fixup_name(layer.GetName())
 
-                should_be_overwritten = _exec.input_params.get("overwrite_existing_layer")
+                should_be_overwritten = _exec.input_params.get(
+                    "overwrite_existing_layer"
+                )
                 # should_be_imported check if the user+layername already exists or not
                 if (
                     should_be_imported(
@@ -299,18 +319,27 @@ class BaseVectorFileHandler(BaseHandler):
                         ),
                         overwrite_existing_layer=should_be_overwritten,
                     )
-                    #and layer.GetGeometryColumn() is not None
+                    # and layer.GetGeometryColumn() is not None
                 ):
                     # update the execution request object
                     # setup dynamic model and retrieve the group task needed for tun the async workflow
-                    # create the async task for create the resource into geonode_data with ogr2ogr                    
+                    # create the async task for create the resource into geonode_data with ogr2ogr
                     if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
-                        dynamic_model, alternate, celery_group = self.setup_dynamic_model(
-                            layer, execution_id, should_be_overwritten, username=_exec.user
+                        (
+                            dynamic_model,
+                            alternate,
+                            celery_group,
+                        ) = self.setup_dynamic_model(
+                            layer,
+                            execution_id,
+                            should_be_overwritten,
+                            username=_exec.user,
                         )
                     else:
-                        alternate = self.find_alternate_by_dataset(_exec, layer_name, should_be_overwritten)
-                    
+                        alternate = self.find_alternate_by_dataset(
+                            _exec, layer_name, should_be_overwritten
+                        )
+
                     ogr_res = self.get_ogr2ogr_task_group(
                         execution_id,
                         files,
@@ -339,7 +368,7 @@ class BaseVectorFileHandler(BaseHandler):
                             "importer.import_resource",
                             layer_name,
                             alternate,
-                            **kwargs
+                            **kwargs,
                         )
                     )
         except Exception as e:
@@ -355,7 +384,9 @@ class BaseVectorFileHandler(BaseHandler):
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
         workspace = get_geoserver_cascading_workspace(create=False)
-        dataset_available = Dataset.objects.filter(alternate__iexact=f"{workspace.name}:{layer_name}")
+        dataset_available = Dataset.objects.filter(
+            alternate__iexact=f"{workspace.name}:{layer_name}"
+        )
 
         dataset_exists = dataset_available.exists()
 
@@ -367,7 +398,7 @@ class BaseVectorFileHandler(BaseHandler):
             alternate = create_alternate(layer_name, str(_exec_obj.exec_id))
 
         return alternate
-        
+
     def setup_dynamic_model(
         self,
         layer: ogr.Layer,
@@ -401,10 +432,10 @@ class BaseVectorFileHandler(BaseHandler):
             """
             dynamic_schema = dynamic_schema.get()
         elif not dataset_exists and not dynamic_schema_exists:
-            '''
+            """
             cames here when is a new brand upload or when (for any reasons) the dataset exists but the
             dynamic model has not been created before
-            '''
+            """
             #  layer_name = create_alternate(layer_name, execution_id)
             dynamic_schema = ModelSchema.objects.create(
                 name=layer_name,
@@ -412,10 +443,10 @@ class BaseVectorFileHandler(BaseHandler):
                 managed=False,
                 db_table_name=layer_name,
             )
-        elif (not dataset_exists and dynamic_schema_exists) or (
-            dataset_exists and dynamic_schema_exists and not should_be_overwritten
-        ) or (
-            dataset_exists and not dynamic_schema_exists
+        elif (
+            (not dataset_exists and dynamic_schema_exists)
+            or (dataset_exists and dynamic_schema_exists and not should_be_overwritten)
+            or (dataset_exists and not dynamic_schema_exists)
         ):
             """
             it comes here when the layer should not be overrided so we append the UUID
@@ -456,20 +487,34 @@ class BaseVectorFileHandler(BaseHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)', 'None']:
+        if (
+            layer.GetGeometryColumn()
+            or self.default_geometry_column_name
+            and ogr.GeometryTypeToName(layer.GetGeomType())
+            not in ["Geometry Collection", "Unknown (any)", "None"]
+        ):
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             layer_schema += [
                 {
-                    "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
-                    "class_name": GEOM_TYPE_MAPPING.get(self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType()))),
-                    "dim": 2 if not ogr.GeometryTypeToName(layer.GetGeomType()).lower().startswith('3d') else 3
+                    "name": layer.GetGeometryColumn()
+                    or self.default_geometry_column_name,
+                    "class_name": GEOM_TYPE_MAPPING.get(
+                        self.promote_to_multi(
+                            ogr.GeometryTypeToName(layer.GetGeomType())
+                        )
+                    ),
+                    "dim": 2
+                    if not ogr.GeometryTypeToName(layer.GetGeomType())
+                    .lower()
+                    .startswith("3d")
+                    else 3,
                 }
             ]
 
         # ones we have the schema, here we create a list of chunked value
         # so the async task will handle max of 30 field per task
         list_chunked = [
-            layer_schema[i: i + 30] for i in range(0, len(layer_schema), 30)
+            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)
         ]
 
         # definition of the celery group needed to run the async workflow.
@@ -484,15 +529,20 @@ class BaseVectorFileHandler(BaseHandler):
         return dynamic_model_schema, celery_group
 
     def promote_to_multi(self, geometry_name: str):
-        '''
+        """
         If needed change the name of the geometry, by promoting it to Multi
         example if is Point -> MultiPoint
         Needed for the shapefiles
-        '''
+        """
         return geometry_name
 
     def create_geonode_resource(
-        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
+        self,
+        layer_name: str,
+        alternate: str,
+        execution_id: str,
+        resource_type: Dataset = Dataset,
+        files=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -527,7 +577,12 @@ class BaseVectorFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                files=list(set(list(_exec.input_params.get("files", {}).values()) or list(files))),
+                files=list(
+                    set(
+                        list(_exec.input_params.get("files", {}).values())
+                        or list(files)
+                    )
+                ),
             ),
         )
 
@@ -544,9 +599,13 @@ class BaseVectorFileHandler(BaseHandler):
         return saved_dataset
 
     def overwrite_geonode_resource(
-        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
+        self,
+        layer_name: str,
+        alternate: str,
+        execution_id: str,
+        resource_type: Dataset = Dataset,
+        files=None,
     ):
-
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
         _exec = self._get_execution_request_object(execution_id)
@@ -557,19 +616,25 @@ class BaseVectorFileHandler(BaseHandler):
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
-            dataset = resource_manager.update(dataset.uuid, instance=dataset, files=files)
+            dataset = resource_manager.update(
+                dataset.uuid, instance=dataset, files=files
+            )
 
             self.handle_xml_file(dataset, _exec)
             self.handle_sld_file(dataset, _exec)
 
-            resource_manager.set_thumbnail(dataset.uuid, instance=dataset, overwrite=False)
+            resource_manager.set_thumbnail(
+                dataset.uuid, instance=dataset, overwrite=False
+            )
             dataset.refresh_from_db()
             return dataset
         elif not dataset.exists() and _overwrite:
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
-            return self.create_geonode_resource(layer_name, alternate, execution_id, resource_type, files)
+            return self.create_geonode_resource(
+                layer_name, alternate, execution_id, resource_type, files
+            )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
                 "The resource does not exists, please use 'create_geonode_resource' to create one"
@@ -597,7 +662,13 @@ class BaseVectorFileHandler(BaseHandler):
             vals={"dirty_state": True},
         )
 
-    def create_resourcehandlerinfo(self, handler_module_path: str, resource: Dataset, execution_id: ExecutionRequest, **kwargs):
+    def create_resourcehandlerinfo(
+        self,
+        handler_module_path: str,
+        resource: Dataset,
+        execution_id: ExecutionRequest,
+        **kwargs,
+    ):
         """
         Create relation between the GeonodeResource and the handler used
         to create/copy it
@@ -606,10 +677,16 @@ class BaseVectorFileHandler(BaseHandler):
             handler_module_path=handler_module_path,
             resource=resource,
             execution_request=execution_id,
-            kwargs=kwargs.get('kwargs', {}) or kwargs
+            kwargs=kwargs.get("kwargs", {}) or kwargs,
         )
 
-    def overwrite_resourcehandlerinfo(self, handler_module_path: str, resource: Dataset, execution_id: ExecutionRequest, **kwargs):
+    def overwrite_resourcehandlerinfo(
+        self,
+        handler_module_path: str,
+        resource: Dataset,
+        execution_id: ExecutionRequest,
+        **kwargs,
+    ):
         """
         Overwrite the ResourceHandlerInfo
         """
@@ -618,25 +695,38 @@ class BaseVectorFileHandler(BaseHandler):
                 handler_module_path=handler_module_path,
                 resource=resource,
                 execution_request=execution_id,
-                kwargs=kwargs.get('kwargs', {}) or kwargs
+                kwargs=kwargs.get("kwargs", {}) or kwargs,
             )
             return
-        return self.create_resourcehandlerinfo(handler_module_path, resource, execution_id, **kwargs)
+        return self.create_resourcehandlerinfo(
+            handler_module_path, resource, execution_id, **kwargs
+        )
 
     def copy_geonode_resource(
-        self, alternate: str, resource: Dataset, _exec: ExecutionRequest, data_to_update: dict, new_alternate: str, **kwargs
+        self,
+        alternate: str,
+        resource: Dataset,
+        _exec: ExecutionRequest,
+        data_to_update: dict,
+        new_alternate: str,
+        **kwargs,
     ):
         resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=resource.files
+            files=resource.files,
         )
         resource.refresh_from_db()
         return resource
 
     def get_ogr2ogr_task_group(
-        self, execution_id: str, files: dict, layer, should_be_overwritten: bool, alternate: str
+        self,
+        execution_id: str,
+        files: dict,
+        layer,
+        should_be_overwritten: bool,
+        alternate: str,
     ):
         """
         In case the OGR2OGR is different from the default one, is enough to ovverride this method
@@ -661,24 +751,29 @@ class BaseVectorFileHandler(BaseHandler):
         """
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
 
-    def rollback(self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs):
-        
+    def rollback(
+        self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
+    ):
         steps = self.ACTIONS.get(action_to_rollback)
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
-        steps_to_rollback = steps[1:step_index+1]
+        steps_to_rollback = steps[1 : step_index + 1]
         if not steps_to_rollback:
             return
         # reversing the tuple to going backwards with the rollback
         reversed_steps = steps_to_rollback[::-1]
         instance_name = None
         try:
-            instance_name = find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
+            instance_name = (
+                find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
+            )
         except:
             pass
-        
-        logger.warning(f"Starting rollback for execid: {exec_id} resource published was: {instance_name}")
+
+        logger.warning(
+            f"Starting rollback for execid: {exec_id} resource published was: {instance_name}"
+        )
 
         for step in reversed_steps:
             normalized_step_name = step.split(".")[-1]
@@ -686,24 +781,32 @@ class BaseVectorFileHandler(BaseHandler):
                 function = getattr(self, f"_{normalized_step_name}_rollback")
                 function(exec_id, instance_name, *args, **kwargs)
 
-        logger.warning(f"Rollback for execid: {exec_id} resource published was: {instance_name} completed")
+        logger.warning(
+            f"Rollback for execid: {exec_id} resource published was: {instance_name} completed"
+        )
 
     def _import_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
-        '''
+        """
         We use the schema editor directly, because the model itself is not managed
         on creation, but for the delete since we are going to handle, we can use it
-        '''
-        logger.info(f"Rollback dynamic model & ogr2ogr step in progress for execid: {exec_id} resource published was: {instance_name}")
+        """
+        logger.info(
+            f"Rollback dynamic model & ogr2ogr step in progress for execid: {exec_id} resource published was: {instance_name}"
+        )
         schema = None
         if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
             schema = ModelSchema.objects.filter(name=instance_name).first()
         if schema is not None:
-            _model_editor = ModelSchemaEditor(initial_model=instance_name, db_name=schema.db_name)
+            _model_editor = ModelSchemaEditor(
+                initial_model=instance_name, db_name=schema.db_name
+            )
             _model_editor.drop_table(schema.as_model())
             ModelSchema.objects.filter(name=instance_name).delete()
         elif schema is None:
             try:
-                logger.info("Dynamic model does not exists, removing ogr2ogr table in progress")
+                logger.info(
+                    "Dynamic model does not exists, removing ogr2ogr table in progress"
+                )
                 if instance_name is None:
                     logger.info("No table created, skipping...")
                     return
@@ -714,29 +817,39 @@ class BaseVectorFileHandler(BaseHandler):
                 logger.info(e)
                 pass
 
-    def _publish_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):       
-        '''
+    def _publish_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
+        """
         We delete the resource from geoserver
-        '''
-        logger.info(f"Rollback publishing step in progress for execid: {exec_id} resource published was: {instance_name}")
+        """
+        logger.info(
+            f"Rollback publishing step in progress for execid: {exec_id} resource published was: {instance_name}"
+        )
         exec_object = orchestrator.get_execution_object(exec_id)
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
         publisher.delete_resource(instance_name)
-    
-    def _create_geonode_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
-        '''
+
+    def _create_geonode_resource_rollback(
+        self, exec_id, instance_name=None, *args, **kwargs
+    ):
+        """
         The handler will remove the resource from geonode
-        '''
-        logger.info(f"Rollback geonode step in progress for execid: {exec_id} resource created was: {instance_name}")
+        """
+        logger.info(
+            f"Rollback geonode step in progress for execid: {exec_id} resource created was: {instance_name}"
+        )
         resource = ResourceBase.objects.filter(alternate__icontains=instance_name)
         if resource.exists():
             resource.delete()
-    
-    def _copy_dynamic_model_rollback(self, exec_id, instance_name=None, *args, **kwargs):
+
+    def _copy_dynamic_model_rollback(
+        self, exec_id, instance_name=None, *args, **kwargs
+    ):
         self._import_resource_rollback(exec_id, instance_name=instance_name)
-    
-    def _copy_geonode_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
+
+    def _copy_geonode_resource_rollback(
+        self, exec_id, instance_name=None, *args, **kwargs
+    ):
         self._create_geonode_resource_rollback(exec_id, instance_name=instance_name)
 
 
@@ -753,12 +866,13 @@ def import_next_step(
     actual_step: str,
     layer_name: str,
     alternate: str,
-    **kwargs: dict
+    **kwargs: dict,
 ):
     """
     If the ingestion of the resource is successfuly, the next step for the layer is called
     """
     from importer.celery_tasks import import_orchestrator
+
     try:
         _exec = orchestrator.get_execution_object(execution_id)
 
@@ -784,12 +898,11 @@ def import_next_step(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **kwargs,
         )
 
     finally:
         return "import_next_step", alternate, execution_id
-
 
 
 @importer_app.task(
@@ -824,7 +937,12 @@ def import_with_ogr2ogr(
 
         process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
         stdout, stderr = process.communicate()
-        if stderr is not None and stderr != b"" and b"ERROR" in stderr or b'Syntax error' in stderr:
+        if (
+            stderr is not None
+            and stderr != b""
+            and b"ERROR" in stderr
+            or b"Syntax error" in stderr
+        ):
             try:
                 err = stderr.decode()
             except Exception:
@@ -841,11 +959,13 @@ def import_with_ogr2ogr(
             layer=original_name,
             alternate=alternate,
             error=e,
-            **{}      
+            **{},
         )
         raise Exception(e)
 
 
 def normalize_ogr2ogr_error(err, original_name):
-    getting_errors = [y for y in err.split('\n') if 'ERROR ' in y]
-    return ', '.join([x.split(original_name)[0] for x in getting_errors if 'ERROR' in x])
+    getting_errors = [y for y in err.split("\n") if "ERROR " in y]
+    return ", ".join(
+        [x.split(original_name)[0] for x in getting_errors if "ERROR" in x]
+    )

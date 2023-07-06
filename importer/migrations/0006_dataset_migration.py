@@ -4,11 +4,12 @@ from django.db import migrations
 from importer.orchestrator import orchestrator
 from geonode.layers.models import Dataset
 
+
 def dataset_migration(apps, _):
-    NewResources = apps.get_model('importer', 'ResourceHandlerInfo')
-    for old_resource in Dataset.objects\
-        .exclude(pk__in=NewResources.objects.values_list('resource_id', flat=True))\
-        .exclude(subtype__in=['remote', None]):        
+    NewResources = apps.get_model("importer", "ResourceHandlerInfo")
+    for old_resource in Dataset.objects.exclude(
+        pk__in=NewResources.objects.values_list("resource_id", flat=True)
+    ).exclude(subtype__in=["remote", None]):
         # generating orchestrator expected data file
         if not old_resource.files:
             if old_resource.is_vector():
@@ -29,14 +30,13 @@ def dataset_migration(apps, _):
             handler_module_path=str(handler_to_use),
             resource=old_resource,
             execution_id=None,
-            kwargs={"is_legacy": True}
+            kwargs={"is_legacy": True},
         )
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('importer', '0005_fixup_dynamic_shema_table_names'),
+        ("importer", "0005_fixup_dynamic_shema_table_names"),
     ]
 
     operations = [

@@ -14,7 +14,6 @@ from importer.tests.utils import ImporterBaseTestSupport
 
 
 class TestImporterViewSet(ImporterBaseTestSupport):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -45,7 +44,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         upload.upload.return_value = HttpResponse()
         patch_upload.return_value = upload
 
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(name="file.invalid", content=b"abc"),
         }
@@ -59,7 +58,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         upload.upload.return_value = HttpResponse()
         patch_upload.return_value = upload
 
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),
             "store_spatial_files": "invalid",
@@ -79,7 +78,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     def test_gpkg_task_is_called(self, patch_upload):
         patch_upload.apply_async.side_effect = MagicMock()
 
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),
             "store_spatial_files": True,
@@ -93,7 +92,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     def test_geojson_task_is_called(self, patch_upload):
         patch_upload.apply_async.side_effect = MagicMock()
 
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(
                 name="test.geojson", content=b"some-content"
@@ -111,7 +110,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     def test_zip_file_is_unzip_and_the_handler_is_found(self, patch_upload):
         patch_upload.apply_async.side_effect = MagicMock()
 
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": open(f"{project_dir}/tests/fixture/valid.zip", "rb"),
             "zip_file": open(f"{project_dir}/tests/fixture/valid.zip", "rb"),
@@ -123,8 +122,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         self.assertEqual(201, response.status_code)
 
     def test_copy_method_not_allowed(self):
-
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
 
         response = self.client.get(self.copy_url)
         self.assertEqual(405, response.status_code)
@@ -139,7 +137,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     @patch("importer.api.views.ResourceBaseViewSet.resource_service_copy")
     def test_redirect_to_old_upload_if_file_handler_is_not_set(self, copy_view, _orc):
         copy_view.return_value = HttpResponse()
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
 
         response = self.client.put(self.copy_url)
 
@@ -149,10 +147,10 @@ class TestImporterViewSet(ImporterBaseTestSupport):
 
     @patch("importer.api.views.import_orchestrator")
     def test_copy_ther_resource_if_file_handler_is_set(self, _orc):
-        user = get_user_model().objects.get(username='admin')
+        user = get_user_model().objects.get(username="admin")
         user.is_superuser = True
         user.save()
-        self.client.force_login(get_user_model().objects.get(username='admin'))
+        self.client.force_login(get_user_model().objects.get(username="admin"))
         ResourceHandlerInfo.objects.create(
             resource=self.dataset,
             handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",

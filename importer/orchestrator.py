@@ -10,8 +10,7 @@ from django.db.transaction import rollback
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
-from geonode.base.enumerations import (STATE_INVALID, STATE_PROCESSED,
-                                       STATE_RUNNING)
+from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
 from rest_framework import serializers
@@ -113,7 +112,9 @@ class ImportOrchestrator:
             remaining_tasks = tasks[_index:] if not _index >= len(tasks) else []
             if not remaining_tasks:
                 # The list of task is empty, it means that the process is finished
-                self.evaluate_execution_progress(execution_id, handler_module_path=handler_module_path)
+                self.evaluate_execution_progress(
+                    execution_id, handler_module_path=handler_module_path
+                )
                 return
             # getting the next step to perform
             next_step = next(iter(remaining_tasks))
@@ -194,7 +195,9 @@ class ImportOrchestrator:
             legacy_status=STATE_PROCESSED,
         )
 
-    def evaluate_execution_progress(self, execution_id, _log=None, handler_module_path=None):
+    def evaluate_execution_progress(
+        self, execution_id, _log=None, handler_module_path=None
+    ):
         from importer.models import ResourceHandlerInfo
 
         """
@@ -205,7 +208,9 @@ class ImportOrchestrator:
 
         _exec = self.get_execution_object(execution_id)
         expected_dataset = _exec.input_params.get("total_layers", 0)
-        actual_dataset = ResourceHandlerInfo.objects.filter(execution_request=_exec).count()
+        actual_dataset = ResourceHandlerInfo.objects.filter(
+            execution_request=_exec
+        ).count()
         is_last_dataset = actual_dataset >= expected_dataset
         execution_id = str(execution_id)  # force it as string to be sure
         lower_exec_id = execution_id.replace("-", "_").lower()
@@ -217,7 +222,9 @@ class ImportOrchestrator:
             | Q(task_kwargs__icontains=execution_id)
             | Q(result__icontains=execution_id)
         )
-        _has_data = ResourceHandlerInfo.objects.filter(execution_request__exec_id=execution_id).exists()
+        _has_data = ResourceHandlerInfo.objects.filter(
+            execution_request__exec_id=execution_id
+        ).exists()
 
         # .all() is needed since we want to have the last status on the DB without take in consideration the cache
         if (
@@ -225,7 +232,9 @@ class ImportOrchestrator:
             .exclude(Q(status=states.SUCCESS) | Q(status=states.FAILURE))
             .exists()
         ):
-            self._evaluate_last_dataset(is_last_dataset, _log, execution_id, handler_module_path)
+            self._evaluate_last_dataset(
+                is_last_dataset, _log, execution_id, handler_module_path
+            )
         elif exec_result.all().filter(status=states.FAILURE).exists():
             """
             Should set it fail if all the execution are done and at least 1 is failed
@@ -233,30 +242,32 @@ class ImportOrchestrator:
             # failed = [x.task_id for x in exec_result.filter(status=states.FAILURE)]
             # _log_message = f"For the execution ID {execution_id} The following celery task are failed: {failed}"
             if _has_data:
-                log = list(set(self.get_execution_object(execution_id).output_params.get("failed_layers", ['Unknown'])))
-                logger.error(log)
-                self.set_as_partially_failed(
-                    execution_id=execution_id, reason=log
+                log = list(
+                    set(
+                        self.get_execution_object(execution_id).output_params.get(
+                            "failed_layers", ["Unknown"]
+                        )
+                    )
                 )
+                logger.error(log)
+                self.set_as_partially_failed(execution_id=execution_id, reason=log)
                 self._last_step(execution_id, handler_module_path)
 
             elif is_last_dataset:
-                self.set_as_failed(
-                    execution_id=execution_id, reason=_log
-                )
+                self.set_as_failed(execution_id=execution_id, reason=_log)
             elif expected_dataset == 1 and not _has_data:
-                self.set_as_failed(
-                    execution_id=execution_id, reason=_log
-                )
+                self.set_as_failed(execution_id=execution_id, reason=_log)
         else:
-            self._evaluate_last_dataset(is_last_dataset, _log, execution_id, handler_module_path)
-
-    def _evaluate_last_dataset(self, is_last_dataset, _log, execution_id, handler_module_path):
-        if is_last_dataset:
-            if _log and 'ErrorDetail' in _log:
-                self.set_as_failed(
-                execution_id=execution_id, reason=_log
+            self._evaluate_last_dataset(
+                is_last_dataset, _log, execution_id, handler_module_path
             )
+
+    def _evaluate_last_dataset(
+        self, is_last_dataset, _log, execution_id, handler_module_path
+    ):
+        if is_last_dataset:
+            if _log and "ErrorDetail" in _log:
+                self.set_as_failed(execution_id=execution_id, reason=_log)
             else:
                 logger.info(
                     f"Execution with ID {execution_id} is completed. All tasks are done"
@@ -279,7 +290,7 @@ class ImportOrchestrator:
         legacy_upload_name="",
         action=None,
         name=None,
-        source=None
+        source=None,
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request
@@ -292,7 +303,7 @@ class ImportOrchestrator:
             input_params=input_params,
             action=action,
             name=name,
-            source=source
+            source=source,
         )
         if self.enable_legacy_upload_status:
             # getting the package name from the base_filename
@@ -341,10 +352,10 @@ class ImportOrchestrator:
             )
 
     def _last_step(self, execution_id, handler_module_path):
-        '''
+        """
         Last hookable step for each handler before mark the execution as completed
         To overwrite this, please hook the method perform_last_step from the Handler
-        '''
+        """
         if not handler_module_path:
             return
         return self.load_handler(handler_module_path).perform_last_step(execution_id)
