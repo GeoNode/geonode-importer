@@ -42,14 +42,21 @@ class CSVFileHandler(BaseVectorFileHandler):
         ),
     }
 
-    possible_geometry_column_name = ['geom', 'geometry', 'wkt_geom', 'the_geom']
-    possible_lat_column = ['latitude', 'lat', 'y']
-    possible_long_column = ['longitude', 'long', 'x']
+    possible_geometry_column_name = ["geom", "geometry", "wkt_geom", "the_geom"]
+    possible_lat_column = ["latitude", "lat", "y"]
+    possible_long_column = ["longitude", "long", "x"]
     possible_latlong_column = possible_lat_column + possible_long_column
 
     @property
     def supported_file_extension_config(self):
-        return {"id": "csv", "label": "CSV", "format": "vector", "mimeType": ["text/csv"], "ext": ["csv"], "optional": ["sld", "xml"]}
+        return {
+            "id": "csv",
+            "label": "CSV",
+            "format": "vector",
+            "mimeType": ["text/csv"],
+            "ext": ["csv"],
+            "optional": ["sld", "xml"],
+        }
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -93,24 +100,31 @@ class CSVFileHandler(BaseVectorFileHandler):
                 detail=f"With the provided CSV, the number of max parallel upload will exceed the limit of {max_upload}"
             )
 
-        schema_keys = [
-            x.name.lower()
-            for layer in layers
-            for x in layer.schema
-        ]
-        geom_is_in_schema = any(x in schema_keys for x in CSVFileHandler().possible_geometry_column_name)
+        schema_keys = [x.name.lower() for layer in layers for x in layer.schema]
+        geom_is_in_schema = any(
+            x in schema_keys for x in CSVFileHandler().possible_geometry_column_name
+        )
         has_lat = any(x in CSVFileHandler().possible_lat_column for x in schema_keys)
         has_long = any(x in CSVFileHandler().possible_long_column for x in schema_keys)
 
-        fields = CSVFileHandler().possible_geometry_column_name + CSVFileHandler().possible_latlong_column
+        fields = (
+            CSVFileHandler().possible_geometry_column_name
+            + CSVFileHandler().possible_latlong_column
+        )
         if has_lat and not has_long:
-            raise InvalidCSVException(f"Longitude is missing. Supported names: {', '.join(CSVFileHandler().possible_long_column)}")
+            raise InvalidCSVException(
+                f"Longitude is missing. Supported names: {', '.join(CSVFileHandler().possible_long_column)}"
+            )
 
         if not has_lat and has_long:
-            raise InvalidCSVException(f"Latitude is missing. Supported names: {', '.join(CSVFileHandler().possible_lat_column)}")
+            raise InvalidCSVException(
+                f"Latitude is missing. Supported names: {', '.join(CSVFileHandler().possible_lat_column)}"
+            )
 
         if not geom_is_in_schema and not has_lat and not has_long:
-            raise InvalidCSVException(f"Not enough geometry field are set. The possibilities are: {','.join(fields)}")
+            raise InvalidCSVException(
+                f"Not enough geometry field are set. The possibilities are: {','.join(fields)}"
+            )
 
         return True
 
@@ -119,13 +133,18 @@ class CSVFileHandler(BaseVectorFileHandler):
 
     @staticmethod
     def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
-        '''
+        """
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
-        '''
-        base_command = BaseVectorFileHandler.create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate)
+        """
+        base_command = BaseVectorFileHandler.create_ogr2ogr_command(
+            files, original_name, ovverwrite_layer, alternate
+        )
         additional_option = ' -oo "GEOM_POSSIBLE_NAMES=geom*,the_geom*,wkt_geom" -oo "X_POSSIBLE_NAMES=x,long*" -oo "Y_POSSIBLE_NAMES=y,lat*"'
-        return f"{base_command } -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} " + additional_option
+        return (
+            f"{base_command } -oo KEEP_GEOM_COLUMNS=NO -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
+            + additional_option
+        )
 
     def create_dynamic_model_fields(
         self,
@@ -140,38 +159,54 @@ class CSVFileHandler(BaseVectorFileHandler):
             {"name": x.name.lower(), "class_name": self._get_type(x), "null": True}
             for x in layer.schema
         ]
-        if layer.GetGeometryColumn() or self.default_geometry_column_name and ogr.GeometryTypeToName(layer.GetGeomType()) not in ['Geometry Collection', 'Unknown (any)']:
+        if (
+            layer.GetGeometryColumn()
+            or self.default_geometry_column_name
+            and ogr.GeometryTypeToName(layer.GetGeomType())
+            not in ["Geometry Collection", "Unknown (any)"]
+        ):
             # the geometry colum is not returned rom the layer.schema, so we need to extract it manually
             # checking if the geometry has been wrogly read as string
-            schema_keys = [x['name'] for x in layer_schema]
-            geom_is_in_schema = (x in schema_keys for x in self.possible_geometry_column_name)
-            if any(geom_is_in_schema) and layer.GetGeomType() == 100:  # 100 means None so Geometry not found
-                field_name = [x for x in self.possible_geometry_column_name if x in schema_keys][0]
+            schema_keys = [x["name"] for x in layer_schema]
+            geom_is_in_schema = (
+                x in schema_keys for x in self.possible_geometry_column_name
+            )
+            if (
+                any(geom_is_in_schema) and layer.GetGeomType() == 100
+            ):  # 100 means None so Geometry not found
+                field_name = [
+                    x for x in self.possible_geometry_column_name if x in schema_keys
+                ][0]
                 index = layer.GetFeature(1).keys().index(field_name)
                 geom = [x for x in layer.GetFeature(1)][index]
                 class_name = GEOM_TYPE_MAPPING.get(
-                    self.promote_to_multi(
-                        geom.split("(")[0].replace(" ", "").title()
-                    )
+                    self.promote_to_multi(geom.split("(")[0].replace(" ", "").title())
                 )
-                layer_schema = [x for x in layer_schema if field_name not in x['name']]
+                layer_schema = [x for x in layer_schema if field_name not in x["name"]]
             elif any(x in self.possible_latlong_column for x in schema_keys):
-                class_name = GEOM_TYPE_MAPPING.get(self.promote_to_multi('Point'))
+                class_name = GEOM_TYPE_MAPPING.get(self.promote_to_multi("Point"))
             else:
-                class_name = GEOM_TYPE_MAPPING.get(self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType())))
+                class_name = GEOM_TYPE_MAPPING.get(
+                    self.promote_to_multi(ogr.GeometryTypeToName(layer.GetGeomType()))
+                )
 
             layer_schema += [
                 {
-                    "name": layer.GetGeometryColumn() or self.default_geometry_column_name,
+                    "name": layer.GetGeometryColumn()
+                    or self.default_geometry_column_name,
                     "class_name": class_name,
-                    "dim": 2 if not ogr.GeometryTypeToName(layer.GetGeomType()).lower().startswith('3d') else 3
+                    "dim": 2
+                    if not ogr.GeometryTypeToName(layer.GetGeomType())
+                    .lower()
+                    .startswith("3d")
+                    else 3,
                 }
             ]
 
         # ones we have the schema, here we create a list of chunked value
         # so the async task will handle max of 30 field per task
         list_chunked = [
-            layer_schema[i: i + 30] for i in range(0, len(layer_schema), 30)
+            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)
         ]
 
         # definition of the celery group needed to run the async workflow.
@@ -185,12 +220,16 @@ class CSVFileHandler(BaseVectorFileHandler):
 
         return dynamic_model_schema, celery_group
 
-    def extract_resource_to_publish(self, files, action, layer_name, alternate, **kwargs):
+    def extract_resource_to_publish(
+        self, files, action, layer_name, alternate, **kwargs
+    ):
         if action == exa.COPY.value:
             return [
                 {
                     "name": alternate,
-                    "crs": ResourceBase.objects.filter(alternate__istartswith=layer_name)
+                    "crs": ResourceBase.objects.filter(
+                        alternate__istartswith=layer_name
+                    )
                     .first()
                     .srid,
                 }
@@ -202,7 +241,9 @@ class CSVFileHandler(BaseVectorFileHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(_l) if _l.GetSpatialRef() else 'EPSG:4326'
+                "crs": self.identify_authority(_l)
+                if _l.GetSpatialRef()
+                else "EPSG:4326",
             }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name

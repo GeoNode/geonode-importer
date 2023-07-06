@@ -19,9 +19,7 @@ class TestBaseRasterFileHandler(TestCase):
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.valid_files = {"base_file": cls.valid_raster}
         cls.owner = get_user_model().objects.first()
-        cls.layer = create_single_dataset(
-            name="test_grid", owner=cls.owner
-        )
+        cls.layer = create_single_dataset(name="test_grid", owner=cls.owner)
 
     def test_create_error_log(self):
         """

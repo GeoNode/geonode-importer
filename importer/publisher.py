@@ -50,7 +50,9 @@ class DataPublisher:
 
     def get_resource(self, resource_name) -> bool:
         self.get_or_create_store()
-        _res = self.cat.get_resource(resource_name, store=self.store, workspace=self.workspace)
+        _res = self.cat.get_resource(
+            resource_name, store=self.store, workspace=self.workspace
+        )
         return True if _res else False
 
     def publish_resources(self, resources: List[str]):
@@ -65,19 +67,19 @@ class DataPublisher:
             store=self.store,
             workspace=self.workspace,
         )
-    
+
     def delete_resource(self, resource_name):
         layer = self.get_resource(resource_name)
         if layer:
-            self.cat.delete(layer.resource, purge='all', recurse=True)
-    
+            self.cat.delete(layer.resource, purge="all", recurse=True)
+
     def get_resource(self, dataset_name):
         return self.cat.get_layer(dataset_name)
 
     def overwrite_resources(self, resources: List[str]):
-        '''
+        """
         Not available for now, waiting geoserver 2.20/2.21 available with Geonode
-        '''
+        """
         pass
 
     def get_or_create_store(self):
@@ -92,7 +94,9 @@ class DataPublisher:
                 store_name=geodatabase, workspace=self.workspace.name
             )
 
-    def publish_geoserver_view(self, layer_name, crs, view_name, sql=None, geometry=None):
+    def publish_geoserver_view(
+        self, layer_name, crs, view_name, sql=None, geometry=None
+    ):
         """
         Let the handler create a geoserver view given the input parameters
         """
@@ -106,5 +110,5 @@ class DataPublisher:
             crs=crs,
             view_name=view_name,
             sql=sql,
-            geometry=geometry
+            geometry=geometry,
         )

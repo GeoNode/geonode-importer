@@ -96,9 +96,9 @@ def get_uuid(_list):
 
 
 def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
-    '''
+    """
     Main error function used by the task for the "on_failure" function
-    '''
+    """
     from importer.celery_tasks import orchestrator
 
     exec_id = orchestrator.get_execution_object(exec_id=get_uuid(args))
@@ -119,7 +119,7 @@ def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
         output_params.get("errors").append(_log)
         output_params.get("failed_layers", []).append(args[-1] if args else [])
         failed = list(set(output_params.get("failed_layers", [])))
-        output_params['failed_layers'] = failed
+        output_params["failed_layers"] = failed
     else:
         output_params = {"errors": [_log], "failed_layers": [args[-1]]}
 
@@ -129,11 +129,9 @@ def evaluate_error(celery_task, exc, task_id, args, kwargs, einfo):
         meta={"exec_id": str(exec_id.exec_id), "reason": _log},
     )
     orchestrator.update_execution_request_status(
-        execution_id=str(exec_id.exec_id),
-        output_params=output_params
+        execution_id=str(exec_id.exec_id), output_params=output_params
     )
 
     orchestrator.evaluate_execution_progress(
-        get_uuid(args),
-        _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
+        get_uuid(args), _log=str(exc.detail if hasattr(exc, "detail") else exc.args[0])
     )

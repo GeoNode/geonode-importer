@@ -114,7 +114,6 @@ class TestGPKGHandler(TestCase):
         self.assertFalse(actual)
 
     def test_single_message_error_handler(self):
-
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="funct1",

@@ -4,15 +4,14 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('importer', '0003_resourcehandlerinfo_execution_id'),
+        ("importer", "0003_resourcehandlerinfo_execution_id"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='resourcehandlerinfo',
-            old_name='execution_id',
-            new_name='execution_request',
+            model_name="resourcehandlerinfo",
+            old_name="execution_id",
+            new_name="execution_request",
         ),
     ]

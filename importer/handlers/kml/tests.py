@@ -22,9 +22,7 @@ class TestKMLHandler(TestCase):
         cls.invalid_files = {"base_file": cls.invalid_kml}
         cls.valid_files = {"base_file": cls.valid_kml}
         cls.owner = get_user_model().objects.first()
-        cls.layer = create_single_dataset(
-            name="extruded_polygon", owner=cls.owner
-        )
+        cls.layer = create_single_dataset(name="extruded_polygon", owner=cls.owner)
 
     def test_task_list_is_the_expected_one(self):
         expected = (

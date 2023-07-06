@@ -21,7 +21,12 @@ from importer.api.exception import (
 from importer.celery_app import importer_app
 from importer.datastore import DataStoreManager
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
-from importer.handlers.utils import create_alternate, drop_dynamic_model_schema, evaluate_error, get_uuid
+from importer.handlers.utils import (
+    create_alternate,
+    drop_dynamic_model_schema,
+    evaluate_error,
+    get_uuid,
+)
 from importer.orchestrator import orchestrator
 from importer.publisher import DataPublisher
 from importer.settings import (
@@ -39,6 +44,7 @@ class ErrorBaseTaskClass(Task):
     Basic Error task class. Is common to all the base tasks of the import pahse
     it defines a on_failure method which set the task as "failed" with some extra information
     """
+
     max_retries = 3
     track_started = True
 
@@ -69,7 +75,6 @@ def import_orchestrator(
     action=exa.IMPORT.value,
     **kwargs,
 ):
-
     """
     Base task. Is the task responsible to call the orchestrator and redirect the upload to the next step
     mainly is a wrapper for the Orchestrator object.
@@ -102,7 +107,7 @@ def import_orchestrator(
 
 @importer_app.task(
     bind=True,
-    #base=ErrorBaseTaskClass,
+    # base=ErrorBaseTaskClass,
     name="importer.import_resource",
     queue="importer.import_resource",
     max_retries=1,
@@ -162,7 +167,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
             layer=None,
             alternate=None,
             error=e,
-            **kwargs      
+            **kwargs,
         )
         raise InvalidInputFileException(detail=error_handler(e, execution_id))
 
@@ -225,7 +230,9 @@ def publish_resource(
         )
         if data:
             # we should not publish resource without a crs
-            if not _overwrite or (_overwrite and not _publisher.get_resource(alternate)):
+            if not _overwrite or (
+                _overwrite and not _publisher.get_resource(alternate)
+            ):
                 _publisher.publish_resources(data)
             else:
                 _publisher.overwrite_resources(data)
@@ -237,7 +244,9 @@ def publish_resource(
                 celery_task_request=self.request,
             )
         else:
-            logger.error(f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}")
+            logger.error(
+                f"Layer: {alternate} raised: Only resources with a CRS provided can be published for execution_id: {execution_id}"
+            )
             raise PublishResourceException(
                 "Only resources with a CRS provided can be published"
             )
@@ -268,7 +277,7 @@ def publish_resource(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **kwargs,
         )
         raise PublishResourceException(detail=error_handler(e, execution_id))
 
@@ -326,17 +335,27 @@ def create_geonode_resource(
 
         if _overwrite:
             resource = handler.overwrite_geonode_resource(
-                layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
+                layer_name=layer_name,
+                alternate=alternate,
+                execution_id=execution_id,
+                files=_files,
             )
         else:
             resource = handler.create_geonode_resource(
-                layer_name=layer_name, alternate=alternate, execution_id=execution_id, files=_files
+                layer_name=layer_name,
+                alternate=alternate,
+                execution_id=execution_id,
+                files=_files,
             )
 
         if _overwrite:
-            handler.overwrite_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
+            handler.overwrite_resourcehandlerinfo(
+                handler_module_path, resource, _exec, **kwargs
+            )
         else:
-            handler.create_resourcehandlerinfo(handler_module_path, resource, _exec, **kwargs)
+            handler.create_resourcehandlerinfo(
+                handler_module_path, resource, _exec, **kwargs
+            )
 
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
@@ -360,7 +379,7 @@ def create_geonode_resource(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **kwargs,
         )
         raise ResourceCreationException(detail=error_handler(e))
 
@@ -417,10 +436,14 @@ def copy_geonode_resource(
             _exec=_exec,
             data_to_update=data_to_update,
             new_alternate=new_alternate,
-            **kwargs
+            **kwargs,
         )
 
-        handler.create_resourcehandlerinfo(resource=new_resource, handler_module_path=handler_module_path, execution_id=_exec)
+        handler.create_resourcehandlerinfo(
+            resource=new_resource,
+            handler_module_path=handler_module_path,
+            execution_id=_exec,
+        )
 
         assert f"{workspace}:{new_alternate}" == new_resource.alternate
 
@@ -453,7 +476,7 @@ def copy_geonode_resource(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **kwargs,
         )
         raise CopyResourceException(detail=e)
     return exec_id, new_alternate
@@ -510,9 +533,9 @@ def create_dynamic_structure(
         if field["class_name"].endswith("CharField"):
             _kwargs = {**_kwargs, **{"max_length": 255}}
 
-        if field.get('dim', None) is not None:
+        if field.get("dim", None) is not None:
             # setting the dimension for the gemetry. So that we can handle also 3d geometries
-            _kwargs = {**_kwargs, **{"dim": field.get('dim')}}
+            _kwargs = {**_kwargs, **{"dim": field.get("dim")}}
 
         # if is a new creation we generate the field model from scratch
         if not overwrite:
@@ -584,7 +607,7 @@ def copy_dynamic_model(
                 # Creating the dynamic schema object
                 new_schema = dynamic_schema.first()
                 new_schema.name = new_dataset_alternate
-                new_schema.db_table_name = new_dataset_alternate            
+                new_schema.db_table_name = new_dataset_alternate
                 new_schema.pk = None
                 new_schema.save()
                 # create the field_schema object
@@ -622,7 +645,7 @@ def copy_dynamic_model(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **{**kwargs, **additional_kwargs}
+            **{**kwargs, **additional_kwargs},
         )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
@@ -639,9 +662,8 @@ def copy_geonode_data_table(
 ):
     """
     Once the base resource is copied, is time to copy also the dynamic model
-    """ 
+    """
     try:
-
         orchestrator.update_execution_request_status(
             execution_id=exec_id,
             last_updated=timezone.now(),
@@ -659,7 +681,9 @@ def copy_geonode_data_table(
 
         db_name = os.getenv("DEFAULT_BACKEND_DATASTORE", "datastore")
         if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
-            schema_exists = ModelSchema.objects.filter(name=new_dataset_alternate).first()
+            schema_exists = ModelSchema.objects.filter(
+                name=new_dataset_alternate
+            ).first()
             if schema_exists:
                 db_name = schema_exists.db_name
 
@@ -691,7 +715,7 @@ def copy_geonode_data_table(
             layer=layer_name,
             alternate=alternate,
             error=e,
-            **kwargs      
+            **kwargs,
         )
         raise CopyResourceException(detail=e)
     return exec_id, kwargs
@@ -710,7 +734,7 @@ def rollback(self, *args, **kwargs):
     The handler must implement the code to rollback each step that
     is declared
     """
-    
+
     exec_id = get_uuid(args)
 
     logger.info(f"Calling rollback for execution_id {exec_id} in progress")
@@ -729,14 +753,11 @@ def rollback(self, *args, **kwargs):
     )
 
     handler = import_string(handler_module_path)()
-    handler.rollback(
-        exec_id,
-        rollback_from_step,
-        action_to_rollback,
-        *args,
-        **kwargs
+    handler.rollback(exec_id, rollback_from_step, action_to_rollback, *args, **kwargs)
+    error = (
+        find_key_recursively(kwargs, "error")
+        or "Some issue has occured, please check the logs"
     )
-    error = find_key_recursively(kwargs, "error") or "Some issue has occured, please check the logs"
     orchestrator.set_as_failed(exec_id, reason=error)
     return exec_id, kwargs
 

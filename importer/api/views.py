@@ -83,7 +83,6 @@ class ImporterViewSet(DynamicModelViewSet):
         return specific_serializer or ImporterSerializer
 
     def create(self, request, *args, **kwargs):
-
         """
         Main function called by the new import flow.
         It received the file via the front end
@@ -120,7 +119,6 @@ class ImporterViewSet(DynamicModelViewSet):
         handler = orchestrator.get_handler(_data)
 
         if _file and handler:
-
             try:
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
@@ -151,7 +149,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     legacy_upload_name=_file.name,
                     action=action,
                     name=_file.name,
-                    source='upload'
+                    source="upload",
                 )
 
                 sig = import_orchestrator.s(
@@ -175,7 +173,6 @@ class ImporterViewSet(DynamicModelViewSet):
 
 
 class ResourceImporter(DynamicModelViewSet):
-
     authentication_classes = [
         SessionAuthentication,
         BasicAuthentication,
@@ -212,7 +209,6 @@ class ResourceImporter(DynamicModelViewSet):
     def copy(self, request, *args, **kwargs):
         resource = self.get_object()
         if resource.resourcehandlerinfo_set.exists():
-
             handler_module_path = (
                 resource.resourcehandlerinfo_set.first().handler_module_path
             )
@@ -241,7 +237,7 @@ class ResourceImporter(DynamicModelViewSet):
                     **{"handler_module_path": handler_module_path},
                     **extracted_params,
                 },
-                source="importer_copy"
+                source="importer_copy",
             )
 
             sig = import_orchestrator.s(

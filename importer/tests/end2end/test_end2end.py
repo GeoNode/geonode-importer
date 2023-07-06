@@ -15,11 +15,11 @@ from geoserver.catalog import Catalog
 from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
 import gisdata
+
 geourl = settings.GEODATABASE_URL
 
 
 class BaseImporterEndToEndTest(ImporterBaseTestSupport):
-
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -35,15 +35,13 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         }
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
 
-        cls.url = reverse('importer_upload')
-        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)['default']
+        cls.url = reverse("importer_upload")
+        ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
 
         _user, _password = ogc_server_settings.credentials
 
         cls.cat = Catalog(
-            service_url=ogc_server_settings.rest,
-            username=_user,
-            password=_password
+            service_url=ogc_server_settings.rest, username=_user, password=_password
         )
 
     def setUp(self) -> None:
@@ -61,10 +59,21 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         # if is async, we must wait. It will wait for 1 min before raise exception
         if ast.literal_eval(os.getenv("ASYNC_SIGNALS", "False")):
             tentative = 1
-            while ExecutionRequest.objects.get(exec_id=response.json().get("execution_id")) != ExecutionRequest.STATUS_FINISHED and tentative <= 6:
+            while (
+                ExecutionRequest.objects.get(
+                    exec_id=response.json().get("execution_id")
+                )
+                != ExecutionRequest.STATUS_FINISHED
+                and tentative <= 6
+            ):
                 time.sleep(10)
                 tentative += 1
-        if ExecutionRequest.objects.get(exec_id=response.json().get("execution_id")).status != ExecutionRequest.STATUS_FINISHED:
+        if (
+            ExecutionRequest.objects.get(
+                exec_id=response.json().get("execution_id")
+            ).status
+            != ExecutionRequest.STATUS_FINISHED
+        ):
             raise Exception("Async still in progress after 1 min of waiting")
 
         # check if the dynamic model is created
@@ -87,14 +96,15 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 
 
 class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
-
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
     def test_import_geopackage(self):
         layer = self.cat.get_layer("geonode:stazioni_metropolitana")
         self.cat.delete(layer)
         payload = {
-            "base_file": open(self.valid_gkpg, 'rb'),
+            "base_file": open(self.valid_gkpg, "rb"),
         }
         initial_name = "stazioni_metropolitana"
         self._assertimport(payload, initial_name)
@@ -103,15 +113,16 @@ class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
 
 
 class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
-
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
     def test_import_geojson(self):
         layer = self.cat.get_layer("geonode:valid")
         self.cat.delete(layer)
 
         payload = {
-            "base_file": open(self.valid_geojson, 'rb'),
+            "base_file": open(self.valid_geojson, "rb"),
         }
         initial_name = "valid"
         self._assertimport(payload, initial_name)
@@ -120,14 +131,15 @@ class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
 
 
 class ImporterKMLImportTest(BaseImporterEndToEndTest):
-
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
     def test_import_kml(self):
         layer = self.cat.get_layer("geonode:extruded_polygon")
         self.cat.delete(layer)
         payload = {
-            "base_file": open(self.valid_kml, 'rb'),
+            "base_file": open(self.valid_kml, "rb"),
         }
         initial_name = "extruded_polygon"
         self._assertimport(payload, initial_name)
@@ -136,13 +148,16 @@ class ImporterKMLImportTest(BaseImporterEndToEndTest):
 
 
 class ImporterShapefileImportTest(BaseImporterEndToEndTest):
-
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data")
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
     def test_import_shapefile(self):
         layer = self.cat.get_layer("geonode:san_andres_y_providencia_highway")
         self.cat.delete(layer)
-        payload = {_filename: open(_file, 'rb') for _filename, _file in self.valid_shp.items()}
+        payload = {
+            _filename: open(_file, "rb") for _filename, _file in self.valid_shp.items()
+        }
         initial_name = "san_andres_y_providencia_highway"
         self._assertimport(payload, initial_name)
         layer = self.cat.get_layer("geonode:san_andres_y_providencia_highway")

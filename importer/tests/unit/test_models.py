@@ -9,7 +9,10 @@ class TestModelSchemaSignal(TestCase):
 
     def setUp(self):
         self.resource = create_single_dataset(name="test_dataset")
-        ResourceHandlerInfo.objects.create(resource=self.resource, handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler")
+        ResourceHandlerInfo.objects.create(
+            resource=self.resource,
+            handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
+        )
         self.dynamic_model = ModelSchema.objects.create(
             name=self.resource.name, db_name="datastore"
         )

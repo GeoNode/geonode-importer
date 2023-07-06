@@ -75,10 +75,10 @@ class BaseHandler(ABC):
 
     @staticmethod
     def has_serializer(_data) -> bool:
-        '''
+        """
         This endpoint should return (if set) the custom serializer used in the API
         to validate the input resource
-        '''
+        """
         return None
 
     @staticmethod
@@ -100,10 +100,16 @@ class BaseHandler(ABC):
         return []
 
     def fixup_name(self, name):
-        return name.lower().replace("-", "_")\
-            .replace(" ", "_").replace(")", "")\
-            .replace("(", "").replace(",", "")\
-            .replace("&", "").replace(".", "")
+        return (
+            name.lower()
+            .replace("-", "_")
+            .replace(" ", "_")
+            .replace(")", "")
+            .replace("(", "")
+            .replace(",", "")
+            .replace("&", "")
+            .replace(".", "")
+        )
 
     def extract_resource_to_publish(self, files, layer_name, alternate, **kwargs):
         """
