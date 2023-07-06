@@ -44,7 +44,7 @@ class KMLFileHandler(BaseVectorFileHandler):
         return {
             "id": "kml",
             "label": "KML/KMZ",
-            "format": "archive",
+            "format": "vector",
             "ext": ["kml", "kmz"],
         }
 

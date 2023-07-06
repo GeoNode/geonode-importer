@@ -44,7 +44,7 @@ class GPKGFileHandler(BaseVectorFileHandler):
         return {
             "id": "gpkg",
             "label": "GeoPackage",
-            "format": "archive",
+            "format": "vector",
             "ext": ["gpkg"],
         }
 
