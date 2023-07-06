@@ -43,7 +43,7 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         return {
             "id": "geojson",
             "label": "GeoJSON",
-            "format": "format",
+            "format": "vector",
             "ext": ["json", "geojson"],
             "optional": ["xml", "sld"],
         }
