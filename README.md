@@ -145,3 +145,16 @@ Here a description of the various codes:
 | `RQ14`  | Unknown geometry type  | The geometry_type_name from the gpkg_geometry_columns table must be one of POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, or MULTIPOLYGON|
 | `RQ15`  | Geometry type mismatch | All table geometries must match the geometry_type_name from the gpkg_geometry_columns table|
 | `RC18`  | Geometry attr mismatch | It is recommended to give all GEOMETRY type columns the same name.|
+
+## Character conversion
+
+By default, we use the `LAUNDER` option in ogr2ogr to convert a list of special chars to make them compatible with PostgreSQL.
+
+Along with this, also the layer name during the dataset import is converted to make it aligned with ogr2ogr.
+
+In detail the list is the following:
+
+| From | TO  |
+|---|---|
+| - (space) # \  | _  |
+| .)(,&  | empty_string  |
