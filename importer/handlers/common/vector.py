@@ -148,7 +148,10 @@ class BaseVectorFileHandler(BaseHandler):
         """
         _uri = settings.GEODATABASE_URL.replace("postgis://", "")
         db_user, db_password = _uri.split("@")[0].split(":")
-        db_host, db_port = _uri.split("@")[1].split("/")[0].split(":")
+        db_host = _uri.split("@")[1].split("/")[0]
+        db_port = "5432"
+        if ':' in db_host:
+            db_host, db_port = db_host.split(":")
         db_name = _uri.split("@")[1].split("/")[1]
 
         options = "--config PG_USE_COPY YES "
