@@ -18,6 +18,7 @@ setup(
     url=importer.__url__,
     description=importer.__doc__,
     long_description="A GeoNode 4.0 app that implements a brand new upload/import flow",
+    long_description_content_type="text/markdown",
     author=importer.__author__,
     author_email=importer.__email__,
     platforms="any",
