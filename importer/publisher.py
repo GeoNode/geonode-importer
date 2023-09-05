@@ -62,13 +62,14 @@ class DataPublisher:
         Will publish the resorces on geoserver
         """
         self.get_or_create_store()
-        self.handler.publish_resources(
+        result = self.handler.publish_resources(
             resources=resources,
             catalog=self.cat,
             store=self.store,
             workspace=self.workspace,
         )
         self.sanity_checks(resources)
+        return result
 
     def delete_resource(self, resource_name):
         layer = self.get_resource(resource_name)
