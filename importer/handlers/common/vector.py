@@ -150,7 +150,7 @@ class BaseVectorFileHandler(BaseHandler):
         db_user, db_password = _uri.split("@")[0].split(":")
         db_host = _uri.split("@")[1].split("/")[0]
         db_port = "5432"
-        if ':' in db_host:
+        if ":" in db_host:
             db_host, db_port = db_host.split(":")
         db_name = _uri.split("@")[1].split("/")[1]
 

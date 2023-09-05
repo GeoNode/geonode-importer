@@ -1,6 +1,6 @@
+import geoserver.workspace
 import logging
 import os
-from re import purge
 from typing import List
 
 from geonode import settings
@@ -9,6 +9,8 @@ from geonode.services.serviceprocessors.base import get_geoserver_cascading_work
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
 from django.utils.module_loading import import_string
+
+from importer.api.exception import PublishResourceException
 
 
 logger = logging.getLogger(__name__)
@@ -61,12 +63,13 @@ class DataPublisher:
         Will publish the resorces on geoserver
         """
         self.get_or_create_store()
-        return self.handler.publish_resources(
+        self.handler.publish_resources(
             resources=resources,
             catalog=self.cat,
             store=self.store,
             workspace=self.workspace,
         )
+        self.sanity_checks(resources)
 
     def delete_resource(self, resource_name):
         layer = self.get_resource(resource_name)
@@ -112,3 +115,16 @@ class DataPublisher:
             sql=sql,
             geometry=geometry,
         )
+
+    def sanity_checks(self, resources):
+        """
+        Will evaluate if the SRID is correctly created
+        For each resource. This is a quick test to be sure
+        that the resource is correctly set/created
+        """
+        for _resource in resources:
+            res = self.cat.get_resource(_resource.get("name"), workspace=self.workspace)
+            if not res.projection:
+                raise PublishResourceException(
+                    f"The SRID for the resource {res.name} is not correctly set, Please check Geoserver logs"
+                )

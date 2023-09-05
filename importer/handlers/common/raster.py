@@ -1,7 +1,6 @@
 import pyproj
 from importer.publisher import DataPublisher
 from importer.utils import find_key_recursively
-from itertools import chain
 import json
 import logging
 from pathlib import Path
