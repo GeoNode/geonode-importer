@@ -36,7 +36,6 @@ from geonode.base.api.views import ResourceBaseViewSet
 from geonode.base.models import ResourceBase
 from geonode.storage.manager import StorageManager
 from geonode.upload.api.permissions import UploadPermissionsFilter
-from geonode.upload.api.views import UploadViewSet
 from geonode.upload.utils import UploadLimitValidator
 from importer.api.exception import HandlerException, ImportException
 from importer.api.serializer import ImporterSerializer
@@ -167,9 +166,7 @@ class ImporterViewSet(DynamicModelViewSet):
                 logger.exception(e)
                 raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
-        # if is a geopackage we just use the new import flow
-        request.GET._mutable = True
-        return UploadViewSet().upload(request)
+        raise ImportException(detail="No handlers found for this dataset type")
 
 
 class ResourceImporter(DynamicModelViewSet):
