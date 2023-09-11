@@ -100,15 +100,15 @@ class BaseHandler(ABC):
         return []
 
     def fixup_name(self, name):
-        '''
+        """
         Emulate the LAUNDER option in ogr2ogr which will normalize the string.
         This is enriched with additional transformation for parentesis.
         The basic normalized function can be found here
         https://github.com/OSGeo/gdal/blob/0fc262675051b63f96c91ca920d27503655dfb7b/ogr/ogrsf_frmts/pgdump/ogrpgdumpdatasource.cpp#L130  # noqa
-        
+
         We use replace because it looks to be one of the fasted options:
         https://stackoverflow.com/questions/3411771/best-way-to-replace-multiple-characters-in-a-string
-        '''
+        """
         return (
             name.lower()
             .replace("-", "_")
