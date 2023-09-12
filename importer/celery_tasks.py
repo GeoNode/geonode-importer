@@ -35,7 +35,6 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import call_rollback_function, error_handler, find_key_recursively
-from geonode.layers.api.exceptions import InvalidMetadataException
 
 logger = logging.getLogger(__name__)
 
