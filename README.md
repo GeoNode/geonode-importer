@@ -15,6 +15,7 @@ In GeoNode 4.1 `geonode-importer` replaced the previous importer logic.
 - **KML** - Vector
 - **CSV** - Vector
 - **GeoTiff** - Raster
+- **XML** - Update XML file for a given resource
 
 **IMPORTANT**: At the moment the importer doesn't support overwriting/skipping existing layers from the UI. Every upload will create a new dataset.
 Overwriting a layer (`overwrite_existing_layer`) and skipping an already existing layer (`skip_existing_layers`) is supported through the API. 
@@ -88,6 +89,8 @@ CELERY_TASK_QUEUES += (
     Queue('importer.copy_geonode_data_table', GEONODE_EXCHANGE, routing_key='importer.copy_geonode_data_table'),
     Queue('importer.copy_raster_file', GEONODE_EXCHANGE, routing_key='importer.copy_raster_file'),
     Queue('importer.rollback', GEONODE_EXCHANGE, routing_key='importer.rollback'),
+    Queue("importer.import_metadata", GEONODE_EXCHANGE, routing_key="importer.import_metadata"),
+
 )
 
 DATABASE_ROUTERS = ["importer.db_router.DatastoreRouter"]
@@ -100,7 +103,8 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.shapefile.handler.ShapeFileHandler',
     'importer.handlers.kml.handler.KMLFileHandler',
     'importer.handlers.csv.handler.CSVFileHandler',
-    'importer.handlers.geotiff.handler.GeoTiffFileHandler'
+    'importer.handlers.geotiff.handler.GeoTiffFileHandler',
+    'importer.handlers.metadata.xml.handler.XMLFileHandler
 ])
 
 ```
