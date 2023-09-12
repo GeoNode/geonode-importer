@@ -27,7 +27,7 @@ class TestXMLFileHandler(TestCase):
     def test_task_list_is_the_expected_one(self):
         expected = (
             "start_import",
-            "importer.import_metadata",
+            "importer.import_resource",
         )
         self.assertEqual(len(self.handler.ACTIONS["import"]), 2)
         self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
@@ -69,7 +69,7 @@ class TestXMLFileHandler(TestCase):
 
         self.assertEqual(self.layer.title, "extruded_polygon")        
         
-        self.handler.import_metadata_file(str(exec_id))
+        self.handler.import_resource({}, str(exec_id))
         
         self.layer.refresh_from_db()
         self.assertEqual(self.layer.title, "test_dataset")

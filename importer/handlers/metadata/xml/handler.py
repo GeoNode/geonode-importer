@@ -18,13 +18,6 @@ class XMLFileHandler(MetadataFileHandler):
     It must provide the task_lists required to comple the upload
     """
 
-    ACTIONS = {
-        exa.IMPORT.value: (
-            "start_import",
-            "importer.import_metadata"
-        )
-    }
-
     @staticmethod
     def can_handle(_data) -> bool:
         """
@@ -41,7 +34,7 @@ class XMLFileHandler(MetadataFileHandler):
         )
 
     @staticmethod
-    def is_valid(files):
+    def is_valid(files, user):
         """
         Define basic validation steps
         """
@@ -54,7 +47,7 @@ class XMLFileHandler(MetadataFileHandler):
             raise InvalidXmlException(f"Uploaded document is not XML or is invalid: {str(err)}")
         return True
 
-    def import_metadata_file(self, execution_id):
+    def import_resource(self, files: dict, execution_id: str, **kwargs):
         _exec = orchestrator.get_execution_object(execution_id)
         # getting the dataset
         alternate = _exec.input_params.get("dataset_title")
@@ -79,5 +72,7 @@ class XMLFileHandler(MetadataFileHandler):
                 vals={"dirty_state": True},
             )
         dataset.refresh_from_db()
-        return dataset
+        
+        orchestrator.evaluate_execution_progress(execution_id, handler_module_path=str(self))
+        return
 

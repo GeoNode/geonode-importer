@@ -2,6 +2,7 @@ import logging
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from importer.handlers.base import BaseHandler
 from importer.handlers.metadata.serializer import MetadataFileSerializer
+from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,18 @@ class MetadataFileHandler(BaseHandler):
     ACTIONS = {
         exa.IMPORT.value: (
             "start_import",
-            "importer.import_metadata"
-        )
+            "importer.import_resource"
+        ),
+        ira.ROLLBACK.value: ()
     }
 
     @staticmethod
     def has_serializer(_data) -> bool:
         return MetadataFileSerializer
+
+    @property
+    def supported_file_extension_config(self):
+        return None
 
     @staticmethod
     def extract_params_from_data(_data, action=None):
@@ -40,6 +46,6 @@ class MetadataFileHandler(BaseHandler):
     def perform_last_step(execution_id):
         pass
 
-    def import_metadata_file(self, execution_id):
+    def import_resource(self, files: dict, execution_id: str, **kwargs):
         pass
 

@@ -14,8 +14,7 @@ from importer.celery_tasks import (
     import_resource,
     orchestrator,
     publish_resource,
-    rollback,
-    import_metadata
+    rollback
 )
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
@@ -487,7 +486,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
         )
         
-        import_metadata(str(exec_id), handler)
+        import_resource(str(exec_id), handler, "import")
         
         layer.refresh_from_db()
         self.assertEqual(layer.title, "test_dataset")
