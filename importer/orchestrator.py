@@ -47,7 +47,7 @@ class ImportOrchestrator:
         for handler in BaseHandler.get_registry():
             if handler.can_handle(_data):
                 return handler()
-        logger.error("Handler not found, fallback on the legacy upload system")
+        logger.error("Handler not found")
         return None
 
     def get_serializer(self, _data) -> serializers.Serializer:

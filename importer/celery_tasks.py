@@ -35,6 +35,7 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import call_rollback_function, error_handler, find_key_recursively
+from geonode.layers.api.exceptions import InvalidMetadataException
 
 logger = logging.getLogger(__name__)
 
@@ -771,3 +772,51 @@ def dynamic_model_error_callback(*args, **kwargs):
         drop_dynamic_model_schema(schema_model)
 
     return "error"
+
+
+@importer_app.task(
+    base=ErrorBaseTaskClass,
+    name="importer.import_metadata",
+    queue="importer.import_metadata",
+    task_track_started=True,
+)
+def import_metadata(execution_id, /, handler_module_path, action=exa.IMPORT.value, **kwargs):
+    """
+    Import the metadata XML file via "upload metadata" form in geonode
+    """
+    try:
+        orchestrator.update_execution_request_status(
+            execution_id=execution_id,
+            last_updated=timezone.now(),
+            func_name="import_metadata",
+            step=ugettext("importer.import_metadata"),
+        )
+        
+        handler = orchestrator.load_handler(handler_module_path)()
+        
+        _exec = orchestrator.get_execution_object(execution_id)
+
+        _files = _exec.input_params.get("files")
+        
+        handler.is_valid(_files)
+
+        dataset_obj = handler.import_metadata_file(execution_id)
+
+        task_params = (
+            {},
+            execution_id,
+            handler_module_path,
+            "importer.import_metadata",
+            dataset_obj.name,
+            dataset_obj.alternate,
+            action,
+        )
+
+        kwargs = kwargs.get("kwargs") if "kwargs" in kwargs else kwargs
+
+        import_orchestrator.apply_async(task_params, kwargs)
+
+    except Exception as e:
+        raise InvalidMetadataException(detail=e)
+    return execution_id, kwargs
+

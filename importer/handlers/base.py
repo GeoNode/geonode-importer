@@ -58,6 +58,25 @@ class BaseHandler(ABC):
     def supported_file_extension_config(self):
         return NotImplementedError
 
+    @property
+    def can_handle_xml_file(self) -> bool:
+        """
+        True or false if the handler is able to handle XML file
+        By default a common workflow is always defined
+        To be override if some expection are needed
+        """
+        return True
+
+
+    @property
+    def can_handle_sld_file(self) -> bool:
+        """
+        True or false if the handler is able to handle SLD file
+        By default a common workflow is always defined
+        To be override if some expection are needed
+        """
+        return True
+
     @staticmethod
     def is_valid(files, user):
         """

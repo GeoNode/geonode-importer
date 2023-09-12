@@ -48,6 +48,15 @@ class KMLFileHandler(BaseVectorFileHandler):
             "ext": ["kml", "kmz"],
         }
 
+    @property
+    def can_handle_xml_file(self) -> bool:
+        """
+        True or false if the handler is able to handle XML file
+        By default a common workflow is always defined
+        To be override if some expection are needed
+        """
+        return False
+
     @staticmethod
     def can_handle(_data) -> bool:
         """
