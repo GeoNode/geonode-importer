@@ -1,17 +1,14 @@
 import logging
 
-from django.shortcuts import get_object_or_404
-from geonode.layers.models import Dataset
 from geonode.resource.manager import resource_manager
 from importer.handlers.common.metadata import MetadataFileHandler
-from importer.handlers.xml.exceptions import InvalidXmlException
-from importer.orchestrator import orchestrator
+from importer.handlers.sld.exceptions import InvalidSldException
 from owslib.etree import etree as dlxml
 
 logger = logging.getLogger(__name__)
 
 
-class XMLFileHandler(MetadataFileHandler):
+class SLDFileHandler(MetadataFileHandler):
     """
     Handler to import KML files into GeoNode data db
     It must provide the task_lists required to comple the upload
@@ -27,9 +24,9 @@ class XMLFileHandler(MetadataFileHandler):
         if not base:
             return False
         return (
-            base.endswith(".xml")
+            base.endswith(".sld")
             if isinstance(base, str)
-            else base.name.endswith(".xml")
+            else base.name.endswith(".sld")
         )
 
     @staticmethod
@@ -43,18 +40,21 @@ class XMLFileHandler(MetadataFileHandler):
             with open(files.get("base_file")) as _xml:
                 dlxml.fromstring(_xml.read().encode())
         except Exception as err:
-            raise InvalidXmlException(f"Uploaded document is not XML or is invalid: {str(err)}")
+            raise InvalidSldException(f"Uploaded document is not SLD or is invalid: {str(err)}")
         return True
 
     def handle_metadata_resource(self, _exec, dataset, original_handler):
-        if original_handler.can_handle_xml_file:
-            original_handler.handle_xml_file(dataset, _exec)
+        if original_handler.can_handle_sld_file:
+            original_handler.handle_sld_file(dataset, _exec)
         else:
-            _path = _exec.input_params.get("files", {}).get("xml_file", _exec.input_params.get("base_file", {}))
-            resource_manager.update(
+            _path = _exec.input_params.get("files", {}).get("sld_file", _exec.input_params.get("base_file", {}))
+            resource_manager.exec(
+                "set_style",
                 None,
                 instance=dataset,
-                xml_file=_path,
-                metadata_uploaded=True if _path else False,
+                sld_file=_exec.input_params.get("files", {}).get("sld_file", ""),
+                sld_uploaded=True if _path else False,
                 vals={"dirty_state": True},
             )
+
+

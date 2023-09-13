@@ -464,7 +464,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
     def test_import_metadata_should_work_as_expected(self):
-        handler = "importer.handlers.metadata.xml.handler.XMLFileHandler"
+        handler = "importer.handlers.xml.handler.XMLFileHandler"
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
         user, _ = get_user_model().objects.get_or_create(username="admin")
         valid_files = {"base_file": valid_xml, 'xml_file': valid_xml}

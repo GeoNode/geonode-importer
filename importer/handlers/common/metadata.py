@@ -1,8 +1,11 @@
 import logging
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from importer.handlers.base import BaseHandler
-from importer.handlers.metadata.serializer import MetadataFileSerializer
+from importer.handlers.xml.serializer import MetadataFileSerializer
 from importer.utils import ImporterRequestAction as ira
+from importer.orchestrator import orchestrator
+from django.shortcuts import get_object_or_404
+from geonode.layers.models import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -47,5 +50,24 @@ class MetadataFileHandler(BaseHandler):
         pass
 
     def import_resource(self, files: dict, execution_id: str, **kwargs):
-        pass
+        _exec = orchestrator.get_execution_object(execution_id)
+        # getting the dataset
+        alternate = _exec.input_params.get("dataset_title")
+        dataset = get_object_or_404(Dataset, alternate=alternate)
 
+        # retrieving the handler used for the dataset
+        original_handler = orchestrator.load_handler(
+            dataset.resourcehandlerinfo_set\
+                .first()\
+                .handler_module_path
+        )()
+
+        self.handle_metadata_resource(_exec, dataset, original_handler)
+
+        dataset.refresh_from_db()
+        
+        orchestrator.evaluate_execution_progress(execution_id, handler_module_path=str(self))
+        return dataset
+
+    def handle_metadata_resource(self, _exec, dataset, original_handler):
+        raise NotImplemented
