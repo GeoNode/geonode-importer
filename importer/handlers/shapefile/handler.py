@@ -48,7 +48,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
             "format": "vector",
             "ext": ["shp"],
             "requires": ["shp", "prj", "dbf", "shx"],
-            "optional": ["xml", "sld"],
+            "optional": ["xml", "sld", "cpg"],
         }
 
     @staticmethod
