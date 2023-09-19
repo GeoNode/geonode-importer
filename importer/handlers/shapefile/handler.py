@@ -155,7 +155,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
 
         if not files.get("cpg_file"):
             # set a default
-            encoding = "UTF-8"
+            encoding = "ISO-8859-1"
             # GeoServer exports cst-file
             if files.get("cst_file"):
                 encoding_file = files.get("cst_file")
@@ -164,7 +164,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
             try:
                 codecs.lookup(encoding)
             except LookupError as e:
-                encoding = "UTF-8"
+                encoding = "ISO-8859-1"
                 logger.error(f"Invalid encoding! Use the default: {encoding} {e}")
 
         additional_options = (
