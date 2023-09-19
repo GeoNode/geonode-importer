@@ -153,19 +153,16 @@ class ShapeFileHandler(BaseVectorFileHandler):
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
 
-        if not files.get("cpg_file"):
-            # set a default
-            encoding = "ISO-8859-1"
+        if not files.get("cpg_file") and files.get("cst_file"):
             # GeoServer exports cst-file
-            if files.get("cst_file"):
-                encoding_file = files.get("cst_file")
-                with open(encoding_file) as f:
-                    encoding = f.read()
+            encoding_file = files.get("cst_file")
+            with open(encoding_file) as f:
+                encoding = f.read()
             try:
                 codecs.lookup(encoding)
             except LookupError as e:
-                encoding = "ISO-8859-1"
-                logger.error(f"Invalid encoding! Use the default: {encoding} {e}")
+                encoding = None
+                logger.error(f"Will ignore invalid encoding: {e}")
 
         additional_options = (
             " -nlt PROMOTE_TO_MULTI"
