@@ -1,5 +1,6 @@
 import json
 import logging
+import codecs
 from geonode.utils import get_supported_datasets_file_types
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
@@ -48,7 +49,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
             "format": "vector",
             "ext": ["shp"],
             "requires": ["shp", "prj", "dbf", "shx"],
-            "optional": ["xml", "sld", "cpg"],
+            "optional": ["xml", "sld", "cpg", "cst"],
         }
 
     @staticmethod
@@ -151,15 +152,31 @@ class ShapeFileHandler(BaseVectorFileHandler):
         )
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
-        additional_option = (
+
+        if not files.get("cpg_file"):
+            # set a default
+            encoding = "UTF-8"
+            # GeoServer exports cst-file
+            if files.get("cst_file"):
+                encoding_file = files.get("cst_file")
+                with open(encoding_file) as f:
+                    encoding = f.read()
+            try:
+                codecs.lookup(encoding)
+            except LookupError as e:
+                encoding = "UTF-8"
+                logger.error(f"Invalid encoding! Use the default: {encoding} {e}")
+
+        additional_options = (
             " -nlt PROMOTE_TO_MULTI"
             if layer is not None
             and "Point" not in ogr.GeometryTypeToName(layer.GetGeomType())
-            else " "
+            else " ",
+            " ENCODING={encoding} " if encoding else "",
         )
         return (
             f"{base_command } -lco precision=no -lco DIM=2 -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}"
-            + additional_option
+            + additional_options
         )
 
     def promote_to_multi(self, geometry_name):
