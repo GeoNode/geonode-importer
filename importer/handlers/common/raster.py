@@ -480,6 +480,8 @@ class BaseRasterFileHandler(BaseHandler):
         self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
     ):
         steps = self.ACTIONS.get(action_to_rollback)
+        if rollback_from_step not in steps:
+            return        
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
