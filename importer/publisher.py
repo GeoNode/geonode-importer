@@ -81,7 +81,7 @@ class DataPublisher:
 
     def overwrite_resources(self, resources: List[str]):
         """
-        Not available for now, waiting geoserver 2.20/2.21 available with Geonode
+        We dont need to do anything for now. The data is replaced via ogr2ogr
         """
         pass
 

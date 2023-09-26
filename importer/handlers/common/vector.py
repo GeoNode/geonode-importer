@@ -394,7 +394,7 @@ class BaseVectorFileHandler(BaseHandler):
         dataset_exists = dataset_available.exists()
 
         if dataset_exists and should_be_overwritten:
-            alternate = dataset_available.first().alternate
+            alternate = dataset_available.first().alternate.split(":")[-1]
         elif not dataset_exists:
             alternate = layer_name
         else:
