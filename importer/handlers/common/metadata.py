@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class MetadataFileHandler(BaseHandler):
     """
-    Handler to import KML files into GeoNode data db
+    Handler to import metadata files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
 
