@@ -105,7 +105,7 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
 
 ```
 
-NOTE:
+## NOTE:
 In case of a local environment, Geoserver and Geonode should be able to reach the default `MEDIA_ROOT`.
 
 If some permission is missing, please change the `FILE_UPLOAD_DIRECTORY_PERMISSIONS` to make the folder accessible to both

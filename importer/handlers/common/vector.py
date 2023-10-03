@@ -140,6 +140,13 @@ class BaseVectorFileHandler(BaseHandler):
                 raise e
         return True
 
+    def overwrite_geoserver_resource(self, resource, catalog, store, workspace):
+        """
+        We dont need to do anything for now.
+        The data is replaced via ogr2ogr
+        """
+        pass
+
     @staticmethod
     def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
         """
@@ -394,7 +401,7 @@ class BaseVectorFileHandler(BaseHandler):
         dataset_exists = dataset_available.exists()
 
         if dataset_exists and should_be_overwritten:
-            alternate = dataset_available.first().alternate
+            alternate = dataset_available.first().alternate.split(":")[-1]
         elif not dataset_exists:
             alternate = layer_name
         else:
@@ -627,7 +634,7 @@ class BaseVectorFileHandler(BaseHandler):
             self.handle_sld_file(dataset, _exec)
 
             resource_manager.set_thumbnail(
-                dataset.uuid, instance=dataset, overwrite=False
+                dataset.uuid, instance=dataset, overwrite=True
             )
             dataset.refresh_from_db()
             return dataset

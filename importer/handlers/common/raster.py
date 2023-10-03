@@ -26,6 +26,7 @@ from importer.orchestrator import orchestrator
 from osgeo import gdal
 from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
+from geonode.geoserver.helpers import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,33 @@ class BaseRasterFileHandler(BaseHandler):
                     continue
                 raise e
         return True
+
+    def overwrite_geoserver_resource(self, resource: List[str], catalog, store, workspace):
+        # we need to delete the resource before recreating it
+        self._delete_resource(resource, catalog, workspace)
+        self._delete_store(resource, catalog, workspace)
+        return self.publish_resources([resource], catalog, store, workspace)
+
+    def _delete_store(self, resource, catalog, workspace):
+        store = None
+        possible_layer_name = [resource.get("name"), resource.get("name").split(":")[-1], f"{workspace.name}:{resource.get('name')}"]
+        for el in possible_layer_name:
+            store = catalog.get_store(el, workspace=workspace)
+            if store:
+                break
+        if store:
+            catalog.delete(store, purge="all", recurse=True)
+        return store
+
+    def _delete_resource(self, resource, catalog, workspace):
+        res = None
+        possible_layer_name = [resource.get("name"), resource.get("name").split(":")[-1], f"{workspace.name}:{resource.get('name')}"]
+        for el in possible_layer_name:
+            res = catalog.get_resource(el, workspace=workspace)
+            if res:
+                break
+        if res:
+            catalog.delete(res, purge="all", recurse=True)
 
     @staticmethod
     def delete_resource(instance):
@@ -262,6 +290,8 @@ class BaseRasterFileHandler(BaseHandler):
 
                 if dataset_exists and should_be_overwritten:
                     layer_name, alternate = layer_name, user_datasets.first().alternate
+                elif not dataset_exists:
+                    alternate = layer_name
                 else:
                     alternate = create_alternate(layer_name, execution_id)
 
@@ -359,6 +389,7 @@ class BaseRasterFileHandler(BaseHandler):
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
+        
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
@@ -368,7 +399,7 @@ class BaseRasterFileHandler(BaseHandler):
             self.handle_sld_file(dataset, _exec)
 
             resource_manager.set_thumbnail(
-                self.object.uuid, instance=self.object, overwrite=False
+                dataset.uuid, instance=dataset, overwrite=True
             )
             dataset.refresh_from_db()
             return dataset

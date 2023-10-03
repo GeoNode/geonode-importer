@@ -71,19 +71,33 @@ class DataPublisher:
         self.sanity_checks(resources)
         return result
 
+    def overwrite_resources(self, resources: List[str]):
+        """
+        We dont need to do anything for now. The data is replaced via ogr2ogr
+        """
+        self.get_or_create_store()
+        for _resource in resources:
+            result = self.handler.overwrite_geoserver_resource(
+                resource=_resource,
+                catalog=self.cat,
+                store=self.store,
+                workspace=self.workspace,
+            )
+        self.sanity_checks(resources)
+        return result
+
     def delete_resource(self, resource_name):
         layer = self.get_resource(resource_name)
-        if layer:
+        if layer and layer.resource:
             self.cat.delete(layer.resource, purge="all", recurse=True)
+        store = self.cat.get_store(resource_name.split(":")[-1], workspace=os.getenv("DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")))
+        if not store:
+            store = self.cat.get_store(resource_name, workspace=os.getenv("DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")))
+        if store:
+            self.cat.delete(store, purge="all", recurse=True)
 
     def get_resource(self, dataset_name):
         return self.cat.get_layer(dataset_name)
-
-    def overwrite_resources(self, resources: List[str]):
-        """
-        Not available for now, waiting geoserver 2.20/2.21 available with Geonode
-        """
-        pass
 
     def get_or_create_store(self):
         """
@@ -122,9 +136,11 @@ class DataPublisher:
         For each resource. This is a quick test to be sure
         that the resource is correctly set/created
         """
+
         for _resource in resources:
-            res = self.cat.get_resource(_resource.get("name"), workspace=self.workspace)
-            if not res.projection:
+            possible_layer_name = [_resource.get("name"), _resource.get("name").split(":")[-1], f"{self.workspace.name}:{_resource.get('name')}"]
+            res = list(filter(None, (self.cat.get_resource(x, workspace=self.workspace) for x in possible_layer_name)))
+            if not res or (res and not res[0].projection):
                 raise PublishResourceException(
                     f"The SRID for the resource {res.name} is not correctly set, Please check Geoserver logs"
                 )
