@@ -153,28 +153,37 @@ class ShapeFileHandler(BaseVectorFileHandler):
         layers = ogr.Open(files.get("base_file"))
         layer = layers.GetLayer(original_name)
 
-        if not files.get("cpg_file") and files.get("cst_file"):
+        encoding = ShapeFileHandler._get_encoding(files)
+
+        additional_options = []
+        if layer is not None and "Point" not in ogr.GeometryTypeToName(layer.GetGeomType()):
+            additional_options.append("-nlt PROMOTE_TO_MULTI")
+        if encoding:
+            additional_options.append(f"ENCODING={encoding}")
+        
+        return (
+            f"{base_command } -lco precision=no -lco DIM=2 -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
+            + " ".join(additional_options)
+        )
+    
+    @staticmethod
+    def _get_encoding(files):
+        if files.get("cpg_file"):
+            # prefer cpg file which is handled by gdal
+            return None
+        
+        encoding = None
+        if files.get("cst_file"):
             # GeoServer exports cst-file
             encoding_file = files.get("cst_file")
-            with open(encoding_file) as f:
+            with open(encoding_file, "r") as f:
                 encoding = f.read()
             try:
                 codecs.lookup(encoding)
             except LookupError as e:
                 encoding = None
                 logger.error(f"Will ignore invalid encoding: {e}")
-
-        additional_options = (
-            " -nlt PROMOTE_TO_MULTI"
-            if layer is not None
-            and "Point" not in ogr.GeometryTypeToName(layer.GetGeomType())
-            else " ",
-            " ENCODING={encoding} " if encoding else "",
-        )
-        return (
-            f"{base_command } -lco precision=no -lco DIM=2 -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name}"
-            + additional_options
-        )
+        return encoding
 
     def promote_to_multi(self, geometry_name):
         """
