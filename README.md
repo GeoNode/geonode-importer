@@ -128,6 +128,10 @@ IMPORTER_GLOBAL_RATE_LIMIT= # default 5
 IMPORTER_PUBLISHING_RATE_LIMIT= # default 5
 IMPORTER_RESOURCE_CREATION_RATE_LIMIT= # default 10
 IMPORTER_RESOURCE_COPY_RATE_LIMIT = # default 10
+
+# https://gdal.org/drivers/vector/pg.html#configuration-options
+DISABLE_PG_COPY_OGR2OGR= # If TRUE disable the usage of COPY during the import in postgres. Disable it can affect the performance 
+
 ```
 
 ## Troubleshooting

@@ -1,3 +1,4 @@
+import ast
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
@@ -161,7 +162,10 @@ class BaseVectorFileHandler(BaseHandler):
             db_host, db_port = db_host.split(":")
         db_name = _uri.split("@")[1].split("/")[1]
 
-        options = "--config PG_USE_COPY YES "
+
+        disable_pg_copy = ast.literal_eval(os.getenv("DISABLE_PG_COPY_OGR2OGR", "False"))
+        options = f"--config PG_USE_COPY {'NO' if disable_pg_copy else 'YES'} "
+
         options += (
             "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
             % (db_name, db_host, db_port, db_user, db_password)
