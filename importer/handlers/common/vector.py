@@ -154,21 +154,14 @@ class BaseVectorFileHandler(BaseHandler):
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         """
-        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
-        db_user, db_password = _uri.split("@")[0].split(":")
-        db_host = _uri.split("@")[1].split("/")[0]
-        db_port = "5432"
-        if ":" in db_host:
-            db_host, db_port = db_host.split(":")
-        db_name = _uri.split("@")[1].split("/")[1]
-
+        _datastore = settings.DATABASES['datastore']
 
         disable_pg_copy = ast.literal_eval(os.getenv("DISABLE_PG_COPY_OGR2OGR", "False"))
         options = f"--config PG_USE_COPY {'NO' if disable_pg_copy else 'YES'} "
 
         options += (
             "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-            % (db_name, db_host, db_port, db_user, db_password)
+            % (_datastore['NAME'], _datastore['HOST'], _datastore['PORT'] or 5432, _datastore['USER'], _datastore['PASSWORD'])
         )
         options += f'"{files.get("base_file")}"' + " "
         #        options += "-lco DIM=2 "
