@@ -161,7 +161,7 @@ class BaseVectorFileHandler(BaseHandler):
 
         options += (
             "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-            % (_datastore['NAME'], _datastore['HOST'], _datastore['PORT'] or 5432, _datastore['USER'], _datastore['PASSWORD'])
+            % (_datastore['NAME'], _datastore['HOST'], _datastore.get('PORT', 5432), _datastore['USER'], _datastore['PASSWORD'])
         )
         options += f'"{files.get("base_file")}"' + " "
         #        options += "-lco DIM=2 "
