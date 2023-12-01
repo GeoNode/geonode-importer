@@ -258,9 +258,9 @@ class TestBaseVectorFileHandler(TestCase):
             shell=True,  # noqa
         )
 
-    @patch.dict(os.environ, {"DISABLE_PG_COPY_OGR2OGR": "True"}, clear=True)
+    @patch.dict(os.environ, {"OGR2OGR_COPY_WITH_DUMP": "True"}, clear=True)
     @patch("importer.handlers.common.vector.Popen")
-    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command_if_copy_is_disabled(
+    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command_if_dump_is_enabled(
         self, _open
     ):
         _uuid = uuid.uuid4()
@@ -283,9 +283,8 @@ class TestBaseVectorFileHandler(TestCase):
         self.assertEqual(str(_uuid), execution_id)
 
         _open.assert_called_once()
-        _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY NO -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -nln alternate "dataset"',
-            stdout=-1,
-            stderr=-1,
-            shell=True,  # noqa
-        )
+        _call_as_string = _open.mock_calls[0][1][0]
+        
+        self.assertTrue('-f PGDump /vsistdout/' in _call_as_string)
+        self.assertTrue('psql -d' in _call_as_string)
+        self.assertFalse('-f PostgreSQL PG' in _call_as_string)
