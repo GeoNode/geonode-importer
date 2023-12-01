@@ -258,7 +258,7 @@ class TestBaseVectorFileHandler(TestCase):
             shell=True,  # noqa
         )
 
-    @patch.dict(os.environ, {"DISABLE_PG_COPY_OGR2OGR": "True"}, clear=True)
+    @patch.dict(os.environ, {"OGR2OGR_COPY_WITH_DUMP": "True"}, clear=True)
     @patch("importer.handlers.common.vector.Popen")
     def test_import_with_ogr2ogr_without_errors_should_call_the_right_command_if_copy_is_disabled(
         self, _open
