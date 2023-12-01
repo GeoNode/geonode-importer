@@ -154,12 +154,26 @@ class BaseVectorFileHandler(BaseHandler):
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         """
-        _datastore = settings.DATABASES['datastore']
+        _datastore = settings.DATABASES["datastore"]
+        
+        options = "--config PG_USE_COPY YES"
+        copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
 
-        options = (
-            "--config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-            % (_datastore['NAME'], _datastore['HOST'], _datastore.get('PORT', 5432), _datastore['USER'], _datastore['PASSWORD'])
-        )
+        if copy_with_dump:
+            # use PGDump to load the dataset with ogr2ogr
+            options += ' -f PGDump /vsistdout/ '
+        else:
+            # default option with postgres copy
+            options += (
+                " -f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
+                % (
+                    _datastore["NAME"],
+                    _datastore["HOST"],
+                    _datastore.get("PORT", 5432),
+                    _datastore["USER"],
+                    _datastore["PASSWORD"],
+                )
+            )
         options += f'"{files.get("base_file")}"' + " "
 
         options += f'-nln {alternate} "{original_name}"'
@@ -761,7 +775,7 @@ class BaseVectorFileHandler(BaseHandler):
         steps = self.ACTIONS.get(action_to_rollback)
         if rollback_from_step not in steps:
             logger.info("Step not found, skipping")
-            return        
+            return
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
@@ -939,7 +953,7 @@ def import_with_ogr2ogr(
         options = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
             files, original_name, ovverwrite_layer, alternate
         )
-        _datastore = settings.DATABASES['datastore']
+        _datastore = settings.DATABASES["datastore"]
 
         copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
 
