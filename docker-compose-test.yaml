@@ -5,6 +5,7 @@ services:
   # Our custom django application. It includes Geonode.
   django:
     build:
+      context: .
       dockerfile: Dockerfile
     container_name: django4importer
     healthcheck:
