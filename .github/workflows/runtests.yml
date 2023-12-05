@@ -18,5 +18,6 @@ jobs:
       run: docker-compose -f "docker-compose-test.yaml" up -d
     - name: Run django test suite
       run: docker exec tdms_test /bin/sh -c "sh /usr/src/importer/entrypoint_test.sh    
+    - name: Stop containers
       if: always()
       run: docker-compose -f "docker-compose-test.yaml" down
