@@ -5,7 +5,6 @@ x-common-django:
   &default-common-django
   build:
     dockerfile: Dockerfile
-  restart: no
   env_file:
     - .env_test
   volumes:
@@ -38,7 +37,7 @@ services:
 
   # Geoserver backend
   geoserver:
-    image: geonode/geoserver:2.23.0
+    image: geonode/geoserver:2.23.3
     container_name: geoserver4importer
     healthcheck:
       test: "curl -m 10 --fail --silent --write-out 'HTTP CODE : %{http_code}\n' --output /dev/null http://geoserver:8080/geoserver/ows"
