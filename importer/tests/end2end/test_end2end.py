@@ -47,9 +47,13 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 
     def setUp(self) -> None:
         self.admin = get_user_model().objects.get(username="admin")
+        for el in Dataset.objects.all():
+            el.delete()
 
     def tearDown(self) -> None:
-        return super().tearDown()
+        super().tearDown()
+        for el in Dataset.objects.all():
+            el.delete()
 
     def _assertimport(self, payload, initial_name, overwrite=False, last_update=None):
         try:

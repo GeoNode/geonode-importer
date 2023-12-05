@@ -47,23 +47,14 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
         )
 
     def setUp(self) -> None:
-        Dataset.objects.filter(
-            title__in=[
-                "title_of_the_cloned_resource",
-                "stazioni_metropolitana",
-                "valid",
-            ]
-        ).delete()
+        for el in Dataset.objects.all():
+            el.delete()
+
         self.admin = get_user_model().objects.get(username="admin")
 
     def tearDown(self) -> None:
-        Dataset.objects.filter(
-            title__in=[
-                "title_of_the_cloned_resource",
-                "stazioni_metropolitana",
-                "valid",
-            ]
-        ).delete()
+        for el in Dataset.objects.all():
+            el.delete()
 
     def _assertCloning(self, initial_name):
         # getting the geonode resource
