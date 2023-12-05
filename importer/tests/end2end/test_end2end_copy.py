@@ -132,7 +132,7 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
 
 
 class ImporterCopyEnd2EndGpkgTest(BaseClassEnd2End):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "IMPORTER_ENABLE_DYN_MODELS": "True"})
     @override_settings(
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
@@ -149,7 +149,7 @@ class ImporterCopyEnd2EndGpkgTest(BaseClassEnd2End):
 
 
 class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "IMPORTER_ENABLE_DYN_MODELS": "True"})
     @override_settings(
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
@@ -165,7 +165,7 @@ class ImporterCopyEnd2EndGeoJsonTest(BaseClassEnd2End):
 
 
 class ImporterCopyEnd2EndShapeFileTest(BaseClassEnd2End):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "IMPORTER_ENABLE_DYN_MODELS": "True"})
     @override_settings(
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
@@ -181,7 +181,7 @@ class ImporterCopyEnd2EndShapeFileTest(BaseClassEnd2End):
 
 
 class ImporterCopyEnd2EndKMLTest(BaseClassEnd2End):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "IMPORTER_ENABLE_DYN_MODELS": "True"})
     @override_settings(
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )

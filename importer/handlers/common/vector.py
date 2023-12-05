@@ -132,7 +132,7 @@ class BaseVectorFileHandler(BaseHandler):
                 )
             except Exception as e:
                 if (
-                    f"Resource named {_resource.get('name')} already exists in store:"
+                    f"Resource named {_resource} already exists in store:"
                     in str(e)
                 ):
                     logger.error(f"error during publishing: {e}")

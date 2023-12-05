@@ -79,7 +79,7 @@ class TestDataPublisher(TestCase):
         )
 
         result = self.publisher.publish_resources(
-            resources=[{"crs": "EPSG:32632", "name": "stazioni_metropolitana"}]
+            resources={"crs": "EPSG:32632", "name": "stazioni_metropolitana"}
         )
         self.assertTrue(result)
         publish_featuretype.assert_called_once()

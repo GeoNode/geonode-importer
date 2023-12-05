@@ -1,0 +1,22 @@
+name: Run test suite
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Start containers
+      run: docker-compose -f "docker-compose-test.yaml" up -d
+    - name: Run django test suite
+      run: docker exec tdms_test /bin/sh -c "sh /usr/src/importer/entrypoint_test.sh    
+      if: always()
+      run: docker-compose -f "docker-compose-test.yaml" down

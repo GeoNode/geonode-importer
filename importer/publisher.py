@@ -142,5 +142,5 @@ class DataPublisher:
             res = list(filter(None, (self.cat.get_resource(x, workspace=self.workspace) for x in possible_layer_name)))
             if not res or (res and not res[0].projection):
                 raise PublishResourceException(
-                    f"The SRID for the resource {res.name} is not correctly set, Please check Geoserver logs"
+                    f"The SRID for the resource {_resource} is not correctly set, Please check Geoserver logs"
                 )
