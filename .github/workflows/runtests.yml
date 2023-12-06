@@ -18,7 +18,7 @@ jobs:
       run: docker-compose -f "docker-compose-test.yaml" up -d --build
     - name: Run django entrypoint
       run: docker exec django4importer /bin/sh -c "sh /usr/src/importer/entrypoint_test.sh"
-    -name: Run geonode-importer tests
+    - name: Run geonode-importer tests
       run: docker exec django4importer /bin/sh -c "set -a && . ./.env_test && set +a && coverage run --append --source=/usr/src/geonode/manage.py test importer --keepdb -v2 --noinput"
     - name: Stop containers
       if: always()
