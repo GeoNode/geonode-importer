@@ -29,4 +29,3 @@ psql -d test_geonode_data --host db --username postgres -c 'GRANT ALL ON geometr
 psql -d test_geonode_data --host db --username postgres -c 'GRANT ALL ON spatial_ref_sys TO PUBLIC;'
 psql -d test_geonode_data --host db --username postgres -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO geonode_data;'
 echo "Done"
-set -a && . ./.env_test && set +a && python /usr/src/geonode/manage.py test importer --keepdb -v2
