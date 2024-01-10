@@ -30,5 +30,5 @@ def run_setup_hooks(*args, **kwargs):
     if not url_already_injected:
         urlpatterns.insert(
             0,
-            url(r"^api/v2/", include("importer.api.urls")),
+            re_path(r"^api/v2/", include("importer.api.urls")),
         )
