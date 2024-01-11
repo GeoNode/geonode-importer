@@ -33,6 +33,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "setuptools>=59",
+        "gdal<=3.4.3",
         "pdok-geopackage-validator==0.8.5",
         "geonode-django-dynamic-model==0.4.0",
     ],
