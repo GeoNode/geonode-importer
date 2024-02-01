@@ -1,10 +1,10 @@
-from django.test import TestCase
 from dynamic_models.models import ModelSchema, FieldSchema
 from geonode.base.populate_test_data import create_single_dataset
 from importer.models import ResourceHandlerInfo
+from importer.tests.utils import TransactionImporterBaseTestSupport
 
 
-class TestModelSchemaSignal(TestCase):
+class TestModelSchemaSignal(TransactionImporterBaseTestSupport):
     databases = ("default", "datastore")
 
     def setUp(self):
@@ -26,6 +26,12 @@ class TestModelSchemaSignal(TestCase):
         """
         Ensure that the dynamic model is deleted
         """
+        # create needed resource handler info
+        
+        ResourceHandlerInfo.objects.create(
+            resource=self.resource,
+            handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+        )
         self.resource.delete()
         self.assertFalse(ModelSchema.objects.filter(name="test_dataset").exists())
         self.assertFalse(
