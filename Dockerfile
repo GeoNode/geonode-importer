@@ -7,6 +7,6 @@ RUN cd ..
 COPY . /usr/src/importer/
 WORKDIR /usr/src/importer
 
-RUN pip install -e  /usr/src/geonode/
+RUN pip install /usr/src/geonode/
 RUN pip install --upgrade  -e /usr/src/importer/
 RUN pip install coverage
