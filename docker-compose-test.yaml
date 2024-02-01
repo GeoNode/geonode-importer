@@ -20,8 +20,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      geoserver:
-        condition: service_healthy
     env_file:
       - .env_test
     volumes:
@@ -80,8 +78,8 @@ services:
     healthcheck:
       test: "pg_isready -d postgres -U postgres"
     # uncomment to enable remote connections to postgres
-    #ports:
-    #  - "5432:5432"
+    ports:
+      - "5432:5432"
 
 
 volumes:
