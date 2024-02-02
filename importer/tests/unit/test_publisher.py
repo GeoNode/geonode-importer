@@ -4,6 +4,7 @@ from mock import patch
 from importer import project_dir
 from importer.publisher import DataPublisher
 from unittest.mock import MagicMock
+from geonode.geoserver.helpers import create_geoserver_db_featurestore
 
 
 class TestDataPublisher(TestCase):
@@ -66,6 +67,12 @@ class TestDataPublisher(TestCase):
 
     @patch("importer.publisher.create_geoserver_db_featurestore")
     def test_get_or_create_store_creation_should_not_be_called(self, datastore):
+        try:
+            create_geoserver_db_featurestore(
+                store_name="geonode_data", workspace=self.workspace.name
+            )
+        except:
+            pass
         self.publisher.get_or_create_store()
         datastore.assert_not_called()
 

@@ -58,7 +58,7 @@ class TestGPKGHandler(TestCase):
         self.assertIsNotNone(_exc)
         print(_exc.exception.detail)
         self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores."
+            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores"
             in str(_exc.exception.detail)
         )
 

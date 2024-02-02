@@ -27,6 +27,7 @@ services:
       - geoserver-data-dir:/geoserver_data/data
       - data:/data
       - tmp:/tmp
+      - .:/usr/src/importer
       
 
   # Geoserver backend
