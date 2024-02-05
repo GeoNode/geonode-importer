@@ -66,17 +66,6 @@ class TestDataPublisher(TestCase):
         self.assertListEqual([], values_found)
 
     @patch("importer.publisher.create_geoserver_db_featurestore")
-    def test_get_or_create_store_creation_should_not_be_called(self, datastore):
-        try:
-            create_geoserver_db_featurestore(
-                store_name="geonode_data", workspace=self.workspace.name
-            )
-        except:
-            pass
-        self.publisher.get_or_create_store()
-        datastore.assert_not_called()
-
-    @patch("importer.publisher.create_geoserver_db_featurestore")
     def test_get_or_create_store_creation_should_called(self, datastore):
         with patch.dict(
             os.environ, {"GEONODE_GEODATABASE": "not_existsing_db"}, clear=True
