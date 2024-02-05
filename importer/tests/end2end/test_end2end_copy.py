@@ -58,6 +58,7 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
 
     def _assertCloning(self, initial_name):
         # getting the geonode resource
+        print(initial_name)
         dataset = Dataset.objects.get(alternate__icontains=f"geonode:{initial_name}")
         prev_dataset_count = Dataset.objects.count()
         self.client.force_login(get_user_model().objects.get(username="admin"))
@@ -107,6 +108,7 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
     def _wait_execution(self, response, _id="execution_id"):
         # if is async, we must wait. It will wait for 1 min before raise exception
         if ast.literal_eval(os.getenv("ASYNC_SIGNALS", "False")):
+            print("is false")
             tentative = 1
             while (
                 ExecutionRequest.objects.get(exec_id=response.json().get(_id))
@@ -119,6 +121,7 @@ class BaseClassEnd2End(TransactionImporterBaseTestSupport):
             ExecutionRequest.objects.get(exec_id=response.json().get(_id)).status
             != ExecutionRequest.STATUS_FINISHED
         ):
+            print(ExecutionRequest.objects.get(exec_id=response.json().get(_id)))
             raise Exception("Async still in progress after 1 min of waiting")
 
 
@@ -176,11 +179,11 @@ class ImporterCopyEnd2EndKMLTest(BaseClassEnd2End):
     @override_settings(
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
-    def test_copy_dataset_from_geojson(self):
+    def test_copy_dataset_from_kml(self):
         payload = {
             "base_file": open(self.valid_kml, "rb"),
         }
-        initial_name = "valid"
+        initial_name = "sample_point_dataset"
         # first we need to import a resource
         with transaction.atomic():
             self._import_resource(payload, initial_name)

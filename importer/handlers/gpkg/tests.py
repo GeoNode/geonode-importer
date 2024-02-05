@@ -56,9 +56,8 @@ class TestGPKGHandler(TestCase):
             self.handler.is_valid(files=self.invalid_files, user=self.user)
 
         self.assertIsNotNone(_exc)
-        print(_exc.exception.detail)
         self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores"
+            "Error layer: INVALID LAYER_name"
             in str(_exc.exception.detail)
         )
 
