@@ -162,7 +162,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
             additional_options.append(f"-lco ENCODING={encoding}")
         
         return (
-            f"{base_command } -lco precision=no -lco DIM=2 -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
+            f"{base_command } -lco precision=no -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
             + " ".join(additional_options)
         )
     

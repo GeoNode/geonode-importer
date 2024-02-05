@@ -1,4 +1,5 @@
 import uuid
+import os
 from django.test import TestCase
 from mock import MagicMock, patch
 from importer.handlers.common.vector import import_with_ogr2ogr
@@ -130,7 +131,7 @@ class TestGeoJsonFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_files.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco GEOMETRY_NAME=geometry',
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'test_geonode_data\' host=' + os.getenv('DATABASE_HOST', 'localhost') + ' port=5432 user=\'geonode_data\' password=\'geonode_data\' " "' +  self.valid_files.get("base_file") + '" -nln alternate "dataset" -lco GEOMETRY_NAME=geometry',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa

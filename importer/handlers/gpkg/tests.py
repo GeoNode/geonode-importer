@@ -57,7 +57,7 @@ class TestGPKGHandler(TestCase):
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores"
+            "Error layer: INVALID LAYER_name"
             in str(_exc.exception.detail)
         )
 

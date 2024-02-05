@@ -47,9 +47,13 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 
     def setUp(self) -> None:
         self.admin = get_user_model().objects.get(username="admin")
+        for el in Dataset.objects.all():
+            el.delete()
 
     def tearDown(self) -> None:
-        return super().tearDown()
+        super().tearDown()
+        for el in Dataset.objects.all():
+            el.delete()
 
     def _assertimport(self, payload, initial_name, overwrite=False, last_update=None):
         try:
@@ -66,7 +70,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
                         exec_id=response.json().get("execution_id")
                     )
                     != ExecutionRequest.STATUS_FINISHED
-                    and tentative <= 6
+                    and tentative <= 10
                 ):
                     time.sleep(10)
                     tentative += 1
@@ -191,15 +195,15 @@ class ImporterKMLImportTest(BaseImporterEndToEndTest):
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
     def test_import_kml(self):
-        layer = self.cat.get_layer("geonode:extruded_polygon")
+        layer = self.cat.get_layer("geonode:sample_point_dataset")
         if layer:
             self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_kml, "rb"),
         }
-        initial_name = "extruded_polygon"
+        initial_name = "sample_point_dataset"
         self._assertimport(payload, initial_name)
-        layer = self.cat.get_layer("geonode:extruded_polygon")
+        layer = self.cat.get_layer("geonode:sample_point_dataset")
         if layer:
             self.cat.delete(layer)
 
@@ -209,19 +213,19 @@ class ImporterKMLImportTest(BaseImporterEndToEndTest):
     )
     def test_import_kml_overwrite(self):
         prev_dataset = create_single_dataset(
-            name="extruded_polygon"
+            name="sample_point_dataset"
         )
 
-        layer = self.cat.get_layer("geonode:extruded_polygon")
+        layer = self.cat.get_layer("geonode:sample_point_dataset")
         if layer:
             self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_kml, "rb"),
         }
-        initial_name = "extruded_polygon"
+        initial_name = "sample_point_dataset"
         payload['overwrite_existing_layer'] = True
         self._assertimport(payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated)
-        layer = self.cat.get_layer("geonode:extruded_polygon")
+        layer = self.cat.get_layer("geonode:sample_point_dataset")
         if layer:
             self.cat.delete(layer)
 

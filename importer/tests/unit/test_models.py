@@ -1,14 +1,16 @@
-from django.test import TestCase
+import os
 from dynamic_models.models import ModelSchema, FieldSchema
+import mock
 from geonode.base.populate_test_data import create_single_dataset
 from importer.models import ResourceHandlerInfo
+from importer.tests.utils import TransactionImporterBaseTestSupport
+import uuid
 
-
-class TestModelSchemaSignal(TestCase):
+class TestModelSchemaSignal(TransactionImporterBaseTestSupport):
     databases = ("default", "datastore")
 
     def setUp(self):
-        self.resource = create_single_dataset(name="test_dataset")
+        self.resource = create_single_dataset(name=f"test_dataset_{uuid.uuid4()}")
         ResourceHandlerInfo.objects.create(
             resource=self.resource,
             handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
@@ -22,10 +24,17 @@ class TestModelSchemaSignal(TestCase):
             model_schema=self.dynamic_model,
         )
 
+    @mock.patch.dict(os.environ, {"IMPORTER_ENABLE_DYN_MODELS": "True"})
     def test_delete_dynamic_model(self):
         """
         Ensure that the dynamic model is deleted
         """
+        # create needed resource handler info
+        
+        ResourceHandlerInfo.objects.create(
+            resource=self.resource,
+            handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+        )
         self.resource.delete()
         self.assertFalse(ModelSchema.objects.filter(name="test_dataset").exists())
         self.assertFalse(

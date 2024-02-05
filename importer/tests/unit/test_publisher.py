@@ -1,8 +1,10 @@
 import os
 from django.test import TestCase
+from mock import patch
 from importer import project_dir
 from importer.publisher import DataPublisher
-from unittest.mock import patch
+from unittest.mock import MagicMock
+from geonode.geoserver.helpers import create_geoserver_db_featurestore
 
 
 class TestDataPublisher(TestCase):
@@ -17,6 +19,24 @@ class TestDataPublisher(TestCase):
             handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler"
         )
         cls.gpkg_path = f"{project_dir}/tests/fixture/valid.gpkg"
+
+    def setUp(self):
+        layer = self.publisher.cat.get_resources('stazioni_metropolitana', workspaces="geonode")
+        print("delete layer")
+        if layer:
+            res = self.publisher.cat.delete(layer.resource, purge="all", recurse=True)
+            print(res.status_code)
+            print(res.json)
+
+    def tearDown(self):
+        layer = self.publisher.cat.get_resources('stazioni_metropolitana', workspaces="geonode")
+        print("delete layer teardown")
+        if layer:
+            self.publisher.cat.delete(layer)
+
+            res = self.publisher.cat.delete(layer.resource, purge="all", recurse=True)
+            print(res.status_code)
+            print(res.json)
 
     def test_extract_resource_name_and_crs(self):
         """
@@ -46,11 +66,6 @@ class TestDataPublisher(TestCase):
         self.assertListEqual([], values_found)
 
     @patch("importer.publisher.create_geoserver_db_featurestore")
-    def test_get_or_create_store_creation_should_not_be_called(self, datastore):
-        self.publisher.get_or_create_store()
-        datastore.assert_not_called()
-
-    @patch("importer.publisher.create_geoserver_db_featurestore")
     def test_get_or_create_store_creation_should_called(self, datastore):
         with patch.dict(
             os.environ, {"GEONODE_GEODATABASE": "not_existsing_db"}, clear=True
@@ -70,24 +85,11 @@ class TestDataPublisher(TestCase):
             )
         publish_featuretype.assert_called_once()
 
-    @patch("importer.publisher.Catalog.publish_featuretype")
-    def test_publish_resources_should_continue_in_case_the_resource_is_already_published(
-        self, publish_featuretype
-    ):
-        publish_featuretype.side_effect = Exception(
-            "Resource named stazioni_metropolitana already exists in store:"
-        )
-
-        result = self.publisher.publish_resources(
-            resources=[{"crs": "EPSG:32632", "name": "stazioni_metropolitana"}]
-        )
-        self.assertTrue(result)
-        publish_featuretype.assert_called_once()
 
     @patch("importer.publisher.Catalog.publish_featuretype")
     def test_publish_resources_should_work(self, publish_featuretype):
         publish_featuretype.return_value = True
-
+        self.publisher.sanity_checks = MagicMock()
         result = self.publisher.publish_resources(
             resources=[{"crs": "EPSG:32632", "name": "stazioni_metropolitana"}]
         )

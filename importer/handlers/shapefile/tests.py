@@ -148,7 +148,7 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
+            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'test_geonode_data\' host=' + os.getenv('DATABASE_HOST', 'localhost') + ' port=5432 user=\'geonode_data\' password=\'geonode_data\' " "' +  self.valid_shp.get("base_file") + '" -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa
