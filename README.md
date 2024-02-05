@@ -161,3 +161,41 @@ In detail the list is the following:
 |---|---|
 | - (space) # \  | _  |
 | .)(,&  | empty_string  |
+
+
+## Run tests
+
+A simple docker compose is provided along with the project. To run the geonode-importer test suite please follow this steps:
+
+The compose project, provides what is needed to run the tests. This includes:
+
+1) Database
+1) Geoserver
+1) Django with all the dependecies needed
+
+
+#### Step 1: build the project
+
+Build and run the docker compose project
+```
+docker compose -f docker-compose-test.yaml up --build -d
+```
+
+#### Step 2: Run Scripts
+
+Two scripts are provided along with the compose file:
+
+1) entrypoint_test.sh
+1) runtest.sh
+
+#### 1) entrypoint_test.sh
+Is a script which create the needed extension and database to run the tests. Is a setup script
+
+#### 2) runtest.sh
+It actually runs the tests.
+
+
+Note: the tests inside the docker environment can be run manually too
+
+## Env File
+The `.env_test` file contains all the environment variable needed to successfully run the tests
