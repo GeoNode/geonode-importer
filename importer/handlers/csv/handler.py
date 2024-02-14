@@ -195,11 +195,13 @@ class CSVFileHandler(BaseVectorFileHandler):
                     "name": layer.GetGeometryColumn()
                     or self.default_geometry_column_name,
                     "class_name": class_name,
-                    "dim": 2
-                    if not ogr.GeometryTypeToName(layer.GetGeomType())
-                    .lower()
-                    .startswith("3d")
-                    else 3,
+                    "dim": (
+                        2
+                        if not ogr.GeometryTypeToName(layer.GetGeomType())
+                        .lower()
+                        .startswith("3d")
+                        else 3
+                    ),
                 }
             ]
 
@@ -241,9 +243,9 @@ class CSVFileHandler(BaseVectorFileHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(_l)
-                if _l.GetSpatialRef()
-                else "EPSG:4326",
+                "crs": (
+                    self.identify_authority(_l) if _l.GetSpatialRef() else "EPSG:4326"
+                ),
             }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name

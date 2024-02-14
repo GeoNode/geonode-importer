@@ -226,7 +226,11 @@ class TestBaseVectorFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'test_geonode_data\' host=' + os.getenv('DATABASE_HOST', 'localhost') + ' port=5432 user=\'geonode_data\' password=\'geonode_data\' " "' +  self.valid_files.get("base_file") + '" -nln alternate "dataset"',
+            f"/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
+            + os.getenv("DATABASE_HOST", "localhost")
+            + " port=5432 user='geonode_data' password='geonode_data' \" \""
+            + self.valid_files.get("base_file")
+            + '" -nln alternate "dataset"',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa
@@ -252,7 +256,11 @@ class TestBaseVectorFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'test_geonode_data\' host=' + os.getenv('DATABASE_HOST', 'localhost') + ' port=5432 user=\'geonode_data\' password=\'geonode_data\' " "' +  self.valid_files.get("base_file") + '" -nln alternate "dataset"',
+            f"/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
+            + os.getenv("DATABASE_HOST", "localhost")
+            + " port=5432 user='geonode_data' password='geonode_data' \" \""
+            + self.valid_files.get("base_file")
+            + '" -nln alternate "dataset"',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa
@@ -284,7 +292,7 @@ class TestBaseVectorFileHandler(TestCase):
 
         _open.assert_called_once()
         _call_as_string = _open.mock_calls[0][1][0]
-        
-        self.assertTrue('-f PGDump /vsistdout/' in _call_as_string)
-        self.assertTrue('psql -d' in _call_as_string)
-        self.assertFalse('-f PostgreSQL PG' in _call_as_string)
+
+        self.assertTrue("-f PGDump /vsistdout/" in _call_as_string)
+        self.assertTrue("psql -d" in _call_as_string)
+        self.assertFalse("-f PostgreSQL PG" in _call_as_string)
