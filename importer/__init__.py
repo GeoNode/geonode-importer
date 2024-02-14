@@ -20,7 +20,7 @@ import os
 
 project_dir = os.path.dirname(os.path.abspath(__file__))
 
-VERSION = (1, 0, 6)
+VERSION = (1, 0, 7)
 __version__ = ".".join([str(i) for i in VERSION])
 __author__ = "geosolutions-it"
 __email__ = "info@geosolutionsgroup.com"
