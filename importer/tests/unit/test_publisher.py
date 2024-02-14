@@ -21,7 +21,9 @@ class TestDataPublisher(TestCase):
         cls.gpkg_path = f"{project_dir}/tests/fixture/valid.gpkg"
 
     def setUp(self):
-        layer = self.publisher.cat.get_resources('stazioni_metropolitana', workspaces="geonode")
+        layer = self.publisher.cat.get_resources(
+            "stazioni_metropolitana", workspaces="geonode"
+        )
         print("delete layer")
         if layer:
             res = self.publisher.cat.delete(layer.resource, purge="all", recurse=True)
@@ -29,7 +31,9 @@ class TestDataPublisher(TestCase):
             print(res.json)
 
     def tearDown(self):
-        layer = self.publisher.cat.get_resources('stazioni_metropolitana', workspaces="geonode")
+        layer = self.publisher.cat.get_resources(
+            "stazioni_metropolitana", workspaces="geonode"
+        )
         print("delete layer teardown")
         if layer:
             self.publisher.cat.delete(layer)
@@ -84,7 +88,6 @@ class TestDataPublisher(TestCase):
                 resources=[{"crs": "EPSG:32632", "name": "stazioni_metropolitana"}]
             )
         publish_featuretype.assert_called_once()
-
 
     @patch("importer.publisher.Catalog.publish_featuretype")
     def test_publish_resources_should_work(self, publish_featuretype):

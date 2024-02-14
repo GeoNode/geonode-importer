@@ -116,11 +116,11 @@ class TestShapeFileFileHandler(TestCase):
         shp_with_cst = self.valid_shp.copy()
         cst_file = self.valid_shp["base_file"].replace("shp", "cst")
         shp_with_cst["cst_file"] = cst_file
-        patch_location = 'importer.handlers.shapefile.handler.open'
-        with patch(patch_location, new=mock_open(read_data='UTF-8')) as _file:
+        patch_location = "importer.handlers.shapefile.handler.open"
+        with patch(patch_location, new=mock_open(read_data="UTF-8")) as _file:
             actual = self.handler.create_ogr2ogr_command(shp_with_cst, "a", False, "a")
-            
-            _file.assert_called_once_with(cst_file, 'r')
+
+            _file.assert_called_once_with(cst_file, "r")
             self.assertIn("ENCODING=UTF-8", actual)
 
     @patch("importer.handlers.common.vector.Popen")
@@ -148,7 +148,11 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'test_geonode_data\' host=' + os.getenv('DATABASE_HOST', 'localhost') + ' port=5432 user=\'geonode_data\' password=\'geonode_data\' " "' +  self.valid_shp.get("base_file") + '" -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
+            f"/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
+            + os.getenv("DATABASE_HOST", "localhost")
+            + " port=5432 user='geonode_data' password='geonode_data' \" \""
+            + self.valid_shp.get("base_file")
+            + '" -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa

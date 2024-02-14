@@ -130,10 +130,7 @@ class BaseVectorFileHandler(BaseHandler):
                     jdbc_virtual_table=_resource.get("name"),
                 )
             except Exception as e:
-                if (
-                    f"Resource named {_resource} already exists in store:"
-                    in str(e)
-                ):
+                if f"Resource named {_resource} already exists in store:" in str(e):
                     logger.error(f"error during publishing: {e}")
                     continue
                 logger.error(f"error during publishing: {e}")
@@ -154,13 +151,13 @@ class BaseVectorFileHandler(BaseHandler):
         This is a default command that is needed to import a vector file
         """
         _datastore = settings.DATABASES["datastore"]
-        
+
         options = "--config PG_USE_COPY YES"
         copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
 
         if copy_with_dump:
             # use PGDump to load the dataset with ogr2ogr
-            options += ' -f PGDump /vsistdout/ '
+            options += " -f PGDump /vsistdout/ "
         else:
             # default option with postgres copy
             options += (
@@ -520,11 +517,13 @@ class BaseVectorFileHandler(BaseHandler):
                             ogr.GeometryTypeToName(layer.GetGeomType())
                         )
                     ),
-                    "dim": 2
-                    if not ogr.GeometryTypeToName(layer.GetGeomType())
-                    .lower()
-                    .startswith("3d")
-                    else 3,
+                    "dim": (
+                        2
+                        if not ogr.GeometryTypeToName(layer.GetGeomType())
+                        .lower()
+                        .startswith("3d")
+                        else 3
+                    ),
                 }
             ]
 

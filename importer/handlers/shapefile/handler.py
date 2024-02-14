@@ -123,9 +123,11 @@ class ShapeFileHandler(BaseVectorFileHandler):
         is_valid = all(
             map(
                 lambda x: any(
-                    _ext.endswith(f"{_filename}.{x}")
-                    if isinstance(_ext, str)
-                    else _ext.name.endswith(f"{_filename}.{x}")
+                    (
+                        _ext.endswith(f"{_filename}.{x}")
+                        if isinstance(_ext, str)
+                        else _ext.name.endswith(f"{_filename}.{x}")
+                    )
                     for _ext in files.values()
                 ),
                 _shp_ext_needed,
@@ -156,22 +158,24 @@ class ShapeFileHandler(BaseVectorFileHandler):
         encoding = ShapeFileHandler._get_encoding(files)
 
         additional_options = []
-        if layer is not None and "Point" not in ogr.GeometryTypeToName(layer.GetGeomType()):
+        if layer is not None and "Point" not in ogr.GeometryTypeToName(
+            layer.GetGeomType()
+        ):
             additional_options.append("-nlt PROMOTE_TO_MULTI")
         if encoding:
             additional_options.append(f"-lco ENCODING={encoding}")
-        
+
         return (
             f"{base_command } -lco precision=no -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
             + " ".join(additional_options)
         )
-    
+
     @staticmethod
     def _get_encoding(files):
         if files.get("cpg_file"):
             # prefer cpg file which is handled by gdal
             return None
-        
+
         encoding = None
         if files.get("cst_file"):
             # GeoServer exports cst-file

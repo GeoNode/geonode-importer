@@ -130,7 +130,9 @@ class BaseRasterFileHandler(BaseHandler):
                 raise e
         return True
 
-    def overwrite_geoserver_resource(self, resource: List[str], catalog, store, workspace):
+    def overwrite_geoserver_resource(
+        self, resource: List[str], catalog, store, workspace
+    ):
         # we need to delete the resource before recreating it
         self._delete_resource(resource, catalog, workspace)
         self._delete_store(resource, catalog, workspace)
@@ -138,7 +140,11 @@ class BaseRasterFileHandler(BaseHandler):
 
     def _delete_store(self, resource, catalog, workspace):
         store = None
-        possible_layer_name = [resource.get("name"), resource.get("name").split(":")[-1], f"{workspace.name}:{resource.get('name')}"]
+        possible_layer_name = [
+            resource.get("name"),
+            resource.get("name").split(":")[-1],
+            f"{workspace.name}:{resource.get('name')}",
+        ]
         for el in possible_layer_name:
             store = catalog.get_store(el, workspace=workspace)
             if store:
@@ -149,7 +155,11 @@ class BaseRasterFileHandler(BaseHandler):
 
     def _delete_resource(self, resource, catalog, workspace):
         res = None
-        possible_layer_name = [resource.get("name"), resource.get("name").split(":")[-1], f"{workspace.name}:{resource.get('name')}"]
+        possible_layer_name = [
+            resource.get("name"),
+            resource.get("name").split(":")[-1],
+            f"{workspace.name}:{resource.get('name')}",
+        ]
         for el in possible_layer_name:
             res = catalog.get_resource(el, workspace=workspace)
             if res:
@@ -221,9 +231,9 @@ class BaseRasterFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(layers)
-                if layers.GetSpatialRef()
-                else None,
+                "crs": (
+                    self.identify_authority(layers) if layers.GetSpatialRef() else None
+                ),
                 "raster_path": files.get("base_file"),
             }
         ]
@@ -388,7 +398,7 @@ class BaseRasterFileHandler(BaseHandler):
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
-        
+
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
@@ -511,7 +521,7 @@ class BaseRasterFileHandler(BaseHandler):
     ):
         steps = self.ACTIONS.get(action_to_rollback)
         if rollback_from_step not in steps:
-            return        
+            return
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback

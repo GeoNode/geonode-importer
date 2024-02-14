@@ -6,6 +6,7 @@ from importer.models import ResourceHandlerInfo
 from importer.tests.utils import TransactionImporterBaseTestSupport
 import uuid
 
+
 class TestModelSchemaSignal(TransactionImporterBaseTestSupport):
     databases = ("default", "datastore")
 
@@ -30,7 +31,7 @@ class TestModelSchemaSignal(TransactionImporterBaseTestSupport):
         Ensure that the dynamic model is deleted
         """
         # create needed resource handler info
-        
+
         ResourceHandlerInfo.objects.create(
             resource=self.resource,
             handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
