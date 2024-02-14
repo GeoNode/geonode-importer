@@ -3,11 +3,12 @@ import hashlib
 from django.contrib.auth import get_user_model
 from geonode.base.models import ResourceBase
 from geonode.resource.models import ExecutionRequest
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 import logging
 from dynamic_models.schema import ModelSchemaEditor
 from django.utils.module_loading import import_string
 from uuid import UUID
+
+from importer.publisher import DataPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
         - the publisher should republish the resource
         - geonode should update it
     """
-    workspace = get_geoserver_cascading_workspace(create=False)
+    workspace = DataPublisher(None).workspace
     exists = ResourceBase.objects.filter(
         alternate=f"{workspace.name}:{layer}", owner=user
     ).exists()

@@ -4,7 +4,6 @@ from typing import List
 
 from geonode import settings
 from geonode.geoserver.helpers import create_geoserver_db_featurestore
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geoserver.catalog import Catalog
 from geonode.utils import OGC_Servers_Handler
 from django.utils.module_loading import import_string
@@ -28,9 +27,10 @@ class DataPublisher:
         self.cat = Catalog(
             service_url=ogc_server_settings.rest, username=_user, password=_password
         )
-        self.workspace = get_geoserver_cascading_workspace(create=True)
+        self.workspace = self._get_default_workspace(create=True)
 
-        self.handler = import_string(handler_module_path)()
+        if handler_module_path is not None:
+            self.handler = import_string(handler_module_path)()
 
     def extract_resource_to_publish(
         self, files: dict, action: str, layer_name, alternate=None, **kwargs
@@ -90,9 +90,19 @@ class DataPublisher:
         layer = self.get_resource(resource_name)
         if layer and layer.resource:
             self.cat.delete(layer.resource, purge="all", recurse=True)
-        store = self.cat.get_store(resource_name.split(":")[-1], workspace=os.getenv("DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")))
+        store = self.cat.get_store(
+            resource_name.split(":")[-1],
+            workspace=os.getenv(
+                "DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")
+            ),
+        )
         if not store:
-            store = self.cat.get_store(resource_name, workspace=os.getenv("DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")))
+            store = self.cat.get_store(
+                resource_name,
+                workspace=os.getenv(
+                    "DEFAULT_WORKSPACE", os.getenv("CASCADE_WORKSPACE", "geonode")
+                ),
+            )
         if store:
             self.cat.delete(store, purge="all", recurse=True)
 
@@ -138,9 +148,32 @@ class DataPublisher:
         """
 
         for _resource in resources:
-            possible_layer_name = [_resource.get("name"), _resource.get("name").split(":")[-1], f"{self.workspace.name}:{_resource.get('name')}"]
-            res = list(filter(None, (self.cat.get_resource(x, workspace=self.workspace) for x in possible_layer_name)))
+            possible_layer_name = [
+                _resource.get("name"),
+                _resource.get("name").split(":")[-1],
+                f"{self.workspace.name}:{_resource.get('name')}",
+            ]
+            res = list(
+                filter(
+                    None,
+                    (
+                        self.cat.get_resource(x, workspace=self.workspace)
+                        for x in possible_layer_name
+                    ),
+                )
+            )
             if not res or (res and not res[0].projection):
                 raise PublishResourceException(
                     f"The SRID for the resource {_resource} is not correctly set, Please check Geoserver logs"
                 )
+
+    def _get_default_workspace(self, create=True):
+        """Return the default geoserver workspace
+        The workspace can be created it if needed.
+        """
+        name = getattr(settings, "DEFAULT_WORKSPACE", "geonode")
+        workspace = self.cat.get_workspace(name)
+        if workspace is None and create:
+            uri = f"http://www.geonode.org/{name}"
+            workspace = self.cat.create_workspace(name, uri)
+        return workspace

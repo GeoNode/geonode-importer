@@ -15,7 +15,6 @@ from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from importer.api.exception import ImportException
 from importer.celery_tasks import ErrorBaseTaskClass, import_orchestrator
 from importer.handlers.base import BaseHandler
@@ -281,7 +280,7 @@ class BaseRasterFileHandler(BaseHandler):
                 skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
                 overwrite_existing_layer=should_be_overwritten,
             ):
-                workspace = get_geoserver_cascading_workspace(create=False)
+                workspace = DataPublisher(None).workspace
                 user_datasets = Dataset.objects.filter(
                     owner=_exec.user, alternate=f"{workspace.name}:{layer_name}"
                 )

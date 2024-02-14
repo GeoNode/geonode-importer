@@ -16,7 +16,6 @@ from dynamic_models.models import ModelSchema
 from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
 from importer.celery_tasks import ErrorBaseTaskClass, create_dynamic_structure
 from importer.handlers.base import BaseHandler
@@ -401,7 +400,7 @@ class BaseVectorFileHandler(BaseHandler):
         return
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
-        workspace = get_geoserver_cascading_workspace(create=False)
+        workspace = DataPublisher(None).workspace
         dataset_available = Dataset.objects.filter(
             alternate__iexact=f"{workspace.name}:{layer_name}"
         )
@@ -434,7 +433,7 @@ class BaseVectorFileHandler(BaseHandler):
         """
 
         layer_name = self.fixup_name(layer.GetName())
-        workspace = get_geoserver_cascading_workspace(create=False)
+        workspace = DataPublisher(None).workspace
         user_datasets = Dataset.objects.filter(
             owner=username, alternate__iexact=f"{workspace.name}:{layer_name}"
         )
