@@ -6,7 +6,7 @@ from celery import Task
 from django.db import connections, transaction
 from django.utils import timezone
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext
+from django.utils.translation import gettext_lazy
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from dynamic_models.models import FieldSchema, ModelSchema
 from geonode.base.models import ResourceBase
@@ -133,7 +133,7 @@ def import_resource(self, execution_id, /, handler_module_path, action, **kwargs
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="import_resource",
-            step=ugettext("importer.import_resource"),
+            step=gettext_lazy("importer.import_resource"),
             celery_task_request=self.request,
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -214,7 +214,7 @@ def publish_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="publish_resource",
-            step=ugettext("importer.publish_resource"),
+            step=gettext_lazy("importer.publish_resource"),
             celery_task_request=self.request,
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -323,7 +323,7 @@ def create_geonode_resource(
             execution_id=execution_id,
             last_updated=timezone.now(),
             func_name="create_geonode_resource",
-            step=ugettext("importer.create_geonode_resource"),
+            step=gettext_lazy("importer.create_geonode_resource"),
             celery_task_request=self.request,
         )
         _exec = orchestrator.get_execution_object(execution_id)
@@ -404,7 +404,7 @@ def copy_geonode_resource(
         execution_id=exec_id,
         last_updated=timezone.now(),
         func_name="copy_geonode_resource",
-        step=ugettext("importer.copy_geonode_resource"),
+        step=gettext_lazy("importer.copy_geonode_resource"),
     )
     original_dataset_alternate = kwargs.get("kwargs").get("original_dataset_alternate")
     new_alternate = kwargs.get("kwargs").get("new_dataset_alternate")
@@ -584,7 +584,7 @@ def copy_dynamic_model(
             execution_id=exec_id,
             last_updated=timezone.now(),
             func_name="copy_dynamic_model",
-            step=ugettext("importer.copy_dynamic_model"),
+            step=gettext_lazy("importer.copy_dynamic_model"),
         )
         additional_kwargs = {}
 
@@ -668,7 +668,7 @@ def copy_geonode_data_table(
             execution_id=exec_id,
             last_updated=timezone.now(),
             func_name="copy_geonode_data_table",
-            step=ugettext("importer.copy_geonode_data_table"),
+            step=gettext_lazy("importer.copy_geonode_data_table"),
         )
 
         original_dataset_alternate = (
@@ -748,7 +748,7 @@ def rollback(self, *args, **kwargs):
         execution_id=exec_id,
         last_updated=timezone.now(),
         func_name="rollback",
-        step=ugettext("importer.rollback"),
+        step=gettext_lazy("importer.rollback"),
         celery_task_request=self.request,
     )
 

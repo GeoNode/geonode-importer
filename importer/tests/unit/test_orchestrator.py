@@ -290,7 +290,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
 
             self.assertIsNone(result)
             self.assertEqual(
-                f"INFO:importer.orchestrator:Execution progress with id {exec_id} is not finished yet, continuing",
+                f"INFO:importer.orchestrator:Execution with ID {exec_id} is completed. All tasks are done",
                 _log.output[0],
             )
 

@@ -56,10 +56,7 @@ class TestGPKGHandler(TestCase):
             self.handler.is_valid(files=self.invalid_files, user=self.user)
 
         self.assertIsNotNone(_exc)
-        self.assertTrue(
-            "Layer names must start with a letter, and valid characters are lowercase a-z, numbers or underscores"
-            in str(_exc.exception.detail)
-        )
+        self.assertTrue("Error layer: INVALID LAYER_name" in str(_exc.exception.detail))
 
     def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
         parallelism, created = UploadParallelismLimit.objects.get_or_create(

@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.upload.models import UploadParallelismLimit
-from mock import MagicMock, patch
+from mock import MagicMock, patch, mock_open
 from importer import project_dir
 from importer.handlers.common.vector import import_with_ogr2ogr
 from importer.handlers.shapefile.handler import ShapeFileHandler
@@ -112,6 +112,17 @@ class TestShapeFileFileHandler(TestCase):
         actual = self.handler.has_serializer(self.invalid_files)
         self.assertFalse(actual)
 
+    def test_should_create_ogr2ogr_command_with_encoding_from_cst(self):
+        shp_with_cst = self.valid_shp.copy()
+        cst_file = self.valid_shp["base_file"].replace("shp", "cst")
+        shp_with_cst["cst_file"] = cst_file
+        patch_location = "importer.handlers.shapefile.handler.open"
+        with patch(patch_location, new=mock_open(read_data="UTF-8")) as _file:
+            actual = self.handler.create_ogr2ogr_command(shp_with_cst, "a", False, "a")
+
+            _file.assert_called_once_with(cst_file, "r")
+            self.assertIn("ENCODING=UTF-8", actual)
+
     @patch("importer.handlers.common.vector.Popen")
     def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(
         self, _open
@@ -137,7 +148,11 @@ class TestShapeFileFileHandler(TestCase):
 
         _open.assert_called_once()
         _open.assert_called_with(
-            f'/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:" dbname=\'geonode_data\' host=localhost port=5434 user=\'geonode\' password=\'geonode\' " "{self.valid_shp.get("base_file")}" -lco DIM=2 -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
+            f"/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
+            + os.getenv("DATABASE_HOST", "localhost")
+            + " port=5432 user='geonode_data' password='geonode_data' \" \""
+            + self.valid_shp.get("base_file")
+            + '" -nln alternate "dataset" -lco precision=no -lco GEOMETRY_NAME=geometry ',
             stdout=-1,
             stderr=-1,
             shell=True,  # noqa

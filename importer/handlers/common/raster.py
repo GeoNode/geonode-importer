@@ -15,7 +15,6 @@ from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.resource.manager import resource_manager
 from geonode.resource.models import ExecutionRequest
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from importer.api.exception import ImportException
 from importer.celery_tasks import ErrorBaseTaskClass, import_orchestrator
 from importer.handlers.base import BaseHandler
@@ -26,6 +25,7 @@ from importer.orchestrator import orchestrator
 from osgeo import gdal
 from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
+from geonode.geoserver.helpers import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,43 @@ class BaseRasterFileHandler(BaseHandler):
                 raise e
         return True
 
+    def overwrite_geoserver_resource(
+        self, resource: List[str], catalog, store, workspace
+    ):
+        # we need to delete the resource before recreating it
+        self._delete_resource(resource, catalog, workspace)
+        self._delete_store(resource, catalog, workspace)
+        return self.publish_resources([resource], catalog, store, workspace)
+
+    def _delete_store(self, resource, catalog, workspace):
+        store = None
+        possible_layer_name = [
+            resource.get("name"),
+            resource.get("name").split(":")[-1],
+            f"{workspace.name}:{resource.get('name')}",
+        ]
+        for el in possible_layer_name:
+            store = catalog.get_store(el, workspace=workspace)
+            if store:
+                break
+        if store:
+            catalog.delete(store, purge="all", recurse=True)
+        return store
+
+    def _delete_resource(self, resource, catalog, workspace):
+        res = None
+        possible_layer_name = [
+            resource.get("name"),
+            resource.get("name").split(":")[-1],
+            f"{workspace.name}:{resource.get('name')}",
+        ]
+        for el in possible_layer_name:
+            res = catalog.get_resource(el, workspace=workspace)
+            if res:
+                break
+        if res:
+            catalog.delete(res, purge="all", recurse=True)
+
     @staticmethod
     def delete_resource(instance):
         # it should delete the image from the geoserver data dir
@@ -194,9 +231,9 @@ class BaseRasterFileHandler(BaseHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": self.identify_authority(layers)
-                if layers.GetSpatialRef()
-                else None,
+                "crs": (
+                    self.identify_authority(layers) if layers.GetSpatialRef() else None
+                ),
                 "raster_path": files.get("base_file"),
             }
         ]
@@ -253,7 +290,7 @@ class BaseRasterFileHandler(BaseHandler):
                 skip_existing_layer=_exec.input_params.get("skip_existing_layer"),
                 overwrite_existing_layer=should_be_overwritten,
             ):
-                workspace = get_geoserver_cascading_workspace(create=False)
+                workspace = DataPublisher(None).workspace
                 user_datasets = Dataset.objects.filter(
                     owner=_exec.user, alternate=f"{workspace.name}:{layer_name}"
                 )
@@ -262,6 +299,8 @@ class BaseRasterFileHandler(BaseHandler):
 
                 if dataset_exists and should_be_overwritten:
                     layer_name, alternate = layer_name, user_datasets.first().alternate
+                elif not dataset_exists:
+                    alternate = layer_name
                 else:
                     alternate = create_alternate(layer_name, execution_id)
 
@@ -359,6 +398,7 @@ class BaseRasterFileHandler(BaseHandler):
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
+
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
@@ -368,7 +408,7 @@ class BaseRasterFileHandler(BaseHandler):
             self.handle_sld_file(dataset, _exec)
 
             resource_manager.set_thumbnail(
-                self.object.uuid, instance=self.object, overwrite=False
+                dataset.uuid, instance=dataset, overwrite=True
             )
             dataset.refresh_from_db()
             return dataset
@@ -480,6 +520,8 @@ class BaseRasterFileHandler(BaseHandler):
         self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
     ):
         steps = self.ACTIONS.get(action_to_rollback)
+        if rollback_from_step not in steps:
+            return
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
