@@ -157,7 +157,7 @@ class ImportOrchestrator:
             self.set_as_failed(execution_id, reason=error_handler(e, execution_id))
             raise e
 
-    def set_as_failed(self, execution_id, reason=None):
+    def set_as_failed(self, execution_id, reason=None, delete_file=True):
         """
         Utility method to set the ExecutionRequest object to fail
         """
@@ -170,13 +170,16 @@ class ImportOrchestrator:
             legacy_status=STATE_INVALID,
         )
         # delete
-        exec_obj = self.get_execution_object(execution_id)
-        _files = exec_obj.input_params.get("files")
-        # better to delete each single file since it can be a remote storage service
-        if _files:
-            logger.info("Execution failed, removing uploaded file to save disk space")
-            for _file in _files.values():
-                storage_manager.delete(_file)
+        if delete_file:
+            exec_obj = self.get_execution_object(execution_id)
+            _files = exec_obj.input_params.get("files")
+            # better to delete each single file since it can be a remote storage service
+            if _files:
+                logger.info(
+                    "Execution failed, removing uploaded file to save disk space"
+                )
+                for _file in _files.values():
+                    storage_manager.delete(_file)
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """

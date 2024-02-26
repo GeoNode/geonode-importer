@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from django.contrib.auth import get_user_model
 from importer.handlers.gpkg.handler import GPKGFileHandler
@@ -110,6 +110,7 @@ class TestGPKGHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
 
+    @override_settings(MEDIA_ROOT=project_dir)
     def test_single_message_error_handler(self):
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
