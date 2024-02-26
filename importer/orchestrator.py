@@ -6,13 +6,13 @@ from uuid import UUID
 from celery import states
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from django.db.transaction import rollback
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
 from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
+from geonode.storage.manager import storage_manager
 from rest_framework import serializers
 
 from importer.api.exception import ImportException
@@ -169,6 +169,11 @@ class ImportOrchestrator:
             log=reason,
             legacy_status=STATE_INVALID,
         )
+        # delete
+        exec_obj = self.get_execution_object(execution_id)
+        _files = exec_obj.input_params.get("files")
+        # better to delete each single file since it can be a remote storage service
+        list(map(storage_manager.delete, _files))
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """
