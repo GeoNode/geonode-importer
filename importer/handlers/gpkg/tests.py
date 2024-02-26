@@ -1,4 +1,7 @@
-from django.test import TestCase
+import copy
+import os
+import shutil
+from django.test import TestCase, override_settings
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException
 from django.contrib.auth import get_user_model
 from importer.handlers.gpkg.handler import GPKGFileHandler
@@ -110,13 +113,19 @@ class TestGPKGHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_single_message_error_handler(self):
+        # lets copy the file to the temporary folder
+        # later will be removed
+        shutil.copy(self.valid_gpkg, '/tmp')
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="funct1",
             step="step",
             input_params={
-                "files": self.valid_files,
+                "files": {
+                    "base_file": '/tmp/valid.gpkg'
+                },
                 "skip_existing_layer": True,
                 "handler_module_path": str(self.handler),
             },
@@ -139,3 +148,4 @@ class TestGPKGHandler(TestCase):
         )
 
         self.assertEqual("FAILURE", TaskResult.objects.get(task_id=str(exec_id)).status)
+        self.assertFalse(os.path.exists('/tmp/valid.gpkg'))

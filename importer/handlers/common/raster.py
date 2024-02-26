@@ -521,6 +521,7 @@ class BaseRasterFileHandler(BaseHandler):
     ):
         steps = self.ACTIONS.get(action_to_rollback)
         if rollback_from_step not in steps:
+            logger.info(f"Step not found {rollback_from_step}, skipping")
             return
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start

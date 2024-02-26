@@ -351,6 +351,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     @patch(
         "importer.handlers.gpkg.handler.GPKGFileHandler._create_geonode_resource_rollback"
     )
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_rollback_works_as_expected_vector_step(
         self,
         _create_geonode_resource_rollback,
@@ -412,6 +413,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     @patch(
         "importer.handlers.geotiff.handler.GeoTiffFileHandler._create_geonode_resource_rollback"
     )
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_rollback_works_as_expected_raster(
         self,
         _create_geonode_resource_rollback,
@@ -444,7 +446,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     step=conf[0],  # step name
                     action="import",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": "/tmp/filepath"},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                         "handler_module_path": "importer.handlers.geotiff.handler.GeoTiffFileHandler",
