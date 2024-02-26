@@ -173,7 +173,10 @@ class ImportOrchestrator:
         exec_obj = self.get_execution_object(execution_id)
         _files = exec_obj.input_params.get("files")
         # better to delete each single file since it can be a remote storage service
-        list(map(storage_manager.delete, _files))
+        if _files:
+            logger.info("Execution failed, removing uploaded file to save disk space")
+            for _file in _files.values():
+                storage_manager.delete(_file)
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """
