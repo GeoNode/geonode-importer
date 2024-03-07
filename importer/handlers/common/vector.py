@@ -1,3 +1,4 @@
+import ast
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
@@ -15,7 +16,6 @@ from dynamic_models.models import ModelSchema
 from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
 from geonode.resource.enumerator import ExecutionRequestAction as exa
-from geonode.services.serviceprocessors.base import get_geoserver_cascading_workspace
 from geonode.layers.models import Dataset
 from importer.celery_tasks import ErrorBaseTaskClass, create_dynamic_structure
 from importer.handlers.base import BaseHandler
@@ -130,15 +130,19 @@ class BaseVectorFileHandler(BaseHandler):
                     jdbc_virtual_table=_resource.get("name"),
                 )
             except Exception as e:
-                if (
-                    f"Resource named {_resource.get('name')} already exists in store:"
-                    in str(e)
-                ):
+                if f"Resource named {_resource} already exists in store:" in str(e):
                     logger.error(f"error during publishing: {e}")
                     continue
                 logger.error(f"error during publishing: {e}")
                 raise e
         return True
+
+    def overwrite_geoserver_resource(self, resource, catalog, store, workspace):
+        """
+        We dont need to do anything for now.
+        The data is replaced via ogr2ogr
+        """
+        pass
 
     @staticmethod
     def create_ogr2ogr_command(files, original_name, ovverwrite_layer, alternate):
@@ -146,21 +150,28 @@ class BaseVectorFileHandler(BaseHandler):
         Define the ogr2ogr command to be executed.
         This is a default command that is needed to import a vector file
         """
-        _uri = settings.GEODATABASE_URL.replace("postgis://", "")
-        db_user, db_password = _uri.split("@")[0].split(":")
-        db_host = _uri.split("@")[1].split("/")[0]
-        db_port = "5432"
-        if ":" in db_host:
-            db_host, db_port = db_host.split(":")
-        db_name = _uri.split("@")[1].split("/")[1]
+        _datastore = settings.DATABASES["datastore"]
 
-        options = "--config PG_USE_COPY YES "
-        options += (
-            "-f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-            % (db_name, db_host, db_port, db_user, db_password)
-        )
+        options = "--config PG_USE_COPY YES"
+        copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
+
+        if copy_with_dump:
+            # use PGDump to load the dataset with ogr2ogr
+            options += " -f PGDump /vsistdout/ "
+        else:
+            # default option with postgres copy
+            options += (
+                " -f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
+                % (
+                    _datastore["NAME"],
+                    _datastore["HOST"],
+                    _datastore.get("PORT", 5432),
+                    _datastore["USER"],
+                    _datastore["PASSWORD"],
+                )
+            )
         options += f'"{files.get("base_file")}"' + " "
-        #        options += "-lco DIM=2 "
+
         options += f'-nln {alternate} "{original_name}"'
 
         if ovverwrite_layer:
@@ -386,7 +397,7 @@ class BaseVectorFileHandler(BaseHandler):
         return
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
-        workspace = get_geoserver_cascading_workspace(create=False)
+        workspace = DataPublisher(None).workspace
         dataset_available = Dataset.objects.filter(
             alternate__iexact=f"{workspace.name}:{layer_name}"
         )
@@ -394,7 +405,7 @@ class BaseVectorFileHandler(BaseHandler):
         dataset_exists = dataset_available.exists()
 
         if dataset_exists and should_be_overwritten:
-            alternate = dataset_available.first().alternate
+            alternate = dataset_available.first().alternate.split(":")[-1]
         elif not dataset_exists:
             alternate = layer_name
         else:
@@ -419,7 +430,7 @@ class BaseVectorFileHandler(BaseHandler):
         """
 
         layer_name = self.fixup_name(layer.GetName())
-        workspace = get_geoserver_cascading_workspace(create=False)
+        workspace = DataPublisher(None).workspace
         user_datasets = Dataset.objects.filter(
             owner=username, alternate__iexact=f"{workspace.name}:{layer_name}"
         )
@@ -506,11 +517,13 @@ class BaseVectorFileHandler(BaseHandler):
                             ogr.GeometryTypeToName(layer.GetGeomType())
                         )
                     ),
-                    "dim": 2
-                    if not ogr.GeometryTypeToName(layer.GetGeomType())
-                    .lower()
-                    .startswith("3d")
-                    else 3,
+                    "dim": (
+                        2
+                        if not ogr.GeometryTypeToName(layer.GetGeomType())
+                        .lower()
+                        .startswith("3d")
+                        else 3
+                    ),
                 }
             ]
 
@@ -627,7 +640,7 @@ class BaseVectorFileHandler(BaseHandler):
             self.handle_sld_file(dataset, _exec)
 
             resource_manager.set_thumbnail(
-                dataset.uuid, instance=dataset, overwrite=False
+                dataset.uuid, instance=dataset, overwrite=True
             )
             dataset.refresh_from_db()
             return dataset
@@ -758,6 +771,9 @@ class BaseVectorFileHandler(BaseHandler):
         self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
     ):
         steps = self.ACTIONS.get(action_to_rollback)
+        if rollback_from_step not in steps:
+            logger.info(f"Step not found {rollback_from_step}, skipping")
+            return
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
@@ -935,6 +951,12 @@ def import_with_ogr2ogr(
         options = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
             files, original_name, ovverwrite_layer, alternate
         )
+        _datastore = settings.DATABASES["datastore"]
+
+        copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
+
+        if copy_with_dump:
+            options += f" | PGPASSWORD={_datastore['PASSWORD']} psql -d {_datastore['NAME']} -h {_datastore['HOST']} -p {_datastore.get('PORT', 5432)} -U {_datastore['USER']} -f -"
 
         commands = [ogr_exe] + options.split(" ")
 
@@ -944,6 +966,7 @@ def import_with_ogr2ogr(
             stderr is not None
             and stderr != b""
             and b"ERROR" in stderr
+            and b"error" in stderr
             or b"Syntax error" in stderr
         ):
             try:

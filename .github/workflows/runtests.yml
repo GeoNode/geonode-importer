@@ -1,0 +1,25 @@
+name: Run test suite
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Start containers
+      run: docker-compose -f "docker-compose-test.yaml" up -d --build
+    - name: Run django entrypoint
+      run: docker exec django4importer /bin/sh -c "sh /usr/src/importer/entrypoint_test.sh"
+    - name: Run geonode-importer tests
+      run: docker exec django4importer /bin/sh -c "sh /usr/src/importer/runtest.sh"
+    - name: Stop containers
+      if: always()
+      run: docker-compose -f "docker-compose-test.yaml" down

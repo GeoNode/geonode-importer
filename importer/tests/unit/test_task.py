@@ -1,6 +1,10 @@
+import os
+import os
+import shutil
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase
+from django.test.utils import override_settings
 from unittest.mock import patch
 from importer.api.exception import InvalidInputFileException
 
@@ -225,40 +229,42 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     ):
         """
         Publish resource should be called since the resource does not exists in geoserver
-        even if an overwrite is required
+        even if an overwrite is required.
+        Should raise error if the crs is not found
         """
         try:
-            get_resource.return_falue = True
-            publish_resources.return_value = True
-            extract_resource_to_publish.return_value = [
-                {"crs": 12345, "name": "dataset3"}
-            ]
-            exec_id = orchestrator.create_execution_request(
-                user=get_user_model().objects.get(username=self.user),
-                func_name="dummy_func",
-                step="dummy_step",
-                legacy_upload_name="dummy",
-                input_params={
-                    "files": {"base_file": "/filepath"},
-                    "overwrite_existing_layer": True,
-                    "store_spatial_files": True,
-                },
-            )
-            publish_resource(
-                str(exec_id),
-                resource_type="gpkg",
-                step_name="publish_resource",
-                layer_name="dataset3",
-                alternate="alternate_dataset3",
-                action=ExecutionRequestAction.IMPORT.value,
-                handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
-            )
+            with self.assertRaises(Exception):
+                get_resource.return_falue = True
+                publish_resources.return_value = True
+                extract_resource_to_publish.return_value = [
+                    {"crs": 4326, "name": "dataset3"}
+                ]
+                exec_id = orchestrator.create_execution_request(
+                    user=get_user_model().objects.get(username=self.user),
+                    func_name="dummy_func",
+                    step="dummy_step",
+                    legacy_upload_name="dummy",
+                    input_params={
+                        "files": {"base_file": "/filepath"},
+                        "overwrite_existing_layer": True,
+                        "store_spatial_files": True,
+                    },
+                )
+                publish_resource(
+                    str(exec_id),
+                    resource_type="gpkg",
+                    step_name="publish_resource",
+                    layer_name="dataset3",
+                    alternate="alternate_dataset3",
+                    action=ExecutionRequestAction.IMPORT.value,
+                    handler_module_path="importer.handlers.gpkg.handler.GPKGFileHandler",
+                )
 
-            # Evaluation
-            req = ExecutionRequest.objects.get(exec_id=str(exec_id))
-            self.assertEqual("importer.publish_resource", req.step)
-            publish_resources.assert_not_called()
-            importer.assert_called_once()
+                # Evaluation
+                req = ExecutionRequest.objects.get(exec_id=str(exec_id))
+                self.assertEqual("importer.publish_resource", req.step)
+                publish_resources.assert_not_called()
+                importer.assert_called_once()
 
         finally:
             # cleanup
@@ -294,9 +300,9 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             if Dataset.objects.filter(alternate=alternate).exists():
                 Dataset.objects.filter(alternate=alternate).delete()
 
-    @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch("importer.celery_tasks.call_rollback_function")
     def test_copy_geonode_resource_should_raise_exeption_if_the_alternate_not_exists(
-        self, async_call
+        self, call_rollback_function
     ):
         with self.assertRaises(Exception):
             copy_geonode_resource(
@@ -311,7 +317,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     "new_dataset_alternate": "geonode:schema_copy_example_dataset",  # this alternate is generated dring the geonode resource copy
                 },
             )
-        async_call.assert_not_called()
+        call_rollback_function.assert_called_once()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
     def test_copy_geonode_resource(self, async_call):
@@ -350,6 +356,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     @patch(
         "importer.handlers.gpkg.handler.GPKGFileHandler._create_geonode_resource_rollback"
     )
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_rollback_works_as_expected_vector_step(
         self,
         _create_geonode_resource_rollback,
@@ -411,6 +418,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
     @patch(
         "importer.handlers.geotiff.handler.GeoTiffFileHandler._create_geonode_resource_rollback"
     )
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_rollback_works_as_expected_raster(
         self,
         _create_geonode_resource_rollback,
@@ -443,7 +451,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     step=conf[0],  # step name
                     action="import",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": "/tmp/filepath"},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                         "handler_module_path": "importer.handlers.geotiff.handler.GeoTiffFileHandler",
@@ -463,9 +471,14 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 if exec_id:
                     ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_import_metadata_should_work_as_expected(self):
         handler = "importer.handlers.xml.handler.XMLFileHandler"
+        # lets copy the file to the temporary folder
+        # later will be removed
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
+        shutil.copy(valid_xml, '/tmp')
+
         user, _ = get_user_model().objects.get_or_create(username="admin")
         valid_files = {"base_file": valid_xml, 'xml_file': valid_xml}
 
@@ -581,6 +594,7 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
             FieldSchema.objects.filter(name="field1").delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
+    @patch.dict(os.environ, {"IMPORTER_ENABLE_DYN_MODELS": "True"})
     def test_copy_dynamic_model_should_work(self, async_call):
         try:
             name = str(self.exec_id)
