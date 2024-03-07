@@ -1,7 +1,7 @@
 import logging
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from importer.handlers.base import BaseHandler
-from importer.handlers.metadata.serializer import MetadataFileSerializer
+from importer.handlers.xml.serializer import MetadataFileSerializer
 from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)

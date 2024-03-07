@@ -5,8 +5,8 @@ from geonode.base.populate_test_data import create_single_dataset
 from importer import project_dir
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
-from importer.handlers.metadata.xml.exceptions import InvalidXmlException
-from importer.handlers.metadata.xml.handler import XMLFileHandler
+from importer.handlers.xml.exceptions import InvalidXmlException
+from importer.handlers.xml.handler import XMLFileHandler
 
 
 class TestXMLFileHandler(TestCase):

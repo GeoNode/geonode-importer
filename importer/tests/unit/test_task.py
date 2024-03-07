@@ -1,5 +1,6 @@
 import os
 import os
+import shutil
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -470,9 +471,14 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 if exec_id:
                     ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_import_metadata_should_work_as_expected(self):
-        handler = "importer.handlers.metadata.xml.handler.XMLFileHandler"
+        handler = "importer.handlers.xml.handler.XMLFileHandler"
+        # lets copy the file to the temporary folder
+        # later will be removed
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
+        shutil.copy(valid_xml, '/tmp')
+
         user, _ = get_user_model().objects.get_or_create(username="admin")
         valid_files = {"base_file": valid_xml, 'xml_file': valid_xml}
 

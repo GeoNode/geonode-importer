@@ -5,7 +5,7 @@ from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.resource.manager import resource_manager
 from importer.handlers.common.metadata import MetadataFileHandler
-from importer.handlers.metadata.xml.exceptions import InvalidXmlException
+from importer.handlers.xml.exceptions import InvalidXmlException
 from importer.orchestrator import orchestrator
 from owslib.etree import etree as dlxml
 
@@ -34,7 +34,7 @@ class XMLFileHandler(MetadataFileHandler):
         )
 
     @staticmethod
-    def is_valid(files, user):
+    def is_valid(files, user=None):
         """
         Define basic validation steps
         """
