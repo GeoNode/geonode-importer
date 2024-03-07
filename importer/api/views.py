@@ -22,7 +22,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from geonode.resource.enumerator import ExecutionRequestAction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext_lazy as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
 from dynamic_rest.viewsets import DynamicModelViewSet
 from geonode.base.api.filters import DynamicSearchFilter, ExtentFilter, FavoriteFilter

@@ -138,8 +138,7 @@ class BaseHandler(ABC):
             .replace(")", "")
             .replace("(", "")
             .replace(",", "")
-            .replace("&", "")
-            [:62]
+            .replace("&", "")[:62]
         )
 
     def extract_resource_to_publish(self, files, layer_name, alternate, **kwargs):
@@ -151,6 +150,13 @@ class BaseHandler(ABC):
         ]
         """
         return NotImplementedError
+
+    def overwrite_geoserver_resource(self, resource, catalog, store, workspace):
+        """
+        Base method for override the geoserver resource. For vector file usually
+        is not needed since the value are replaced by ogr2ogr
+        """
+        pass
 
     @staticmethod
     def create_error_log(exc, task_name, *args):

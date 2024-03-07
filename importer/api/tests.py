@@ -38,26 +38,16 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         response = self.client.patch(self.url)
         self.assertEqual(405, response.status_code)
 
-    @patch("importer.api.views.UploadViewSet")
-    def test_redirect_to_old_upload_if_file_is_not_a_gpkg(self, patch_upload):
-        upload = MagicMock()
-        upload.upload.return_value = HttpResponse()
-        patch_upload.return_value = upload
+    def test_raise_exception_if_file_is_not_a_handled(self):
 
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(name="file.invalid", content=b"abc"),
         }
         response = self.client.post(self.url, data=payload)
-        self.assertEqual(200, response.status_code)
-        upload.upload.assert_called_once()
+        self.assertEqual(500, response.status_code)
 
-    @patch("importer.api.views.UploadViewSet")
-    def test_gpkg_raise_error_with_invalid_payload(self, patch_upload):
-        upload = MagicMock()
-        upload.upload.return_value = HttpResponse()
-        patch_upload.return_value = upload
-
+    def test_gpkg_raise_error_with_invalid_payload(self):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),

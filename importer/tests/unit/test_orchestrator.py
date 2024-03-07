@@ -1,4 +1,6 @@
+import os
 import uuid
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
@@ -178,13 +180,19 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertIsNotNone(Upload.objects.get(metadata__icontains=_id))
 
     def test_set_as_failed(self):
+        # creating the temporary file that will be deleted
+        fake_path = f"{settings.MEDIA_ROOT}/file.txt"
+        with open(fake_path, "w"):
+            pass
+
+        self.assertTrue(os.path.exists(fake_path))
         # we need to create first the execution
         _uuid = self.orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="name",
             step="importer.create_geonode_resource",  # adding the first step for the GPKG file
             input_params={
-                "files": {"base_file": "/tmp/file.txt"},
+                "files": {"base_file": fake_path},
                 "store_spatial_files": True,
             },
         )
@@ -195,7 +203,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         req = ExecutionRequest.objects.get(exec_id=_uuid)
         self.assertTrue(req.status, ExecutionRequest.STATUS_FAILED)
         self.assertTrue(req.log, "automatic test")
-
+        self.assertFalse(os.path.exists(fake_path))
         # check legacy execution status
         legacy = Upload.objects.filter(metadata__contains=_uuid)
         self.assertTrue(legacy.exists())
@@ -290,7 +298,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
 
             self.assertIsNone(result)
             self.assertEqual(
-                f"INFO:importer.orchestrator:Execution progress with id {exec_id} is not finished yet, continuing",
+                f"INFO:importer.orchestrator:Execution with ID {exec_id} is completed. All tasks are done",
                 _log.output[0],
             )
 

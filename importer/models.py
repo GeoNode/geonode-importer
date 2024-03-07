@@ -30,7 +30,6 @@ def delete_dynamic_model(instance, sender, **kwargs):
 
 
 class ResourceHandlerInfo(models.Model):
-
     """
     Here we save the relation between the geonode resource created and the handler that created that resource
     """

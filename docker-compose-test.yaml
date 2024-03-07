@@ -1,0 +1,104 @@
+version: '3.9'
+
+services:
+
+  # Our custom django application. It includes Geonode.
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django4importer
+    healthcheck:
+      test: "curl -m 10 --fail --silent --write-out 'HTTP CODE : %{http_code}\n' --output /dev/null http://django:8000/"
+      start_period: 60s
+      interval: 60s
+      timeout: 10s
+      retries: 2
+    environment:
+      - IS_CELERY=False
+    command: 'sleep infinity'
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env_test
+    volumes:
+      - statics:/mnt/volumes/statics
+      - geoserver-data-dir:/geoserver_data/data
+      - data:/data
+      - tmp:/tmp
+      - .:/usr/src/importer
+      
+
+  # Geoserver backend
+  geoserver:
+    image: geonode/geoserver:2.23.0
+    container_name: geoserver4importer
+    healthcheck:
+      test: "curl -m 10 --fail --silent --write-out 'HTTP CODE : %{http_code}\n' --output /dev/null http://geoserver:8080/geoserver/ows"
+      start_period: 60s
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    env_file:
+      - .env_test
+    ports:
+      - "8080:8080"
+    volumes:
+      - statics:/mnt/volumes/statics
+      - geoserver-data-dir:/geoserver_data/data
+      - data:/data
+      - tmp:/tmp
+    restart: unless-stopped
+    depends_on:
+      data-dir-conf:
+        condition: service_healthy
+
+  data-dir-conf:
+    image: geonode/geoserver_data:2.23.0
+    container_name: gsconf4importer
+    entrypoint: sleep infinity
+    volumes:
+      - geoserver-data-dir:/geoserver_data/data
+    restart: unless-stopped
+    healthcheck:
+      test: "ls -A '/geoserver_data/data' | wc -l"
+
+  # PostGIS database.
+  db:
+    # use geonode official postgis 15 image
+    image: geonode/postgis:15
+    command: postgres -c "max_connections=100"
+    container_name: db4importer
+    env_file:
+      - .env_test
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - dbbackups:/pg_backups
+    restart: unless-stopped
+    healthcheck:
+      test: "pg_isready -d postgres -U postgres"
+    # uncomment to enable remote connections to postgres
+    ports:
+      - "5432:5432"
+
+
+volumes:
+  statics:
+    name: importer-statics
+  nginx-confd:
+    name: importer-nginxconfd
+  nginx-certificates:
+    name: importer-nginxcerts
+  geoserver-data-dir:
+    name: importer-gsdatadir
+  dbdata:
+    name: importer-dbdata
+  dbbackups:
+    name: importer-dbbackups
+  data:
+    name: importer-data
+  tmp:
+    name: importer-tmp
+  rabbitmq:
+    name: importer-rabbitmq
