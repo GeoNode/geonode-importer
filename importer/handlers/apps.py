@@ -32,6 +32,7 @@ def run_setup_hooks(*args, **kwargs):
         _available_settings = [
             import_string(module_path)().supported_file_extension_config
             for module_path in settings.IMPORTER_HANDLERS
+            if import_string(module_path)().supported_file_extension_config
         ]
         # injecting the new config required for FE
         supported_type = [

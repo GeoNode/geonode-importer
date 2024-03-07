@@ -1,4 +1,8 @@
 import os
+import os
+import shutil
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test.utils import override_settings
 from unittest.mock import patch
@@ -14,7 +18,7 @@ from importer.celery_tasks import (
     import_resource,
     orchestrator,
     publish_resource,
-    rollback,
+    rollback
 )
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
@@ -23,6 +27,7 @@ from geonode.base.models import ResourceBase
 from geonode.base.populate_test_data import create_single_dataset
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
+from importer.models import ResourceHandlerInfo
 
 from importer.tests.utils import (
     ImporterBaseTestSupport,
@@ -465,6 +470,39 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 # cleanup
                 if exec_id:
                     ExecutionRequest.objects.filter(exec_id=str(exec_id)).delete()
+
+    @override_settings(MEDIA_ROOT="/tmp/")
+    def test_import_metadata_should_work_as_expected(self):
+        handler = "importer.handlers.xml.handler.XMLFileHandler"
+        # lets copy the file to the temporary folder
+        # later will be removed
+        valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
+        shutil.copy(valid_xml, '/tmp')
+
+        user, _ = get_user_model().objects.get_or_create(username="admin")
+        valid_files = {"base_file": valid_xml, 'xml_file': valid_xml}
+
+        layer = create_single_dataset("test_dataset_importer")
+        exec_id = orchestrator.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name="funct1",
+            step="step",
+            input_params={
+                "files": valid_files,
+                "dataset_title": layer.alternate,
+                "skip_existing_layer": True,
+                "handler_module_path": str(handler),
+            },
+        )
+        ResourceHandlerInfo.objects.create(
+            resource=layer,
+            handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
+        )
+        
+        import_resource(str(exec_id), handler, "import")
+        
+        layer.refresh_from_db()
+        self.assertEqual(layer.title, "test_dataset")
 
 
 class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
