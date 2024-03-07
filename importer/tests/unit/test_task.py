@@ -1,5 +1,7 @@
-from django.conf import settings
 import os
+import os
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test.utils import override_settings
 from unittest.mock import patch
