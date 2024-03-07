@@ -1,15 +1,8 @@
 import logging
 
-from django.shortcuts import get_object_or_404
-from geonode.layers.models import Dataset
-<<<<<<< HEAD
-=======
-from geonode.resource.enumerator import ExecutionRequestAction as exa
->>>>>>> 02bda6833d22c6eb7f29ba55ee99fd4f675ed1c5
 from geonode.resource.manager import resource_manager
 from importer.handlers.common.metadata import MetadataFileHandler
 from importer.handlers.xml.exceptions import InvalidXmlException
-from importer.orchestrator import orchestrator
 from owslib.etree import etree as dlxml
 
 logger = logging.getLogger(__name__)
@@ -17,11 +10,7 @@ logger = logging.getLogger(__name__)
 
 class XMLFileHandler(MetadataFileHandler):
     """
-<<<<<<< HEAD
     Handler to import XML files into GeoNode data db
-=======
-    Handler to import KML files into GeoNode data db
->>>>>>> 02bda6833d22c6eb7f29ba55ee99fd4f675ed1c5
     It must provide the task_lists required to comple the upload
     """
 
