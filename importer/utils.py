@@ -64,6 +64,6 @@ def find_key_recursively(obj, key):
     """
     if key in obj:
         return obj.get(key, None)
-    for _, v in obj.items():
+    for _unsed, v in obj.items():
         if isinstance(v, dict):
             return find_key_recursively(v, key)

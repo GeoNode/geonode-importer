@@ -17,16 +17,22 @@ class MetadataFileHandler(BaseHandler):
     """
 
     ACTIONS = {
-        exa.IMPORT.value: (
-            "start_import",
-            "importer.import_resource"
-        ),
-        ira.ROLLBACK.value: ()
+        exa.IMPORT.value: ("start_import", "importer.import_resource"),
+        ira.ROLLBACK.value: (),
     }
 
     @staticmethod
-    def has_serializer(_data) -> bool:
-        return MetadataFileSerializer
+    def has_serializer(data) -> bool:
+        _base = data.get("base_file")
+        if not _base:
+            return False
+        if (
+            _base.endswith("xml") or _base.endswith("sld")
+            if isinstance(_base, str)
+            else _base.name.endswith("xml") or _base.name.endswith("sld")
+        ):
+            return MetadataFileSerializer
+        return False
 
     @property
     def supported_file_extension_config(self):
@@ -57,17 +63,17 @@ class MetadataFileHandler(BaseHandler):
 
         # retrieving the handler used for the dataset
         original_handler = orchestrator.load_handler(
-            dataset.resourcehandlerinfo_set\
-                .first()\
-                .handler_module_path
+            dataset.resourcehandlerinfo_set.first().handler_module_path
         )()
 
         self.handle_metadata_resource(_exec, dataset, original_handler)
 
         dataset.refresh_from_db()
-        
-        orchestrator.evaluate_execution_progress(execution_id, handler_module_path=str(self))
+
+        orchestrator.evaluate_execution_progress(
+            execution_id, handler_module_path=str(self)
+        )
         return dataset
 
     def handle_metadata_resource(self, _exec, dataset, original_handler):
-        raise NotImplemented
+        raise NotImplementedError

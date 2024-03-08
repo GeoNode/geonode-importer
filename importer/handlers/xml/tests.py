@@ -19,8 +19,8 @@ class TestXMLFileHandler(TestCase):
         cls.valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
         cls.invalid_xml = f"{project_dir}/tests/fixture/invalid.gpkg"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
-        cls.invalid_files = {"base_file": cls.invalid_xml, 'xml_file': cls.invalid_xml}
-        cls.valid_files = {"base_file": cls.valid_xml, 'xml_file': cls.valid_xml}
+        cls.invalid_files = {"base_file": cls.invalid_xml, "xml_file": cls.invalid_xml}
+        cls.valid_files = {"base_file": cls.valid_xml, "xml_file": cls.valid_xml}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="extruded_polygon", owner=cls.owner)
 
@@ -37,7 +37,9 @@ class TestXMLFileHandler(TestCase):
             self.handler.is_valid(files=self.invalid_files)
 
         self.assertIsNotNone(_exc)
-        self.assertTrue("Uploaded document is not XML or is invalid" in str(_exc.exception.detail))
+        self.assertTrue(
+            "Uploaded document is not XML or is invalid" in str(_exc.exception.detail)
+        )
 
     def test_is_valid_should_pass_with_valid_xml(self):
         self.handler.is_valid(files=self.valid_files)
@@ -67,9 +69,9 @@ class TestXMLFileHandler(TestCase):
             handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
         )
 
-        self.assertEqual(self.layer.title, "extruded_polygon")        
-        
+        self.assertEqual(self.layer.title, "extruded_polygon")
+
         self.handler.import_resource({}, str(exec_id))
-        
+
         self.layer.refresh_from_db()
         self.assertEqual(self.layer.title, "test_dataset")

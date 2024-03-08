@@ -35,19 +35,23 @@ class XMLFileHandler(MetadataFileHandler):
         Define basic validation steps
         """
         # calling base validation checks
- 
+
         try:
             with open(files.get("base_file")) as _xml:
                 dlxml.fromstring(_xml.read().encode())
         except Exception as err:
-            raise InvalidXmlException(f"Uploaded document is not XML or is invalid: {str(err)}")
+            raise InvalidXmlException(
+                f"Uploaded document is not XML or is invalid: {str(err)}"
+            )
         return True
 
     def handle_metadata_resource(self, _exec, dataset, original_handler):
         if original_handler.can_handle_xml_file:
             original_handler.handle_xml_file(dataset, _exec)
         else:
-            _path = _exec.input_params.get("files", {}).get("xml_file", _exec.input_params.get("base_file", {}))
+            _path = _exec.input_params.get("files", {}).get(
+                "xml_file", _exec.input_params.get("base_file", {})
+            )
             resource_manager.update(
                 None,
                 instance=dataset,

@@ -1,5 +1,4 @@
 import os
-import os
 import shutil
 
 from django.conf import settings
@@ -18,7 +17,7 @@ from importer.celery_tasks import (
     import_resource,
     orchestrator,
     publish_resource,
-    rollback
+    rollback,
 )
 from geonode.resource.models import ExecutionRequest
 from geonode.layers.models import Dataset
@@ -477,10 +476,10 @@ class TestCeleryTasks(ImporterBaseTestSupport):
         # lets copy the file to the temporary folder
         # later will be removed
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
-        shutil.copy(valid_xml, '/tmp')
+        shutil.copy(valid_xml, "/tmp")
 
         user, _ = get_user_model().objects.get_or_create(username="admin")
-        valid_files = {"base_file": valid_xml, 'xml_file': valid_xml}
+        valid_files = {"base_file": valid_xml, "xml_file": valid_xml}
 
         layer = create_single_dataset("test_dataset_importer")
         exec_id = orchestrator.create_execution_request(
@@ -498,9 +497,9 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             resource=layer,
             handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
         )
-        
+
         import_resource(str(exec_id), handler, "import")
-        
+
         layer.refresh_from_db()
         self.assertEqual(layer.title, "test_dataset")
 
@@ -615,7 +614,7 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
             layer.save()
 
             self.assertTrue(
-                ModelSchema.objects.filter(name__icontains=f"schema_").count() == 1
+                ModelSchema.objects.filter(name__icontains="schema_").count() == 1
             )
 
             copy_dynamic_model(
@@ -632,7 +631,7 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
             # the alternate is generated internally
             self.assertTrue(ModelSchema.objects.filter(name=f"schema_{name}").exists())
             self.assertTrue(
-                ModelSchema.objects.filter(name__icontains=f"schema_").count() == 2
+                ModelSchema.objects.filter(name__icontains="schema_").count() == 2
             )
 
             schema = ModelSchema.objects.all()
@@ -642,8 +641,8 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
             async_call.assert_called_once()
 
         finally:
-            ModelSchema.objects.filter(name=f"schema_").delete()
-            FieldSchema.objects.filter(name=f"field_").delete()
+            ModelSchema.objects.filter(name="schema_").delete()
+            FieldSchema.objects.filter(name="field_").delete()
 
     @patch("importer.celery_tasks.import_orchestrator.apply_async")
     @patch("importer.celery_tasks.connections")

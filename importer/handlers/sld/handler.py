@@ -35,19 +35,23 @@ class SLDFileHandler(MetadataFileHandler):
         Define basic validation steps
         """
         # calling base validation checks
- 
+
         try:
             with open(files.get("base_file")) as _xml:
                 dlxml.fromstring(_xml.read().encode())
         except Exception as err:
-            raise InvalidSldException(f"Uploaded document is not SLD or is invalid: {str(err)}")
+            raise InvalidSldException(
+                f"Uploaded document is not SLD or is invalid: {str(err)}"
+            )
         return True
 
     def handle_metadata_resource(self, _exec, dataset, original_handler):
         if original_handler.can_handle_sld_file:
             original_handler.handle_sld_file(dataset, _exec)
         else:
-            _path = _exec.input_params.get("files", {}).get("sld_file", _exec.input_params.get("base_file", {}))
+            _path = _exec.input_params.get("files", {}).get(
+                "sld_file", _exec.input_params.get("base_file", {})
+            )
             resource_manager.exec(
                 "set_style",
                 None,
@@ -56,5 +60,3 @@ class SLDFileHandler(MetadataFileHandler):
                 sld_uploaded=True if _path else False,
                 vals={"dirty_state": True},
             )
-
-

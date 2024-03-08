@@ -20,7 +20,6 @@ from importer.api.serializer import ImporterSerializer
 from importer.celery_app import importer_app
 from importer.handlers.base import BaseHandler
 from importer.utils import error_handler
-from importer.utils import ImporterRequestAction as ira
 
 logger = logging.getLogger(__name__)
 

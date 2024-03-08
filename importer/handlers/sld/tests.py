@@ -19,8 +19,8 @@ class TestSLDFileHandler(TestCase):
         cls.valid_sld = f"{settings.PROJECT_ROOT}/base/fixtures/test_sld.sld"
         cls.invalid_sld = f"{project_dir}/tests/fixture/invalid.gpkg"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
-        cls.invalid_files = {"base_file": cls.invalid_sld, 'sld_file': cls.invalid_sld}
-        cls.valid_files = {"base_file": cls.valid_sld, 'sld_file': cls.valid_sld}
+        cls.invalid_files = {"base_file": cls.invalid_sld, "sld_file": cls.invalid_sld}
+        cls.valid_files = {"base_file": cls.valid_sld, "sld_file": cls.valid_sld}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="sld_dataset", owner=cls.owner)
 
@@ -37,7 +37,9 @@ class TestSLDFileHandler(TestCase):
             self.handler.is_valid(files=self.invalid_files, user="user")
 
         self.assertIsNotNone(_exc)
-        self.assertTrue("Uploaded document is not SLD or is invalid" in str(_exc.exception.detail))
+        self.assertTrue(
+            "Uploaded document is not SLD or is invalid" in str(_exc.exception.detail)
+        )
 
     def test_is_valid_should_pass_with_valid_sld(self):
         self.handler.is_valid(files=self.valid_files, user="user")
@@ -67,9 +69,9 @@ class TestSLDFileHandler(TestCase):
             handler_module_path="importer.handlers.shapefile.handler.ShapeFileHandler",
         )
 
-        self.assertEqual(self.layer.title, "sld_dataset")        
-        
+        self.assertEqual(self.layer.title, "sld_dataset")
+
         self.handler.import_resource({}, str(exec_id))
-        
+
         self.layer.refresh_from_db()
         self.assertEqual(self.layer.title, "sld_dataset")

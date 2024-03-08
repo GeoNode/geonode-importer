@@ -208,7 +208,7 @@ class CSVFileHandler(BaseVectorFileHandler):
         # ones we have the schema, here we create a list of chunked value
         # so the async task will handle max of 30 field per task
         list_chunked = [
-            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)
+            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)  # noqa
         ]
 
         # definition of the celery group needed to run the async workflow.
