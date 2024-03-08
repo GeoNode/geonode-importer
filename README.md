@@ -1,3 +1,7 @@
+![PyPI - Downloads](https://img.shields.io/pypi/dm/geonode-importer) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/GeoNode/geonode-importer/runtests.yml) ![GitHub top language](https://img.shields.io/github/languages/top/GeoNode/geonode-importer)
+
+
+
 # geonode-importer
 
 A GeoNode app that implements a flow to upload/import data files.  
