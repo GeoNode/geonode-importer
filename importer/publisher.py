@@ -49,12 +49,14 @@ class DataPublisher:
             files, action, layer_name, alternate, **kwargs
         )
 
-    def get_resource(self, resource_name) -> bool:
+    def get_resource(self, resource_name, return_bool=True) -> bool:
         self.get_or_create_store()
         _res = self.cat.get_resource(
             resource_name, store=self.store, workspace=self.workspace
         )
-        return True if _res else False
+        if return_bool:
+            return True if _res else False
+        return _res
 
     def publish_resources(self, resources: List[str]):
         """
@@ -87,9 +89,9 @@ class DataPublisher:
         return result
 
     def delete_resource(self, resource_name):
-        layer = self.get_resource(resource_name)
-        if layer and layer.resource:
-            self.cat.delete(layer.resource, purge="all", recurse=True)
+        layer = self.get_resource(resource_name, return_bool=False)
+        if layer:
+            self.cat.delete(layer, purge="all", recurse=True)
         store = self.cat.get_store(
             resource_name.split(":")[-1],
             workspace=os.getenv(
