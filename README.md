@@ -20,6 +20,7 @@ In GeoNode 4.1 `geonode-importer` replaced the previous importer logic.
 - **CSV** - Vector
 - **GeoTiff** - Raster
 - **XML** - Update XML file for a given resource
+- **SLD** - Update SLD file for a given resource
 
 **IMPORTANT**: At the moment the importer doesn't support overwriting/skipping existing layers from the UI. Every upload will create a new dataset.
 Overwriting a layer (`overwrite_existing_layer`) and skipping an already existing layer (`skip_existing_layers`) is supported through the API. 
@@ -107,7 +108,8 @@ IMPORTER_HANDLERS = os.getenv('IMPORTER_HANDLERS', [
     'importer.handlers.kml.handler.KMLFileHandler',
     'importer.handlers.csv.handler.CSVFileHandler',
     'importer.handlers.geotiff.handler.GeoTiffFileHandler',
-    'importer.handlers.xml.handler.XMLFileHandler
+    'importer.handlers.xml.handler.XMLFileHandler',
+    'importer.handlers.sld.handler.SLDFileHandler'
 ])
 
 ```

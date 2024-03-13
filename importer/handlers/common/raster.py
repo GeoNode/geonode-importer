@@ -25,7 +25,6 @@ from importer.orchestrator import orchestrator
 from osgeo import gdal
 from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
-from geonode.geoserver.helpers import get_store
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +249,7 @@ class BaseRasterFileHandler(BaseHandler):
                     raise Exception(
                         "CRS authority code not found, fallback to default behaviour"
                     )
-        except:
+        except Exception:
             spatial_ref = layer.GetSpatialRef()
             spatial_ref.AutoIdentifyEPSG()
             _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue(
@@ -526,7 +525,7 @@ class BaseRasterFileHandler(BaseHandler):
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
-        steps_to_rollback = steps[1 : step_index + 1]
+        steps_to_rollback = steps[1 : step_index + 1]  # noqa
         if not steps_to_rollback:
             return
         # reversing the tuple to going backwards with the rollback
@@ -536,7 +535,7 @@ class BaseRasterFileHandler(BaseHandler):
             istance_name = (
                 find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
             )
-        except:
+        except Exception:
             pass
 
         logger.warning(

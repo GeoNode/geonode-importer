@@ -4,7 +4,6 @@ from mock import patch
 from importer import project_dir
 from importer.publisher import DataPublisher
 from unittest.mock import MagicMock
-from geonode.geoserver.helpers import create_geoserver_db_featurestore
 
 
 class TestDataPublisher(TestCase):

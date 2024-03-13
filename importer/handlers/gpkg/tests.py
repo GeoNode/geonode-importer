@@ -1,4 +1,3 @@
-import copy
 import os
 import shutil
 from django.test import TestCase, override_settings
@@ -117,15 +116,13 @@ class TestGPKGHandler(TestCase):
     def test_single_message_error_handler(self):
         # lets copy the file to the temporary folder
         # later will be removed
-        shutil.copy(self.valid_gpkg, '/tmp')
+        shutil.copy(self.valid_gpkg, "/tmp")
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="funct1",
             step="step",
             input_params={
-                "files": {
-                    "base_file": '/tmp/valid.gpkg'
-                },
+                "files": {"base_file": "/tmp/valid.gpkg"},
                 "skip_existing_layer": True,
                 "handler_module_path": str(self.handler),
             },
@@ -148,4 +145,4 @@ class TestGPKGHandler(TestCase):
         )
 
         self.assertEqual("FAILURE", TaskResult.objects.get(task_id=str(exec_id)).status)
-        self.assertFalse(os.path.exists('/tmp/valid.gpkg'))
+        self.assertFalse(os.path.exists("/tmp/valid.gpkg"))

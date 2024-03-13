@@ -67,7 +67,6 @@ class BaseHandler(ABC):
         """
         return True
 
-
     @property
     def can_handle_sld_file(self) -> bool:
         """

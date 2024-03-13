@@ -8,10 +8,7 @@ class MetadataFileSerializer(DynamicModelSerializer):
         ref_name = "MetadataFileSerializer"
         model = Upload
         view_name = "importer_upload"
-        fields = (
-            "dataset_title",
-            "base_file"
-        )
+        fields = ("dataset_title", "base_file")
 
     base_file = serializers.FileField()
     dataset_title = serializers.CharField(required=True)

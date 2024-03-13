@@ -279,7 +279,7 @@ class BaseVectorFileHandler(BaseHandler):
                     raise Exception(
                         "CRS authority code not found, fallback to default behaviour"
                     )
-        except:
+        except Exception:
             spatial_ref = layer.GetSpatialRef()
             spatial_ref.AutoIdentifyEPSG()
             _name = spatial_ref.GetAuthorityName(None) or spatial_ref.GetAttrValue(
@@ -375,7 +375,7 @@ class BaseVectorFileHandler(BaseHandler):
                         )
 
                     # prepare the async chord workflow with the on_success and on_fail methods
-                    workflow = chord(group_to_call)(
+                    workflow = chord(group_to_call)(  # noqa
                         import_next_step.s(
                             execution_id,
                             str(self),  # passing the handler module path
@@ -530,7 +530,7 @@ class BaseVectorFileHandler(BaseHandler):
         # ones we have the schema, here we create a list of chunked value
         # so the async task will handle max of 30 field per task
         list_chunked = [
-            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)
+            layer_schema[i : i + 30] for i in range(0, len(layer_schema), 30)  # noqa
         ]
 
         # definition of the celery group needed to run the async workflow.
@@ -777,7 +777,7 @@ class BaseVectorFileHandler(BaseHandler):
         step_index = steps.index(rollback_from_step)
         # the start_import, start_copy etc.. dont do anything as step, is just the start
         # so there is nothing to rollback
-        steps_to_rollback = steps[1 : step_index + 1]
+        steps_to_rollback = steps[1 : step_index + 1]  # noqa
         if not steps_to_rollback:
             return
         # reversing the tuple to going backwards with the rollback
@@ -787,7 +787,7 @@ class BaseVectorFileHandler(BaseHandler):
             instance_name = (
                 find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
             )
-        except:
+        except Exception:
             pass
 
         logger.warning(

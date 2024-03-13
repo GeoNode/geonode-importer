@@ -106,9 +106,6 @@ class DataPublisher:
         if store:
             self.cat.delete(store, purge="all", recurse=True)
 
-    def get_resource(self, dataset_name):
-        return self.cat.get_layer(dataset_name)
-
     def get_or_create_store(self):
         """
         Evaluate if the store exists. if not is created
