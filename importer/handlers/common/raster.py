@@ -102,6 +102,7 @@ class BaseRasterFileHandler(BaseHandler):
             "skip_existing_layers": _data.pop("skip_existing_layers", "False"),
             "overwrite_existing_layer": _data.pop("overwrite_existing_layer", "False"),
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
+            "source": _data.pop("source", "upload"),
         }, _data
 
     @staticmethod

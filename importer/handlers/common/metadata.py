@@ -1,6 +1,7 @@
 import logging
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from importer.handlers.base import BaseHandler
+from importer.models import ResourceHandlerInfo
 from importer.handlers.xml.serializer import MetadataFileSerializer
 from importer.utils import ImporterRequestAction as ira
 from importer.orchestrator import orchestrator
@@ -49,22 +50,44 @@ class MetadataFileHandler(BaseHandler):
             "skip_existing_layers": _data.pop("skip_existing_layers", "False"),
             "overwrite_existing_layer": _data.pop("overwrite_existing_layer", "False"),
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
+            "source": _data.pop("source", "True"),
         }, _data
 
     @staticmethod
     def perform_last_step(execution_id):
-        pass
+        _exec = orchestrator.get_execution_object(execution_id)
+        
+        _exec.output_params.update(
+            **{
+                "detail_url": [
+                    x.resource.detail_url
+                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
+                ]
+            }
+        )
+        _exec.save()
 
     def import_resource(self, files: dict, execution_id: str, **kwargs):
         _exec = orchestrator.get_execution_object(execution_id)
         # getting the dataset
         alternate = _exec.input_params.get("dataset_title")
-        dataset = get_object_or_404(Dataset, alternate=alternate)
+        resource_id = _exec.input_params.get("resource_id")
+        if resource_id:
+            dataset = get_object_or_404(Dataset, pk=resource_id)
+        elif alternate:
+            dataset = get_object_or_404(Dataset, alternate=alternate)
 
         # retrieving the handler used for the dataset
         original_handler = orchestrator.load_handler(
             dataset.resourcehandlerinfo_set.first().handler_module_path
         )()
+        
+        ResourceHandlerInfo.objects.create(
+            handler_module_path=dataset.resourcehandlerinfo_set.first().handler_module_path,
+            resource=dataset,
+            execution_request=_exec,
+            kwargs=kwargs.get("kwargs", {}) or kwargs,
+        )
 
         self.handle_metadata_resource(_exec, dataset, original_handler)
 
