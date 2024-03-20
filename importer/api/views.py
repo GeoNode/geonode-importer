@@ -148,7 +148,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     legacy_upload_name=_file.name,
                     action=action,
                     name=_file.name,
-                    source="upload",
+                    source=extracted_params.get('source'),
                 )
 
                 sig = import_orchestrator.s(
