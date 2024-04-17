@@ -305,7 +305,8 @@ class BaseVectorFileHandler(BaseHandler):
         Internally will call the steps required to import the
         data inside the geonode_data database
         """
-        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
+        all_layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
+        layers = self._select_valid_layers(all_layers)
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
@@ -320,7 +321,7 @@ class BaseVectorFileHandler(BaseHandler):
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
                 layer_name = self.fixup_name(layer.GetName())
-
+                
                 should_be_overwritten = _exec.input_params.get(
                     "overwrite_existing_layer"
                 )
@@ -396,6 +397,17 @@ class BaseVectorFileHandler(BaseHandler):
                 drop_dynamic_model_schema(dynamic_model)
             raise e
         return
+
+    def _select_valid_layers(self, all_layers):
+        layers = []
+        for layer in all_layers:
+            try:
+                self.identify_authority(layer)
+                layers.append(layer)
+            except:
+                logger.error(f"The following layer {layer.GetName()} does not have a Coordinate Reference System (CRS) and will be skipped.")
+                pass
+        return layers
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
         workspace = DataPublisher(None).workspace
