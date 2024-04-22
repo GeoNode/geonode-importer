@@ -594,6 +594,10 @@ class BaseVectorFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
+                data_title="Original",
+                data_type=self.supported_file_extension_config["label"],
+                extension=self.supported_file_extension_config["id"],
+                link_type="uploaded",  # should be in geonode.base.enumerations.LINK_TYPES
                 files=list(
                     set(
                         list(_exec.input_params.get("files", {}).values())
