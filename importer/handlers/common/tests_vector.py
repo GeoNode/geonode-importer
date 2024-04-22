@@ -7,6 +7,7 @@ from mock import MagicMock, patch
 from importer.handlers.common.vector import BaseVectorFileHandler, import_with_ogr2ogr
 from django.contrib.auth import get_user_model
 from importer import project_dir
+from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
@@ -23,6 +24,7 @@ class TestBaseVectorFileHandler(TestCase):
         cls.handler = BaseVectorFileHandler()
         cls.valid_gpkg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.invalid_gpkg = f"{project_dir}/tests/fixture/invalid.gpkg"
+        cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_gpkg}
         cls.valid_files = {"base_file": cls.valid_gpkg}
@@ -296,3 +298,20 @@ class TestBaseVectorFileHandler(TestCase):
         self.assertTrue("-f PGDump /vsistdout/" in _call_as_string)
         self.assertTrue("psql -d" in _call_as_string)
         self.assertFalse("-f PostgreSQL PG" in _call_as_string)
+
+    def test_select_valid_layers(self):
+        """
+        The function should return only the datasets with a geometry
+        The other one are discarded
+        """
+        all_layers = GPKGFileHandler().get_ogr2ogr_driver().Open(self.no_crs_gpkg)
+
+        with self.assertLogs(level="ERROR") as _log:
+            valid_layer = GPKGFileHandler()._select_valid_layers(all_layers)
+
+        self.assertIn(
+            "The following layer layer_styles does not have a Coordinate Reference System (CRS) and will be skipped.",
+            [x.message for x in _log.records],
+        )
+        self.assertEqual(1, len(valid_layer))
+        self.assertEqual("mattia_test", valid_layer[0].GetName())

@@ -26,6 +26,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         super().setUpClass()
         cls.valid_gkpg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
+        cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
         file_path = gisdata.VECTOR_DATA
         filename = os.path.join(file_path, "san_andres_y_providencia_highway.shp")
         cls.valid_shp = {
@@ -101,8 +102,12 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
             )
             self.assertTrue(dataset.exists())
 
-            # check if the resource is in geoserver
             resources = self.cat.get_resources()
+            print("#################")
+            print(dataset.first().title)
+            print([y.name for y in resources])
+            print("#################")
+            # check if the resource is in geoserver
             self.assertTrue(dataset.first().title in [y.name for y in resources])
             if overwrite:
                 self.assertTrue(dataset.first().last_updated > last_update)
@@ -128,6 +133,25 @@ class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
         initial_name = "stazioni_metropolitana"
         self._assertimport(payload, initial_name)
         layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        if layer:
+            self.cat.delete(layer)
+
+    def test_import_geopackage_with_no_crs_table(self):
+        layer = self.cat.get_layer("geonode:mattia_test")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.no_crs_gpkg, "rb"),
+        }
+        initial_name = "mattia_test"
+        with self.assertLogs(level="ERROR") as _log:
+            self._assertimport(payload, initial_name)
+
+        self.assertIn(
+            "The following layer layer_styles does not have a Coordinate Reference System (CRS) and will be skipped.",
+            [x.message for x in _log.records],
+        )
+        layer = self.cat.get_layer("geonode:mattia_test")
         if layer:
             self.cat.delete(layer)
 
