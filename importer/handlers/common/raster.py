@@ -195,7 +195,7 @@ class BaseRasterFileHandler(BaseHandler):
 
         _exec = orchestrator.get_execution_object(execution_id)
 
-        _exec.save()
+        
 
         _exec.output_params.update(
             **{
@@ -205,6 +205,7 @@ class BaseRasterFileHandler(BaseHandler):
                 ]
             }
         )
+        _exec.save()
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
