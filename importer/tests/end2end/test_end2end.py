@@ -103,10 +103,6 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
             self.assertTrue(dataset.exists())
 
             resources = self.cat.get_resources()
-            print("#################")
-            print(dataset.first().title)
-            print([y.name for y in resources])
-            print("#################")
             # check if the resource is in geoserver
             self.assertTrue(dataset.first().title in [y.name for y in resources])
             if overwrite:
@@ -136,6 +132,11 @@ class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
         if layer:
             self.cat.delete(layer)
 
+    @override_settings(ASYNC_SIGNALS=False)
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
     def test_import_geopackage_with_no_crs_table(self):
         layer = self.cat.get_layer("geonode:mattia_test")
         if layer:

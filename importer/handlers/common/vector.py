@@ -321,7 +321,7 @@ class BaseVectorFileHandler(BaseHandler):
             # start looping on the layers available
             for index, layer in enumerate(layers, start=1):
                 layer_name = self.fixup_name(layer.GetName())
-                
+
                 should_be_overwritten = _exec.input_params.get(
                     "overwrite_existing_layer"
                 )
@@ -404,8 +404,11 @@ class BaseVectorFileHandler(BaseHandler):
             try:
                 self.identify_authority(layer)
                 layers.append(layer)
-            except:
-                logger.error(f"The following layer {layer.GetName()} does not have a Coordinate Reference System (CRS) and will be skipped.")
+            except Exception as e:
+                logger.error(e)
+                logger.error(
+                    f"The following layer {layer.GetName()} does not have a Coordinate Reference System (CRS) and will be skipped."
+                )
                 pass
         return layers
 
