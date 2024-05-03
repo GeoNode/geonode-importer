@@ -158,9 +158,13 @@ class TestBaseVectorFileHandler(TestCase):
                 input_params={"files": self.valid_files, "skip_existing_layer": True},
             )
 
-            # start the resource import
-            self.handler.import_resource(
-                files=self.valid_files, execution_id=str(exec_id)
+            with self.assertRaises(Exception) as exception:
+                # start the resource import
+                self.handler.import_resource(
+                    files=self.valid_files, execution_id=str(exec_id)
+                )
+            self.assertIn(
+                "No valid layers found", exception.exception.args[0], 'No valid layers found.'
             )
 
             celery_chord.assert_not_called()
