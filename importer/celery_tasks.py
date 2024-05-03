@@ -221,7 +221,6 @@ def publish_resource(
         _files = _exec.input_params.get("files")
         _overwrite = _exec.input_params.get("overwrite_existing_layer")
 
-        # for now we dont heve the overwrite option in GS, skipping will we talk with the GS team
         _publisher = DataPublisher(handler_module_path)
 
         # extracting the crs and the resource name, are needed for publish the resource

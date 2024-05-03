@@ -56,6 +56,15 @@ class BaseVectorFileHandler(BaseHandler):
         return NotImplementedError
 
     @staticmethod
+    def get_geoserver_store_name(default=None):
+        """
+        Method that return the base store name where to save the data in geoserver
+        and a boolean to know if the store should be created.
+        For vector, the store must be created
+        """
+        return os.environ.get("GEONODE_GEODATABASE", "geonode_data"), True
+
+    @staticmethod
     def is_valid(files, user):
         """
         Define basic validation steps
