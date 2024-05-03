@@ -164,7 +164,9 @@ class TestBaseVectorFileHandler(TestCase):
                     files=self.valid_files, execution_id=str(exec_id)
                 )
             self.assertIn(
-                "No valid layers found", exception.exception.args[0], 'No valid layers found.'
+                "No valid layers found",
+                exception.exception.args[0],
+                "No valid layers found.",
             )
 
             celery_chord.assert_not_called()

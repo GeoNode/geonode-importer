@@ -184,7 +184,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 user=get_user_model().objects.get(username=self.user),
                 func_name="dummy_func",
                 step="dummy_step",
-                legacy_upload_name="dummy",
                 input_params={
                     "files": {"base_file": "/filepath"},
                     "overwrite_existing_layer": True,
@@ -239,7 +238,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     user=get_user_model().objects.get(username=self.user),
                     func_name="dummy_func",
                     step="dummy_step",
-                    legacy_upload_name="dummy",
                     input_params={
                         "files": {"base_file": "/filepath"},
                         "overwrite_existing_layer": True,

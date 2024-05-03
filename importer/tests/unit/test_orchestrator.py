@@ -12,7 +12,6 @@ from importer.orchestrator import ImportOrchestrator
 from django.utils import timezone
 from django_celery_results.models import TaskResult
 
-from geonode.base import enumerations as enum
 from geonode.resource.models import ExecutionRequest
 
 # Create your tests here.
@@ -95,7 +94,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         exec_obj = ExecutionRequest.objects.filter(exec_id=exec_id).first()
         self.assertEqual(count + 1, ExecutionRequest.objects.count())
         self.assertDictEqual(input_files, exec_obj.input_params)
-        self.assertEqual(exec_obj.STATUS_READY, exec_obj.status))
+        self.assertEqual(exec_obj.STATUS_READY, exec_obj.status)
 
     @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_next_step(self, mock_celery):

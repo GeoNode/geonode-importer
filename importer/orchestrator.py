@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional
 from uuid import UUID
 
@@ -9,7 +8,6 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
-from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
 from geonode.storage.manager import storage_manager
 from rest_framework import serializers
