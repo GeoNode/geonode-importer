@@ -36,6 +36,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
             "shx_file": f"{file_path}/san_andres_y_providencia_highway.shx",
         }
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
+        cls.valid_tif = f"{project_dir}/tests/fixture/test_grid.tif"
 
         cls.url = reverse("importer_upload")
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
@@ -336,5 +337,47 @@ class ImporterShapefileImportTest(BaseImporterEndToEndTest):
             payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated
         )
         layer = self.cat.get_layer("geonode:san_andres_y_providencia_highway")
+        if layer:
+            self.cat.delete(layer)
+
+
+class ImporterRasterImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_raster(self):
+        layer = self.cat.get_layer("test_grid")
+        if layer:
+            self.cat.delete(layer)
+
+        payload = {
+            "base_file": open(self.valid_tif, "rb"),
+        }
+        initial_name = "test_grid"
+        self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("test_grid")
+        if layer:
+            self.cat.delete(layer)
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_raster_overwrite(self):
+        prev_dataset = create_single_dataset(name="test_grid")
+
+        layer = self.cat.get_layer("test_grid")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.valid_tif, "rb"),
+        }
+        initial_name = "test_grid"
+        payload["overwrite_existing_layer"] = True
+        self._assertimport(
+            payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated
+        )
+        layer = self.cat.get_layer("test_grid")
         if layer:
             self.cat.delete(layer)
