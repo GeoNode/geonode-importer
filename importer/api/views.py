@@ -145,7 +145,6 @@ class ImporterViewSet(DynamicModelViewSet):
                         **{"files": files, "handler_module_path": str(handler)},
                         **extracted_params,
                     },
-                    legacy_upload_name=_file.name,
                     action=action,
                     name=_file.name,
                     source=extracted_params.get('source'),

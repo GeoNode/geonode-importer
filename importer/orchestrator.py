@@ -11,7 +11,6 @@ from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
 from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
-from geonode.upload.models import Upload
 from geonode.storage.manager import storage_manager
 from rest_framework import serializers
 
@@ -161,7 +160,6 @@ class ImportOrchestrator:
             finished=timezone.now(),
             last_updated=timezone.now(),
             log=reason,
-            legacy_status=STATE_INVALID,
         )
         # delete
         if delete_file:
@@ -185,7 +183,6 @@ class ImportOrchestrator:
             finished=timezone.now(),
             last_updated=timezone.now(),
             log=f"The execution is completed, but the following layers are not imported: \n {', '.join(reason)}. Check the logs for additional infos",
-            legacy_status=STATE_INVALID,
         )
 
     def set_as_completed(self, execution_id):
@@ -197,7 +194,6 @@ class ImportOrchestrator:
             status=ExecutionRequest.STATUS_FINISHED,
             finished=timezone.now(),
             last_updated=timezone.now(),
-            legacy_status=STATE_PROCESSED,
         )
 
     def evaluate_execution_progress(
@@ -292,7 +288,6 @@ class ImportOrchestrator:
         step: str,
         input_params: dict = {},
         resource=None,
-        legacy_upload_name="",
         action=None,
         name=None,
         source=None,
@@ -316,7 +311,6 @@ class ImportOrchestrator:
         self,
         execution_id,
         status=None,
-        legacy_status=STATE_RUNNING,
         celery_task_request=None,
         **kwargs,
     ):
