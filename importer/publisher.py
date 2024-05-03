@@ -29,6 +29,8 @@ class DataPublisher:
         )
         self.workspace = self._get_default_workspace(create=True)
 
+        self.store = None
+
         if handler_module_path is not None:
             self.handler = import_string(handler_module_path)()
 
@@ -50,7 +52,7 @@ class DataPublisher:
         )
 
     def get_resource(self, resource_name, return_bool=True) -> bool:
-        self.get_or_create_store()
+        self.get_or_create_store(default=resource_name)
         _res = self.cat.get_resource(
             resource_name, store=self.store, workspace=self.workspace
         )
@@ -63,7 +65,7 @@ class DataPublisher:
         Given a list of strings (which rappresent the table on geoserver)
         Will publish the resorces on geoserver
         """
-        self.get_or_create_store()
+        self.get_or_create_store(default=resources[0]["name"])
         result = self.handler.publish_resources(
             resources=resources,
             catalog=self.cat,
@@ -77,8 +79,8 @@ class DataPublisher:
         """
         We dont need to do anything for now. The data is replaced via ogr2ogr
         """
-        self.get_or_create_store()
         for _resource in resources:
+            self.get_or_create_store(default=_resource["name"])
             result = self.handler.overwrite_geoserver_resource(
                 resource=_resource,
                 catalog=self.cat,
@@ -108,16 +110,31 @@ class DataPublisher:
         if store:
             self.cat.delete(store, purge="all", recurse=True)
 
-    def get_or_create_store(self):
+    def get_or_create_store(self, default=None):
         """
         Evaluate if the store exists. if not is created
         """
-        geodatabase = os.environ.get("GEONODE_GEODATABASE", "geonode_data")
-        self.store = self.cat.get_store(name=geodatabase, workspace=self.workspace)
+        store_name, to_be_created = self.handler.get_geoserver_store_name(
+            default=default
+        )
+
+        if self.store and self.store.name == store_name:
+            # if we already initialize the store, we can skip the checks
+            return self.store
+
+        if store_name is not None and not to_be_created:
+            # If the store name is provided by the handler, we retrieve the store
+            # from geoserver. This is usually used for raster layers
+            # for raster we dont want to create the store upfront since the pulishing
+            # is going to create it
+            self.store = self.cat.get_store(name=store_name, workspace=self.workspace)
+            return
+
+        self.store = self.cat.get_store(name=store_name, workspace=self.workspace)
         if not self.store:
-            logger.warning(f"The store does not exists: {geodatabase} creating...")
+            logger.warning(f"The store does not exists: {store_name} creating...")
             self.store = create_geoserver_db_featurestore(
-                store_name=geodatabase, workspace=self.workspace.name
+                store_name=store_name, workspace=self.workspace.name
             )
 
     def publish_geoserver_view(
@@ -126,7 +143,7 @@ class DataPublisher:
         """
         Let the handler create a geoserver view given the input parameters
         """
-        self.get_or_create_store()
+        self.get_or_create_store(default=layer_name)
 
         return self.handler.publish_geoserver_view(
             catalog=self.cat,

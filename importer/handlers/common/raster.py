@@ -46,6 +46,16 @@ class BaseRasterFileHandler(BaseHandler):
         return NotImplementedError
 
     @staticmethod
+    def get_geoserver_store_name(default=None):
+        """
+        Method that return the base store name where to save the data in geoserver
+        and a boolean to know if the store should be created.
+        For raster, the store is created during the geoserver publishing
+        so we dont want to created it upfront
+        """
+        return default, False
+
+    @staticmethod
     def is_valid(files, user):
         """
         Define basic validation steps
@@ -195,8 +205,6 @@ class BaseRasterFileHandler(BaseHandler):
 
         _exec = orchestrator.get_execution_object(execution_id)
 
-        
-
         _exec.output_params.update(
             **{
                 "detail_url": [
@@ -299,7 +307,10 @@ class BaseRasterFileHandler(BaseHandler):
                 dataset_exists = user_datasets.exists()
 
                 if dataset_exists and should_be_overwritten:
-                    layer_name, alternate = layer_name, user_datasets.first().alternate
+                    layer_name, alternate = (
+                        layer_name,
+                        user_datasets.first().alternate.split(":")[-1],
+                    )
                 elif not dataset_exists:
                     alternate = layer_name
                 else:
