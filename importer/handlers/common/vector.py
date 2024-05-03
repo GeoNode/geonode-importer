@@ -318,7 +318,11 @@ class BaseVectorFileHandler(BaseHandler):
         dynamic_model = None
         celery_group = None
         try:
+            if len(layers) == 0:
+                raise Exception("No valid layers found")
+
             # start looping on the layers available
+
             for index, layer in enumerate(layers, start=1):
                 layer_name = self.fixup_name(layer.GetName())
 

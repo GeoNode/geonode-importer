@@ -180,6 +180,40 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
         if layer:
             self.cat.delete(layer)
 
+    @override_settings(ASYNC_SIGNALS=False)
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    @mock.patch(
+        "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
+    )
+    def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
+        self, _select_valid_layers
+    ):
+        _select_valid_layers.return_value = []
+        layer = self.cat.get_layer("geonode:mattia_test")
+        if layer:
+            self.cat.delete(layer)
+
+        payload = {
+            "base_file": open(self.no_crs_gpkg, "rb"),
+        }
+
+        with self.assertLogs(level="ERROR") as _log:
+            self.client.force_login(self.admin)
+
+            response = self.client.post(self.url, data=payload)
+            self.assertEqual(500, response.status_code)
+
+        self.assertIn(
+            "No valid layers found",
+            [x.message for x in _log.records],
+        )
+        layer = self.cat.get_layer("geonode:mattia_test")
+        if layer:
+            self.cat.delete(layer)
+
 
 class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
     @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
