@@ -31,12 +31,7 @@ class ImportOrchestrator:
     it call the next step of the import pipeline
     Params:
 
-    enable_legacy_upload_status default=True: if true, will save the upload progress
-        also in the legacy upload system
     """
-
-    def __init__(self, enable_legacy_upload_status=True) -> None:
-        self.enable_legacy_upload_status = enable_legacy_upload_status
 
     def get_handler(self, _data) -> Optional[BaseHandler]:
         """
@@ -315,22 +310,6 @@ class ImportOrchestrator:
             name=name,
             source=source,
         )
-        if self.enable_legacy_upload_status:
-            # getting the package name from the base_filename
-            Upload.objects.create(
-                name=legacy_upload_name
-                or os.path.basename(input_params.get("files", {}).get("base_file")),
-                state=STATE_RUNNING,
-                user=user,
-                metadata={
-                    **{
-                        "func_name": func_name,
-                        "step": step,
-                        "exec_id": str(execution.exec_id),
-                    },
-                    **input_params,
-                },
-            )
         return execution.exec_id
 
     def update_execution_request_status(
@@ -350,12 +329,6 @@ class ImportOrchestrator:
 
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
 
-        if self.enable_legacy_upload_status:
-            Upload.objects.filter(metadata__contains=execution_id).update(
-                state=legacy_status,
-                complete=True,
-                metadata={**kwargs, **{"exec_id": execution_id}},
-            )
         if celery_task_request:
             TaskResult.objects.filter(task_id=celery_task_request.id).update(
                 task_args=celery_task_request.args
@@ -371,4 +344,4 @@ class ImportOrchestrator:
         return self.load_handler(handler_module_path).perform_last_step(execution_id)
 
 
-orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
+orchestrator = ImportOrchestrator()
