@@ -12,4 +12,4 @@ class MetadataFileSerializer(DynamicModelSerializer):
 
     base_file = serializers.FileField()
     dataset_title = serializers.CharField(required=True)
-    source = serializers.CharField(required=False, default='resource_file_upload')
+    source = serializers.CharField(required=False, default="resource_file_upload")
