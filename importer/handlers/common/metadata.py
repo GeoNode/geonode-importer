@@ -56,7 +56,7 @@ class MetadataFileHandler(BaseHandler):
     @staticmethod
     def perform_last_step(execution_id):
         _exec = orchestrator.get_execution_object(execution_id)
-        
+
         _exec.output_params.update(
             **{
                 "detail_url": [
@@ -81,7 +81,7 @@ class MetadataFileHandler(BaseHandler):
         original_handler = orchestrator.load_handler(
             dataset.resourcehandlerinfo_set.first().handler_module_path
         )()
-        
+
         ResourceHandlerInfo.objects.create(
             handler_module_path=dataset.resourcehandlerinfo_set.first().handler_module_path,
             resource=dataset,

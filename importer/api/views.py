@@ -147,7 +147,7 @@ class ImporterViewSet(DynamicModelViewSet):
                     },
                     action=action,
                     name=_file.name,
-                    source=extracted_params.get('source'),
+                    source=extracted_params.get("source"),
                 )
 
                 sig = import_orchestrator.s(
