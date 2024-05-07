@@ -1,5 +1,5 @@
 FROM geonode/geonode-base:latest-ubuntu-22.04
-
+RUN rm -rf /usr/src/geonode
 RUN git clone https://github.com/GeoNode/geonode.git /usr/src/geonode
 RUN cd /usr/src/geonode && git checkout 12124_assets && cd -
 RUN mkdir -p /usr/src/importer

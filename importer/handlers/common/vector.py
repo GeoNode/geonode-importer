@@ -56,6 +56,15 @@ class BaseVectorFileHandler(BaseHandler):
         return NotImplementedError
 
     @staticmethod
+    def get_geoserver_store_name(default=None):
+        """
+        Method that return the base store name where to save the data in geoserver
+        and a boolean to know if the store should be created.
+        For vector, the store must be created
+        """
+        return os.environ.get("GEONODE_GEODATABASE", "geonode_data"), True
+
+    @staticmethod
     def is_valid(files, user):
         """
         Define basic validation steps
@@ -305,7 +314,8 @@ class BaseVectorFileHandler(BaseHandler):
         Internally will call the steps required to import the
         data inside the geonode_data database
         """
-        layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
+        all_layers = self.get_ogr2ogr_driver().Open(files.get("base_file"))
+        layers = self._select_valid_layers(all_layers)
         # for the moment we skip the dyanamic model creation
         layer_count = len(layers)
         logger.info(f"Total number of layers available: {layer_count}")
@@ -317,7 +327,11 @@ class BaseVectorFileHandler(BaseHandler):
         dynamic_model = None
         celery_group = None
         try:
+            if len(layers) == 0:
+                raise Exception("No valid layers found")
+
             # start looping on the layers available
+
             for index, layer in enumerate(layers, start=1):
                 layer_name = self.fixup_name(layer.GetName())
 
@@ -396,6 +410,20 @@ class BaseVectorFileHandler(BaseHandler):
                 drop_dynamic_model_schema(dynamic_model)
             raise e
         return
+
+    def _select_valid_layers(self, all_layers):
+        layers = []
+        for layer in all_layers:
+            try:
+                self.identify_authority(layer)
+                layers.append(layer)
+            except Exception as e:
+                logger.error(e)
+                logger.error(
+                    f"The following layer {layer.GetName()} does not have a Coordinate Reference System (CRS) and will be skipped."
+                )
+                pass
+        return layers
 
     def find_alternate_by_dataset(self, _exec_obj, layer_name, should_be_overwritten):
         workspace = DataPublisher(None).workspace
