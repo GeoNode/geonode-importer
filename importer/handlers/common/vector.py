@@ -31,6 +31,7 @@ from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
+from geonode.assets.utils import copy_assets_and_links
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
@@ -760,14 +761,15 @@ class BaseVectorFileHandler(BaseHandler):
         new_alternate: str,
         **kwargs,
     ):
-        resource = self.create_geonode_resource(
+        new_resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=resource.files,
+            files=[],
         )
-        resource.refresh_from_db()
-        return resource
+        copy_assets_and_links(resource, target=new_resource)
+        new_resource.refresh_from_db()
+        return new_resource
 
     def get_ogr2ogr_task_group(
         self,
