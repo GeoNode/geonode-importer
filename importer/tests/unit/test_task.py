@@ -27,6 +27,7 @@ from geonode.base.populate_test_data import create_single_dataset
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from importer.models import ResourceHandlerInfo
+from importer import project_dir
 
 from importer.tests.utils import (
     ImporterBaseTestSupport,
@@ -39,13 +40,14 @@ from importer.tests.utils import (
 class TestCeleryTasks(ImporterBaseTestSupport):
     def setUp(self):
         self.user = get_user_model().objects.first()
+        self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
         self.exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
             legacy_upload_name="dummy",
             input_params={
-                "files": {"base_file": "/filepath"},
+                "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
             },
@@ -82,7 +84,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             func_name="dummy_func",
             step="dummy_step",
             legacy_upload_name="dummy",
-            input_params={"files": "/filepath", "store_spatial_files": True},
+            input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
         is_valid.side_effect = Exception("Invalid format type")
@@ -116,7 +118,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             func_name="dummy_func",
             step="dummy_step",
             legacy_upload_name="dummy",
-            input_params={"files": "/filepath", "store_spatial_files": True},
+            input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
         import_resource(
@@ -189,7 +191,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 step="dummy_step",
                 legacy_upload_name="dummy",
                 input_params={
-                    "files": {"base_file": "/filepath"},
+                    "files": {"base_file": self.existing_file},
                     "overwrite_existing_layer": True,
                     "store_spatial_files": True,
                 },
@@ -244,7 +246,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     step="dummy_step",
                     legacy_upload_name="dummy",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": self.existing_file},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                     },
@@ -388,7 +390,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     step=conf[0],  # step name
                     action="import",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": self.existing_file},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                         "handler_module_path": "importer.handlers.gpkg.handler.GPKGFileHandler",
@@ -509,13 +511,14 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
 
     def setUp(self):
         self.user = get_user_model().objects.first()
+        self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
         self.exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
             legacy_upload_name="dummy",
             input_params={
-                "files": {"base_file": "/filepath"},
+                "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
             },

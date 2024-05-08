@@ -31,7 +31,7 @@ from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
-from geonode.assets.utils import copy_assets_and_links
+from geonode.assets.utils import copy_assets_and_links, get_default_asset
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
@@ -245,10 +245,12 @@ class BaseVectorFileHandler(BaseHandler):
         _exec.save()
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
-            # getting all files list
-            resources_files = list(set(chain(*[x.resource.files for x in resources])))
-            # better to delete each single file since it can be a remove storage service
-            list(map(storage_manager.delete, resources_files))
+            # getting all assets list
+            assets = [get_default_asset(x.resource) for x in resources]
+            # we need to loop and cancel one by one to activate the signal
+            # which delete the file from the filesystem
+            for asset in assets:
+                asset.delete()
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
