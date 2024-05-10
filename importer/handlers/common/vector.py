@@ -252,6 +252,13 @@ class BaseVectorFileHandler(BaseHandler):
             for asset in assets:
                 asset.delete()
 
+        # since the original file is now available as asset, we can delete the input files
+        # TODO must be improved. The asset should be created in the beginning
+        for _file in _exec.input_params.get("files", {}).values():
+            if storage_manager.exists(_file):
+                storage_manager.delete(_file)
+        
+        
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
     ):

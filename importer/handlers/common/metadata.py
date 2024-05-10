@@ -7,6 +7,7 @@ from importer.utils import ImporterRequestAction as ira
 from importer.orchestrator import orchestrator
 from django.shortcuts import get_object_or_404
 from geonode.layers.models import Dataset
+from geonode.storage.manager import storage_manager
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,11 @@ class MetadataFileHandler(BaseHandler):
             }
         )
         _exec.save()
+        # since the original file is now available as asset, we can delete the input files
+        # TODO must be improved. The asset should be created in the beginning
+        for _file in _exec.input_params.get("files", {}).values():
+            if storage_manager.exists(_file):
+                storage_manager.delete(_file)
 
     def import_resource(self, files: dict, execution_id: str, **kwargs):
         _exec = orchestrator.get_execution_object(execution_id)
