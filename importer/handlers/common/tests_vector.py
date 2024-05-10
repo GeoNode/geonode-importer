@@ -164,7 +164,9 @@ class TestBaseVectorFileHandler(TestCase):
                     files=self.valid_files, execution_id=str(exec_id)
                 )
             self.assertIn(
-                "No valid layers found", exception.exception.args[0], 'No valid layers found.'
+                "No valid layers found",
+                exception.exception.args[0],
+                "No valid layers found.",
             )
 
             celery_chord.assert_not_called()
@@ -319,3 +321,32 @@ class TestBaseVectorFileHandler(TestCase):
         )
         self.assertEqual(1, len(valid_layer))
         self.assertEqual("mattia_test", valid_layer[0].GetName())
+
+    def test_perform_last_step(self):
+        """
+        Output params in perform_last_step should return the detail_url and the ID
+        of the resource created
+        """
+        # creating exec_id for the import
+        exec_id = orchestrator.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name="funct1",
+            step="step",
+            input_params={"files": self.valid_files, "store_spatial_file": True},
+        )
+
+        # create_geonode_resource
+        resource = self.handler.create_geonode_resource(
+            "layer_name",
+            "layer_alternate",
+            str(exec_id),
+        )
+        exec_obj = orchestrator.get_execution_object(str(exec_id))
+        self.handler.create_resourcehandlerinfo(str(self.handler), resource, exec_obj)
+        # calling the last_step
+        self.handler.perform_last_step(str(exec_id))
+        expected_output = {
+            "resources": [{"id": resource.pk, "detail_url": resource.detail_url}]
+        }
+        exec_obj.refresh_from_db()
+        self.assertDictEqual(expected_output, exec_obj.output_params)

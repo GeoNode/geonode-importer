@@ -9,7 +9,6 @@ from typing import List
 
 from django.conf import settings
 from django.db.models import Q
-from django_celery_results.models import TaskResult
 from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
@@ -186,34 +185,7 @@ class BaseRasterFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        """
-        Override this method if there is some extra step to perform
-        before considering the execution as completed.
-        For example can be used to trigger an email-send to notify
-        that the execution is completed
-        """
-        # as last step, we delete the celery task to keep the number of rows under control
-        lower_exec_id = execution_id.replace("-", "_").lower()
-        TaskResult.objects.filter(
-            Q(task_args__icontains=lower_exec_id)
-            | Q(task_kwargs__icontains=lower_exec_id)
-            | Q(result__icontains=lower_exec_id)
-            | Q(task_args__icontains=execution_id)
-            | Q(task_kwargs__icontains=execution_id)
-            | Q(result__icontains=execution_id)
-        ).delete()
-
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
+        BaseHandler.perform_last_step(execution_id=execution_id)
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs

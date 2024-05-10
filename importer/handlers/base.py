@@ -5,6 +5,8 @@ from typing import List
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.layers.models import Dataset
 from importer.utils import ImporterRequestAction as ira
+from django_celery_results.models import TaskResult
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +118,38 @@ class BaseHandler(ABC):
         all the other are returned
         """
         return []
+
+    @staticmethod
+    def perform_last_step(execution_id):
+        """
+        Override this method if there is some extra step to perform
+        before considering the execution as completed.
+        For example can be used to trigger an email-send to notify
+        that the execution is completed
+        """
+        from importer.orchestrator import orchestrator
+        from importer.models import ResourceHandlerInfo
+
+        # as last step, we delete the celery task to keep the number of rows under control
+        lower_exec_id = execution_id.replace("-", "_").lower()
+        TaskResult.objects.filter(
+            Q(task_args__icontains=lower_exec_id)
+            | Q(task_kwargs__icontains=lower_exec_id)
+            | Q(result__icontains=lower_exec_id)
+            | Q(task_args__icontains=execution_id)
+            | Q(task_kwargs__icontains=execution_id)
+            | Q(result__icontains=execution_id)
+        ).delete()
+
+        _exec = orchestrator.get_execution_object(execution_id)
+
+        resource_output_params = [
+            {"detail_url": x.resource.detail_url, "id": x.resource.pk}
+            for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
+        ]
+        _exec.output_params.update({"resources": resource_output_params})
+        _exec.save()
+        return _exec
 
     def fixup_name(self, name):
         """
