@@ -56,22 +56,7 @@ class MetadataFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
-        # since the original file is now available as asset, we can delete the input files
-        # TODO must be improved. The asset should be created in the beginning
-        for _file in _exec.input_params.get("files", {}).values():
-            if storage_manager.exists(_file):
-                storage_manager.delete(_file)
+        BaseHandler.perform_last_step(execution_id=execution_id)
 
     def import_resource(self, files: dict, execution_id: str, **kwargs):
         _exec = orchestrator.get_execution_object(execution_id)

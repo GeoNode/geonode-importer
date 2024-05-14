@@ -1,6 +1,7 @@
+import shutil
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from geonode.base.populate_test_data import create_single_dataset
 from importer import project_dir
 from importer.models import ResourceHandlerInfo
@@ -18,11 +19,17 @@ class TestXMLFileHandler(TestCase):
         cls.handler = XMLFileHandler()
         cls.valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
         cls.invalid_xml = f"{project_dir}/tests/fixture/invalid.gpkg"
+
+        shutil.copy(cls.valid_xml, "/tmp")
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_xml, "xml_file": cls.invalid_xml}
-        cls.valid_files = {"base_file": cls.valid_xml, "xml_file": cls.valid_xml}
+        cls.valid_files = {"base_file": "/tmp/test_xml.xml", "xml_file": "/tmp/test_xml.xml"}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="extruded_polygon", owner=cls.owner)
+
+    def setUp(self) -> None:
+        shutil.copy(self.valid_xml, "/tmp")
+        super().setUp()
 
     def test_task_list_is_the_expected_one(self):
         expected = (
@@ -52,6 +59,7 @@ class TestXMLFileHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_can_successfully_import_metadata_file(self):
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),

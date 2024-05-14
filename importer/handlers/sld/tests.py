@@ -1,6 +1,7 @@
+import shutil
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from geonode.base.populate_test_data import create_single_dataset
 from importer import project_dir
 from importer.models import ResourceHandlerInfo
@@ -18,11 +19,18 @@ class TestSLDFileHandler(TestCase):
         cls.handler = SLDFileHandler()
         cls.valid_sld = f"{settings.PROJECT_ROOT}/base/fixtures/test_sld.sld"
         cls.invalid_sld = f"{project_dir}/tests/fixture/invalid.gpkg"
+
+        shutil.copy(cls.valid_sld, "/tmp")
+
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_sld, "sld_file": cls.invalid_sld}
-        cls.valid_files = {"base_file": cls.valid_sld, "sld_file": cls.valid_sld}
+        cls.valid_files = {"base_file": "/tmp/test_sld.sld", "sld_file": "/tmp/test_sld.sld"}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="sld_dataset", owner=cls.owner)
+
+    def setUp(self) -> None:
+        shutil.copy(self.valid_sld, "/tmp")
+        super().setUp()
 
     def test_task_list_is_the_expected_one(self):
         expected = (
@@ -52,7 +60,9 @@ class TestSLDFileHandler(TestCase):
         actual = self.handler.can_handle({"base_file": "random.file"})
         self.assertFalse(actual)
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     def test_can_successfully_import_metadata_file(self):
+
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="funct1",

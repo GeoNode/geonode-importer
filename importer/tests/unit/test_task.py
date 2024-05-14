@@ -479,9 +479,10 @@ class TestCeleryTasks(ImporterBaseTestSupport):
         # later will be removed
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
         shutil.copy(valid_xml, "/tmp")
+        xml_in_tmp = "/tmp/test_xml.xml"
 
         user, _ = get_user_model().objects.get_or_create(username="admin")
-        valid_files = {"base_file": valid_xml, "xml_file": valid_xml}
+        valid_files = {"base_file": xml_in_tmp, "xml_file": xml_in_tmp}
 
         layer = create_single_dataset("test_dataset_importer")
         exec_id = orchestrator.create_execution_request(
@@ -504,6 +505,9 @@ class TestCeleryTasks(ImporterBaseTestSupport):
 
         layer.refresh_from_db()
         self.assertEqual(layer.title, "test_dataset")
+
+        #verify that the original has been deleted
+        self.assertFalse(os.path.exists(xml_in_tmp))
 
 
 class TestDynamicModelSchema(TransactionImporterBaseTestSupport):

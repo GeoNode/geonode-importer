@@ -11,7 +11,6 @@ from typing import List
 from celery import chord, group
 
 from django.conf import settings
-from django_celery_results.models import TaskResult
 from dynamic_models.models import ModelSchema
 from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
@@ -30,7 +29,6 @@ from geonode.resource.models import ExecutionRequest
 from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from geonode.storage.manager import storage_manager
 from geonode.assets.utils import copy_assets_and_links, get_default_asset
 
 from importer.handlers.utils import create_alternate, should_be_imported
@@ -221,28 +219,7 @@ class BaseVectorFileHandler(BaseHandler):
         For example can be used to trigger an email-send to notify
         that the execution is completed
         """
-        # as last step, we delete the celery task to keep the number of rows under control
-        lower_exec_id = execution_id.replace("-", "_").lower()
-        TaskResult.objects.filter(
-            Q(task_args__icontains=lower_exec_id)
-            | Q(task_kwargs__icontains=lower_exec_id)
-            | Q(result__icontains=lower_exec_id)
-            | Q(task_args__icontains=execution_id)
-            | Q(task_kwargs__icontains=execution_id)
-            | Q(result__icontains=execution_id)
-        ).delete()
-
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
+        _exec = BaseHandler.perform_last_step(execution_id=execution_id)
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
             # getting all assets list
@@ -251,12 +228,6 @@ class BaseVectorFileHandler(BaseHandler):
             # which delete the file from the filesystem
             for asset in assets:
                 asset.delete()
-
-        # since the original file is now available as asset, we can delete the input files
-        # TODO must be improved. The asset should be created in the beginning
-        for _file in _exec.input_params.get("files", {}).values():
-            if storage_manager.exists(_file):
-                storage_manager.delete(_file)
         
         
     def extract_resource_to_publish(

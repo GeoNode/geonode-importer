@@ -1,4 +1,5 @@
 import os
+import shutil
 import uuid
 from celery.canvas import Signature
 from celery import group
@@ -13,6 +14,7 @@ from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
 from dynamic_models.models import ModelSchema
 from osgeo import ogr
+from django.test.utils import override_settings
 
 
 class TestBaseVectorFileHandler(TestCase):
@@ -27,11 +29,15 @@ class TestBaseVectorFileHandler(TestCase):
         cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_gpkg}
-        cls.valid_files = {"base_file": cls.valid_gpkg}
+        cls.valid_files = {"base_file": "/tmp/valid.gpkg"}
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(
             name="stazioni_metropolitana", owner=cls.owner
         )
+
+    def setUp(self) -> None:
+        shutil.copy(self.valid_gpkg, "/tmp")
+        super().setUp()
 
     def test_create_error_log(self):
         """
@@ -164,7 +170,9 @@ class TestBaseVectorFileHandler(TestCase):
                     files=self.valid_files, execution_id=str(exec_id)
                 )
             self.assertIn(
-                "No valid layers found", exception.exception.args[0], 'No valid layers found.'
+                "No valid layers found",
+                exception.exception.args[0],
+                "No valid layers found.",
             )
 
             celery_chord.assert_not_called()
@@ -319,3 +327,34 @@ class TestBaseVectorFileHandler(TestCase):
         )
         self.assertEqual(1, len(valid_layer))
         self.assertEqual("mattia_test", valid_layer[0].GetName())
+
+    @override_settings(MEDIA_ROOT='/tmp')
+    def test_perform_last_step(self):
+        """
+        Output params in perform_last_step should return the detail_url and the ID
+        of the resource created
+        """
+        handler = GPKGFileHandler()
+        # creating exec_id for the import
+        exec_id = orchestrator.create_execution_request(
+            user=get_user_model().objects.first(),
+            func_name="funct1",
+            step="step",
+            input_params={"files": self.valid_files, "store_spatial_file": True},
+        )
+
+        # create_geonode_resource
+        resource = handler.create_geonode_resource(
+            "layer_name",
+            "layer_alternate",
+            str(exec_id),
+        )
+        exec_obj = orchestrator.get_execution_object(str(exec_id))
+        handler.create_resourcehandlerinfo(str(handler), resource, exec_obj)
+        # calling the last_step
+        handler.perform_last_step(str(exec_id))
+        expected_output = {
+            "resources": [{"id": resource.pk, "detail_url": resource.detail_url}]
+        }
+        exec_obj.refresh_from_db()
+        self.assertDictEqual(expected_output, exec_obj.output_params)
