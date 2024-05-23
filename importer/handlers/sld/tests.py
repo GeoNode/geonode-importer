@@ -24,7 +24,10 @@ class TestSLDFileHandler(TestCase):
 
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_sld, "sld_file": cls.invalid_sld}
-        cls.valid_files = {"base_file": "/tmp/test_sld.sld", "sld_file": "/tmp/test_sld.sld"}
+        cls.valid_files = {
+            "base_file": "/tmp/test_sld.sld",
+            "sld_file": "/tmp/test_sld.sld",
+        }
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="sld_dataset", owner=cls.owner)
 

@@ -228,8 +228,7 @@ class BaseVectorFileHandler(BaseHandler):
             # which delete the file from the filesystem
             for asset in assets:
                 asset.delete()
-        
-        
+
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
     ):
@@ -568,7 +567,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -591,6 +590,7 @@ class BaseVectorFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
@@ -603,16 +603,7 @@ class BaseVectorFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                data_title="Original",
-                data_type=self.supported_file_extension_config["label"],
-                extension=self.supported_file_extension_config["id"],
-                link_type="uploaded",  # should be in geonode.base.enumerations.LINK_TYPES
-                files=list(
-                    set(
-                        list(_exec.input_params.get("files", {}).values())
-                        or list(files)
-                    )
-                ),
+                asset=asset,
             ),
         )
 

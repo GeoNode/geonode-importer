@@ -506,7 +506,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
         layer.refresh_from_db()
         self.assertEqual(layer.title, "test_dataset")
 
-        #verify that the original has been deleted
+        # verify that the original has been deleted
         self.assertFalse(os.path.exists(xml_in_tmp))
 
 

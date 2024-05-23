@@ -150,12 +150,12 @@ class BaseHandler(ABC):
         ]
         _exec.output_params.update({"resources": resource_output_params})
         _exec.save()
-        
+
         # since the original file is now available as asset, we can delete the input files
         # TODO must be improved. The asset should be created in the beginning
-        for _file in _exec.input_params.get("files", {}).values():
-            if storage_manager.exists(_file):
-                storage_manager.delete(_file)
+        # for _file in _exec.input_params.get("files", {}).values():
+        #    if storage_manager.exists(_file):
+        #        storage_manager.delete(_file)
 
         return _exec
 
