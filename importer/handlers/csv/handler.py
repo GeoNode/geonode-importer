@@ -244,9 +244,16 @@ class CSVFileHandler(BaseVectorFileHandler):
             {
                 "name": alternate or layer_name,
                 "crs": (
-                    self.identify_authority(_l) if _l.GetSpatialRef() else "EPSG:4326"
+                    self.identify_authority(_l)
                 ),
             }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name
         ]
+
+    def identify_authority(self, layer):
+        try:
+            authority_code = super().identify_authority(layer=layer)
+            return authority_code
+        except Exception:
+            return "EPSG:4326"
