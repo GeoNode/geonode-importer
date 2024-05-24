@@ -347,7 +347,7 @@ class BaseRasterFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                asset=asset
+                asset=asset,
             ),
         )
 

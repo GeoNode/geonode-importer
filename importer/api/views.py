@@ -17,8 +17,6 @@
 #
 #########################################################################
 import logging
-import os
-from pathlib import Path
 from urllib.parse import urljoin
 from django.conf import settings
 from django.urls import reverse
@@ -49,7 +47,6 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.assets.handlers import asset_handler_registry
-from geonode.utils import get_allowed_extensions
 from geonode.assets.local import LocalAssetHandler
 
 logger = logging.getLogger(__name__)

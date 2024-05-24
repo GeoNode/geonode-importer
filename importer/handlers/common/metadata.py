@@ -7,7 +7,6 @@ from importer.utils import ImporterRequestAction as ira
 from importer.orchestrator import orchestrator
 from django.shortcuts import get_object_or_404
 from geonode.layers.models import Dataset
-from geonode.storage.manager import storage_manager
 
 logger = logging.getLogger(__name__)
 

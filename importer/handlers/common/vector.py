@@ -2,7 +2,6 @@ import ast
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
-from itertools import chain
 import json
 import logging
 import os

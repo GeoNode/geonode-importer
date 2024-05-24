@@ -175,17 +175,20 @@ class TestImporterViewSet(ImporterBaseTestSupport):
 
         self.assertTrue(201, response.status_code)
 
-        _exec = orchestrator.get_execution_object(response.json()['execution_id'])
+        _exec = orchestrator.get_execution_object(response.json()["execution_id"])
 
-        asset_handler = import_string(_exec.input_params['asset_module_path'])
-        self.assertTrue(asset_handler.objects.filter(id=_exec.input_params['asset_id']))
+        asset_handler = import_string(_exec.input_params["asset_module_path"])
+        self.assertTrue(asset_handler.objects.filter(id=_exec.input_params["asset_id"]))
 
-        asset_handler.objects.filter(id=_exec.input_params['asset_id']).delete()
-
+        asset_handler.objects.filter(id=_exec.input_params["asset_id"]).delete()
 
     @patch("importer.api.views.import_orchestrator")
-    @patch("importer.api.views.UploadLimitValidator.validate_parallelism_limit_per_user")
-    def test_asset_should_be_deleted_if_created_during_with_exception(self, validate_parallelism_limit_per_user, patch_upload):
+    @patch(
+        "importer.api.views.UploadLimitValidator.validate_parallelism_limit_per_user"
+    )
+    def test_asset_should_be_deleted_if_created_during_with_exception(
+        self, validate_parallelism_limit_per_user, patch_upload
+    ):
         patch_upload.apply_async.s.side_effect = MagicMock()
         validate_parallelism_limit_per_user.side_effect = Exception("random exception")
 
