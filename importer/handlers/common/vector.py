@@ -224,7 +224,7 @@ class BaseVectorFileHandler(BaseHandler):
             # getting all assets list
             assets = [get_default_asset(x.resource) for x in resources]
             # we need to loop and cancel one by one to activate the signal
-            # which delete the file from the filesystem
+            # that delete the file from the filesystem
             for asset in assets:
                 asset.delete()
 
