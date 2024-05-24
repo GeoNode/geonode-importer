@@ -127,6 +127,7 @@ class ImporterViewSet(DynamicModelViewSet):
         handler = orchestrator.get_handler(_data)
 
         if _file and handler:
+            asset = None
             try:
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
