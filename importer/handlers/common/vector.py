@@ -624,7 +624,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
@@ -637,7 +637,7 @@ class BaseVectorFileHandler(BaseHandler):
             dataset = dataset.first()
 
             dataset = resource_manager.update(
-                dataset.uuid, instance=dataset, files=files
+                dataset.uuid, instance=dataset, files=asset.location
             )
 
             self.handle_xml_file(dataset, _exec)
@@ -653,7 +653,7 @@ class BaseVectorFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, files
+                layer_name, alternate, execution_id, resource_type, asset
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -731,11 +731,12 @@ class BaseVectorFileHandler(BaseHandler):
         new_alternate: str,
         **kwargs,
     ):
+
         new_resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=[],
+            asset=get_default_asset(resource),
         )
         copy_assets_and_links(resource, target=new_resource)
         new_resource.refresh_from_db()

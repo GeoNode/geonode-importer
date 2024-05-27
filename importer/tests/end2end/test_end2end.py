@@ -190,6 +190,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
+    @override_settings(MEDIA_ROOT="/tmp/", ASSET_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
@@ -206,7 +207,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
             self.client.force_login(self.admin)
 
             response = self.client.post(self.url, data=payload)
-            self.assertEqual(500, response.status_code)
+            self.assertEqual(400, response.status_code)
 
         self.assertIn(
             "No valid layers found",
