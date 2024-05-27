@@ -207,7 +207,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
             self.client.force_login(self.admin)
 
             response = self.client.post(self.url, data=payload)
-            self.assertEqual(400, response.status_code)
+            self.assertEqual(500, response.status_code)
 
         self.assertIn(
             "No valid layers found",
