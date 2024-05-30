@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from geonode.assets.utils import get_default_asset
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
@@ -176,9 +177,14 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         resource_type: Dataset = ...,
         asset=None,
     ):
-        return super().create_geonode_resource(
+        resource = super().create_geonode_resource(
             layer_name, alternate, execution_id, ResourceBase, asset
         )
+        # we want just the tileset.json as location of the asset
+        asset = get_default_asset(resource)
+        asset.location = [path for path in asset.location if "tileset.json" in path]
+        asset.save()
+        return resource
 
     def generate_resource_payload(self, layer_name, alternate, asset, _exec, workspace):
         return dict(

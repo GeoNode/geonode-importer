@@ -4,7 +4,7 @@ from django.test import TestCase
 from mock import MagicMock, patch
 from importer.handlers.common.vector import import_with_ogr2ogr
 from importer.handlers.geojson.exceptions import InvalidGeoJsonException
-from importer.handlers.geojson.handler import GeoJsonFileHandler
+from importer.handlers.tiles3d.handler import Tiles3DFileHandler
 from django.contrib.auth import get_user_model
 from importer import project_dir
 from geonode.upload.models import UploadParallelismLimit
@@ -13,13 +13,13 @@ from geonode.base.populate_test_data import create_single_dataset
 from osgeo import ogr
 
 
-class TestGeoJsonFileHandler(TestCase):
+class TestTiles3DFileHandler(TestCase):
     databases = ("default", "datastore")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.handler = GeoJsonFileHandler()
+        cls.handler = Tiles3DFileHandler()
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
         cls.invalid_geojson = f"{project_dir}/tests/fixture/invalid.geojson"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
