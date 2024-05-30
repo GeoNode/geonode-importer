@@ -43,7 +43,7 @@ GEOM_TYPE_MAPPING = {
 }
 
 
-def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool:
+def should_be_imported(layer: str, user: get_user_model(), **kwargs) -> bool: # type: ignore
     """
     If layer_name + user (without the addition of any execution id)
     already exists, will apply one of the rule available:

@@ -171,14 +171,11 @@ class ImportOrchestrator:
         # delete
         if delete_file:
             exec_obj = self.get_execution_object(execution_id)
-            _files = exec_obj.input_params.get("files")
-            # better to delete each single file since it can be a remote storage service
-            if _files:
-                logger.info(
-                    "Execution failed, removing uploaded file to save disk space"
-                )
-                for _file in _files.values():
-                    storage_manager.delete(_file)
+            # cleanup asset in case of fail
+            asset_handler = import_string(exec_obj.input_params['asset_module_path'])
+            asset = asset_handler.objects.filter(pk=exec_obj.input_params['asset_id'])
+            if asset.exists():
+                asset.first().delete()
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """

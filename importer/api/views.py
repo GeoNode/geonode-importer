@@ -20,7 +20,7 @@ import logging
 from urllib.parse import urljoin
 from django.conf import settings
 from django.urls import reverse
-
+from pathlib import Path
 from geonode.resource.enumerator import ExecutionRequestAction
 from django.utils.translation import gettext_lazy as _
 from dynamic_rest.filters import DynamicFilterBackend, DynamicSortingFilter
@@ -111,6 +111,7 @@ class ImporterViewSet(DynamicModelViewSet):
 
         if "zip_file" in _data or "kmz_file" in _data:
             # if a zipfile is provided, we need to unzip it before searching for an handler
+            zipname = Path(_data['base_file'].name).stem
             storage_manager = StorageManager(
                 remote_files={"base_file": _data.get("zip_file", _data.get("kmz_file"))}
             )
@@ -119,7 +120,10 @@ class ImporterViewSet(DynamicModelViewSet):
                 cloning_directory=asset_dir, create_tempdir=False
             )
             # update the payload with the unziped paths
-            _data.update(storage_manager.get_retrieved_paths())
+            _data.update({
+                **{"original_zip_name": zipname},
+                **storage_manager.get_retrieved_paths()
+            })
 
         handler = orchestrator.get_handler(_data)
 
@@ -174,10 +178,10 @@ class ImporterViewSet(DynamicModelViewSet):
             except Exception as e:
                 # in case of any exception, is better to delete the
                 # cloned files to keep the storage under control
-                if storage_manager is not None:
-                    storage_manager.delete_retrieved_paths(force=True)
                 if asset:
                     asset.delete()
+                elif storage_manager is not None:
+                    storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
                 logger.exception(e)

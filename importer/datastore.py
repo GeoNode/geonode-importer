@@ -12,7 +12,7 @@ class DataStoreManager:
         self,
         files: list,
         handler_module_path: str,
-        user: get_user_model(),
+        user: get_user_model(), # type: ignore
         execution_id: str,
     ) -> None:
         self.files = files
