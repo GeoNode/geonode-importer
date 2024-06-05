@@ -6,6 +6,8 @@ from geonode.assets.utils import get_default_asset
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
+from importer.handlers.base import BaseHandler
+from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.celery_tasks import import_orchestrator
 from importer.handlers.common.vector import BaseVectorFileHandler
@@ -206,13 +208,14 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         resource_type: Dataset = ...,
         asset=None,
     ):
+        # we want just the tileset.json as location of the asset
+        asset.location = [path for path in asset.location if "tileset.json" in path]
+        asset.save()
+
         resource = super().create_geonode_resource(
             layer_name, alternate, execution_id, ResourceBase, asset
         )
-        # we want just the tileset.json as location of the asset
-        asset = get_default_asset(resource)
-        asset.location = [path for path in asset.location if "tileset.json" in path]
-        asset.save()
+
         return resource
 
     def generate_resource_payload(self, layer_name, alternate, asset, _exec, workspace):
@@ -223,4 +226,6 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
             title=layer_name,
             owner=_exec.user,
             asset=asset,
+            link_type="uploaded",
+            extension="3dtiles"
         )
