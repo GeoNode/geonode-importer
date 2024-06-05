@@ -13,6 +13,7 @@ from importer.orchestrator import ImportOrchestrator
 from geonode.upload.models import Upload
 from django.utils import timezone
 from django_celery_results.models import TaskResult
+from geonode.assets.handlers import asset_handler_registry
 
 from geonode.base import enumerations as enum
 from geonode.resource.models import ExecutionRequest
@@ -183,9 +184,23 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
 
     def test_set_as_failed(self):
         # creating the temporary file that will be deleted
-        fake_path = f"{settings.MEDIA_ROOT}/file.txt"
+        os.makedirs(settings.ASSETS_ROOT, exist_ok=True)
+
+        fake_path = f"{settings.ASSETS_ROOT}file.txt"
         with open(fake_path, "w"):
             pass
+
+        user = get_user_model().objects.first()
+        asset_handler = asset_handler_registry.get_default_handler()
+
+        asset = asset_handler.create(
+            title="Original",
+            owner=user,
+            description=None,
+            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            files=[fake_path],
+            clone_files=False,
+        )
 
         self.assertTrue(os.path.exists(fake_path))
         # we need to create first the execution
@@ -196,6 +211,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             input_params={
                 "files": {"base_file": fake_path},
                 "store_spatial_files": True,
+                "asset_id": asset.id,
+                "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
             },
         )
         _uuid = str(_uuid)
@@ -214,6 +231,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         # cleanup
         req.delete()
         legacy.delete()
+
 
     def test_set_as_completed(self):
         # we need to create first the execution
@@ -315,6 +333,24 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         Should set it fail if all the execution are done and at least 1 is failed
         """
         # create the celery task result entry
+        os.makedirs(settings.ASSETS_ROOT, exist_ok=True)
+
+        fake_path = f"{settings.ASSETS_ROOT}/file.txt"
+        with open(fake_path, "w"):
+            pass
+
+        user = get_user_model().objects.first()
+        asset_handler = asset_handler_registry.get_default_handler()
+
+        asset = asset_handler.create(
+            title="Original",
+            owner=user,
+            description=None,
+            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            files=[fake_path],
+            clone_files=False,
+        )
+
         try:
             exec_id = str(
                 self.orchestrator.create_execution_request(
@@ -322,6 +358,9 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                     func_name="test",
                     step="test",
                     legacy_upload_name="test",
+                    input_params={
+                        "asset_id": asset.id,
+                        "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",}
                 )
             )
 

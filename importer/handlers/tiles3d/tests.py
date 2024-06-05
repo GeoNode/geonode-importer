@@ -1,9 +1,7 @@
-import uuid
+import json
 import os
 from django.test import TestCase
-from mock import MagicMock, patch
-from importer.handlers.common.vector import import_with_ogr2ogr
-from importer.handlers.3dtiles.exceptions import Invalid3dtilesException
+from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 from importer.handlers.tiles3d.handler import Tiles3DFileHandler
 from django.contrib.auth import get_user_model
 from importer import project_dir
@@ -21,6 +19,10 @@ class TestTiles3DFileHandler(TestCase):
         super().setUpClass()
         cls.handler = Tiles3DFileHandler()
         cls.valid_3dtile = f"{project_dir}/tests/fixture/3dtilesample/valid_3dtiles.zip"
+        cls.valid_tileset = f"{project_dir}/tests/fixture/3dtilesample/tileset.json"
+        cls.invalid_tileset = (
+            f"{project_dir}/tests/fixture/3dtilesample/invalid_tileset.json"
+        )
         cls.invalid_3dtile = f"{project_dir}/tests/fixture/3dtilesample/invalid.zip"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_3dtile}
@@ -42,12 +44,9 @@ class TestTiles3DFileHandler(TestCase):
     def test_task_list_is_the_expected_one_copy(self):
         expected = (
             "start_copy",
-            "importer.copy_dynamic_model",
-            "importer.copy_geonode_data_table",
-            "importer.publish_resource",
             "importer.copy_geonode_resource",
         )
-        self.assertEqual(len(self.handler.ACTIONS["copy"]), 5)
+        self.assertEqual(len(self.handler.ACTIONS["copy"]), 2)
         self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
 
     def test_is_valid_should_raise_exception_if_the_parallelism_is_met(self):
@@ -68,13 +67,13 @@ class TestTiles3DFileHandler(TestCase):
             parallelism.save()
 
     def test_is_valid_should_pass_with_valid_3dtiles(self):
-        self.handler.is_valid(files=self.valid_files, user=self.user)
+        self.handler.is_valid(files={"base_file": self.valid_tileset}, user=self.user)
 
     def test_is_valid_should_raise_exception_if_the_3dtiles_is_invalid(self):
         data = {
             "base_file": "/using/double/dot/in/the/name/is/an/error/file.invalid.json"
         }
-        with self.assertRaises(Invalid3dtilesException) as _exc:
+        with self.assertRaises(Invalid3DTilesException) as _exc:
             self.handler.is_valid(files=data, user=self.user)
 
         self.assertIsNotNone(_exc)
@@ -84,13 +83,73 @@ class TestTiles3DFileHandler(TestCase):
         )
 
     def test_is_valid_should_raise_exception_if_the_3dtiles_is_invalid_format(self):
-        with self.assertRaises(Invalid3dtilesException) as _exc:
-            self.handler.is_valid(files=self.invalid_files, user=self.user)
+        with self.assertRaises(Invalid3DTilesException) as _exc:
+            self.handler.is_valid(
+                files={"base_file": self.invalid_tileset}, user=self.user
+            )
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "The provided 3dtiles is not valid" in str(_exc.exception.detail)
+            "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
+            in str(_exc.exception.detail)
         )
+
+    def test_validate_should_raise_exception_for_invalid_asset_key(self):
+        _json = {
+            "asset": {"invalid_key": ""},
+            "geometricError": 1.0,
+            "root": {"boundingVolume": {"box": []}, "geometricError": 0.0},
+        }
+        _path = "/tmp/tileset.json"
+        with open(_path, "w") as _f:
+            _f.write(json.dumps(_json))
+        with self.assertRaises(Invalid3DTilesException) as _exc:
+            self.handler.is_valid(files={"base_file": _path}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "The mandatory 'version' for the key 'asset' is missing"
+            in str(_exc.exception.detail)
+        )
+        os.remove(_path)
+
+    def test_validate_should_raise_exception_for_invalid_root_boundingVolume(self):
+        _json = {
+            "asset": {"version": "1.1"},
+            "geometricError": 1.0,
+            "root": {"foo": {"box": []}, "geometricError": 0.0},
+        }
+        _path = "/tmp/tileset.json"
+        with open(_path, "w") as _f:
+            _f.write(json.dumps(_json))
+        with self.assertRaises(Invalid3DTilesException) as _exc:
+            self.handler.is_valid(files={"base_file": _path}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "The mandatory 'boundingVolume' for the key 'root' is missing"
+            in str(_exc.exception.detail)
+        )
+        os.remove(_path)
+
+    def test_validate_should_raise_exception_for_invalid_root_geometricError(self):
+        _json = {
+            "asset": {"version": "1.1"},
+            "geometricError": 1.0,
+            "root": {"boundingVolume": {"box": []}, "foo": 0.0},
+        }
+        _path = "/tmp/tileset.json"
+        with open(_path, "w") as _f:
+            _f.write(json.dumps(_json))
+        with self.assertRaises(Invalid3DTilesException) as _exc:
+            self.handler.is_valid(files={"base_file": _path}, user=self.user)
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue(
+            "The mandatory 'geometricError' for the key 'root' is missing"
+            in str(_exc.exception.detail)
+        )
+        os.remove(_path)
 
     def test_get_ogr2ogr_driver_should_return_the_expected_driver(self):
         expected = ogr.GetDriverByName("3dtiles")
@@ -98,7 +157,7 @@ class TestTiles3DFileHandler(TestCase):
         self.assertEqual(type(expected), type(actual))
 
     def test_can_handle_should_return_true_for_3dtiles(self):
-        actual = self.handler.can_handle(self.valid_files)
+        actual = self.handler.can_handle({"base_file": self.valid_tileset})
         self.assertTrue(actual)
 
     def test_can_handle_should_return_false_for_other_files(self):

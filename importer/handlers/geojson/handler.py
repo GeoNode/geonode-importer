@@ -63,12 +63,18 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
             Check if is a real geojson based on specification
             https://datatracker.ietf.org/doc/html/rfc7946#section-1.4
             '''
-            _file = base
-            if isinstance(base, str):
-                with open(base, 'r') as f:
-                    _file = json.loads(f.read())
+            try:
+                _file = base
+                if isinstance(base, str):
+                    with open(base, 'r') as f:
+                        _file = json.loads(f.read())
+                else:
+                    _file = json.loads(base.read())
 
-            return _file.get('type', None) in ['FeatureCollection', 'Feature']
+                return _file.get('type', None) in ['FeatureCollection', 'Feature']
+
+            except Exception:
+                return False
         return False
 
     @staticmethod

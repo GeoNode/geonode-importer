@@ -91,9 +91,38 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
         try:
             with open(_file, "r") as _readed_file:
-                json.loads(_readed_file.read())
-        except Exception:
-            raise Invalid3DTilesException("The provided GeoJson is not valid")
+                _file = json.loads(_readed_file.read())
+            # required key described in the specification of 3dtiles
+            # https://docs.ogc.org/cs/22-025r4/22-025r4.html#toc92
+            is_valid = all(
+                key in _file.keys() for key in ("asset", "geometricError", "root")
+            )
+
+            if not is_valid:
+                raise Invalid3DTilesException(
+                    "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
+                )
+
+            # if the keys are there, let's check if the mandatory child are there too
+            asset = _file.get("asset", {}).get("version", None)
+            if not asset:
+                raise Invalid3DTilesException(
+                    "The mandatory 'version' for the key 'asset' is missing"
+                )
+            volume = _file.get("root", {}).get("boundingVolume", None)
+            if not volume:
+                raise Invalid3DTilesException(
+                    "The mandatory 'boundingVolume' for the key 'root' is missing"
+                )
+
+            error = _file.get("root", {}).get("geometricError", None)
+            if error is None:
+                raise Invalid3DTilesException(
+                    "The mandatory 'geometricError' for the key 'root' is missing"
+                )
+
+        except Exception as e:
+            raise Invalid3DTilesException(e)
 
         return True
 

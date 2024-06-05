@@ -190,7 +190,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
-    @override_settings(MEDIA_ROOT="/tmp/", ASSET_ROOT="/tmp/")
+    @override_settings(MEDIA_ROOT="/tmp/", ASSETS_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
@@ -201,6 +201,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
 
         payload = {
             "base_file": open(self.no_crs_gpkg, "rb"),
+            "store_spatial_file": True
         }
 
         with self.assertLogs(level="ERROR") as _log:
