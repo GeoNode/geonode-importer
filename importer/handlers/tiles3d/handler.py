@@ -217,6 +217,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
     def generate_resource_payload(self, layer_name, alternate, asset, _exec, workspace):
         return dict(
+            resource_type="dataset",
             subtype="3dtiles",
             dirty_state=True,
             title=layer_name,
