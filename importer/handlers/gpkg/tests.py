@@ -118,7 +118,7 @@ class TestGPKGHandler(TestCase):
         # lets copy the file to the temporary folder
         # later will be removed
         shutil.copy(self.valid_gpkg, "/tmp")
-        
+
         user = get_user_model().objects.first()
         asset_handler = asset_handler_registry.get_default_handler()
 

@@ -593,7 +593,9 @@ class BaseVectorFileHandler(BaseHandler):
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
-            defaults=self.generate_resource_payload(layer_name, alternate, asset, _exec, workspace),
+            defaults=self.generate_resource_payload(
+                layer_name, alternate, asset, _exec, workspace
+            ),
         )
 
         saved_dataset.refresh_from_db()
@@ -610,16 +612,16 @@ class BaseVectorFileHandler(BaseHandler):
 
     def generate_resource_payload(self, layer_name, alternate, asset, _exec, workspace):
         return dict(
-                name=alternate,
-                workspace=workspace,
-                store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
-                subtype="vector",
-                alternate=f"{workspace}:{alternate}",
-                dirty_state=True,
-                title=layer_name,
-                owner=_exec.user,
-                asset=asset,
-            )
+            name=alternate,
+            workspace=workspace,
+            store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
+            subtype="vector",
+            alternate=f"{workspace}:{alternate}",
+            dirty_state=True,
+            title=layer_name,
+            owner=_exec.user,
+            asset=asset,
+        )
 
     def overwrite_geonode_resource(
         self,

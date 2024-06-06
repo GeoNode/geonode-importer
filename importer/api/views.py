@@ -111,7 +111,7 @@ class ImporterViewSet(DynamicModelViewSet):
 
         if "zip_file" in _data or "kmz_file" in _data:
             # if a zipfile is provided, we need to unzip it before searching for an handler
-            zipname = Path(_data['base_file'].name).stem
+            zipname = Path(_data["base_file"].name).stem
             storage_manager = StorageManager(
                 remote_files={"base_file": _data.get("zip_file", _data.get("kmz_file"))}
             )
@@ -120,10 +120,12 @@ class ImporterViewSet(DynamicModelViewSet):
                 cloning_directory=asset_dir, create_tempdir=False
             )
             # update the payload with the unziped paths
-            _data.update({
-                **{"original_zip_name": zipname},
-                **storage_manager.get_retrieved_paths()
-            })
+            _data.update(
+                {
+                    **{"original_zip_name": zipname},
+                    **storage_manager.get_retrieved_paths(),
+                }
+            )
 
         handler = orchestrator.get_handler(_data)
 

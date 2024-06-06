@@ -220,11 +220,13 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
         if not js_file:
             return resource
-        
+
         # checking if the region is inside the json file
         region = js_file.get("root", {}).get("boundingVolume", {}).get("region", None)
         if not region:
-            logger.info(f"No region found, the BBOX will not be updated for 3dtiles: {resource.title}")
+            logger.info(
+                f"No region found, the BBOX will not be updated for 3dtiles: {resource.title}"
+            )
             return resource
         west, south, east, nord = region[:4]
         # [xmin, ymin, xmax, ymax]
@@ -233,9 +235,9 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
                 math.degrees(west),
                 math.degrees(south),
                 math.degrees(east),
-                math.degrees(nord)   
+                math.degrees(nord),
             ],
-            srid='EPSG:4326'
+            srid="EPSG:4326",
         )
 
         return resource
@@ -249,5 +251,6 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
             owner=_exec.user,
             asset=asset,
             link_type="uploaded",
-            extension="3dtiles"
+            extension="3dtiles",
+            alternate=alternate,
         )

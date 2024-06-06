@@ -53,7 +53,10 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     def test_gpkg_raise_error_with_invalid_payload(self):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
-            "base_file": SimpleUploadedFile(name="test.gpkg", content=b'{"type": "FeatureCollection", "content": "some-content"}'),
+            "base_file": SimpleUploadedFile(
+                name="test.gpkg",
+                content=b'{"type": "FeatureCollection", "content": "some-content"}',
+            ),
             "store_spatial_files": "invalid",
         }
         expected = {
@@ -73,7 +76,10 @@ class TestImporterViewSet(ImporterBaseTestSupport):
 
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
-            "base_file": SimpleUploadedFile(name="test.gpkg", content=b'{"type": "FeatureCollection", "content": "some-content"}'),
+            "base_file": SimpleUploadedFile(
+                name="test.gpkg",
+                content=b'{"type": "FeatureCollection", "content": "some-content"}',
+            ),
             "store_spatial_files": True,
         }
 
@@ -88,7 +94,8 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(
-                name="test.geojson", content=b'{"type": "FeatureCollection", "content": "some-content"}'
+                name="test.geojson",
+                content=b'{"type": "FeatureCollection", "content": "some-content"}',
             ),
             "store_spatial_files": True,
         }
@@ -164,7 +171,8 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(
-                name="test.geojson", content=b'{"type": "FeatureCollection", "content": "some-content"}'
+                name="test.geojson",
+                content=b'{"type": "FeatureCollection", "content": "some-content"}',
             ),
             "store_spatial_files": True,
         }
@@ -195,7 +203,8 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(
-                name="test.geojson", content=b'{"type": "FeatureCollection", "content": "some-content"}'
+                name="test.geojson",
+                content=b'{"type": "FeatureCollection", "content": "some-content"}',
             ),
             "store_spatial_files": True,
         }

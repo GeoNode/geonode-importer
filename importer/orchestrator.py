@@ -172,8 +172,8 @@ class ImportOrchestrator:
         if delete_file:
             exec_obj = self.get_execution_object(execution_id)
             # cleanup asset in case of fail
-            asset_handler = import_string(exec_obj.input_params['asset_module_path'])
-            asset = asset_handler.objects.filter(pk=exec_obj.input_params['asset_id'])
+            asset_handler = import_string(exec_obj.input_params["asset_module_path"])
+            asset = asset_handler.objects.filter(pk=exec_obj.input_params["asset_id"])
             if asset.exists():
                 asset.first().delete()
 

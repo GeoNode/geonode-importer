@@ -232,7 +232,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         req.delete()
         legacy.delete()
 
-
     def test_set_as_completed(self):
         # we need to create first the execution
         _uuid = self.orchestrator.create_execution_request(
@@ -360,7 +359,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                     legacy_upload_name="test",
                     input_params={
                         "asset_id": asset.id,
-                        "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",}
+                        "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
+                    },
                 )
             )
 
