@@ -222,11 +222,13 @@ class TestTiles3DFileHandler(TestCase):
             asset="asset",
             link_type="uploaded",
             extension="3dtiles",
+            alternate="alternate"
         )
 
         actual = self.handler.generate_resource_payload(
             "Layer name", "alternate", "asset", _exec_obj, None
         )
+        self.assertSetEqual(set(list(actual.keys())), set(list(expected.keys())))
         self.assertDictEqual(actual, expected)
 
     def test_create_geonode_resource_validate_bbox_with_region(self):

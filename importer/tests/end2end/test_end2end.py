@@ -78,7 +78,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
             self.client.force_login(self.admin)
 
             response = self.client.post(self.url, data=payload)
-            self.assertEqual(201, response.status_code)
+            self.assertEqual(201, response.status_code, response.json())
 
             # if is async, we must wait. It will wait for 1 min before raise exception
             if ast.literal_eval(os.getenv("ASYNC_SIGNALS", "False")):
@@ -452,6 +452,7 @@ class Importer3DtilesImportTest(BaseImporterEndToEndTest):
         GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
     )
     def test_import_3dtiles(self):
+        ResourceBase.objects.filter(alternate__icontains="valid_3dtiles").delete()
         payload = {
             "zip_file": open(self.valid_3dtiles, "rb"),
             "base_file": open(self.valid_3dtiles, "rb"),
