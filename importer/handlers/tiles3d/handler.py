@@ -2,17 +2,14 @@ import json
 import logging
 import os
 from pathlib import Path
-from geonode.assets.utils import get_default_asset
+import math
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
-from importer.handlers.base import BaseHandler
-from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from importer.celery_tasks import import_orchestrator
 from importer.handlers.common.vector import BaseVectorFileHandler
 from importer.handlers.utils import create_alternate, should_be_imported
-from importer.publisher import DataPublisher
 from importer.utils import ImporterRequestAction as ira
 from geonode.base.models import ResourceBase
 from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
@@ -214,6 +211,31 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
         resource = super().create_geonode_resource(
             layer_name, alternate, execution_id, ResourceBase, asset
+        )
+
+        # fixing-up bbox for the 3dtile object
+        js_file = None
+        with open(asset.location[0]) as _file:
+            js_file = json.loads(_file.read())
+
+        if not js_file:
+            return resource
+        
+        # checking if the region is inside the json file
+        region = js_file.get("root", {}).get("boundingVolume", {}).get("region", None)
+        if not region:
+            logger.info(f"No region found, the BBOX will not be updated for 3dtiles: {resource.title}")
+            return resource
+        west, south, east, nord = region[:4]
+        # [xmin, ymin, xmax, ymax]
+        resource.set_bbox_polygon(
+            bbox=[
+                math.degrees(west),
+                math.degrees(south),
+                math.degrees(east),
+                math.degrees(nord)   
+            ],
+            srid='EPSG:4326'
         )
 
         return resource
