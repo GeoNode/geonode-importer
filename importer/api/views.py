@@ -174,10 +174,13 @@ class ImporterViewSet(DynamicModelViewSet):
             except Exception as e:
                 # in case of any exception, is better to delete the
                 # cloned files to keep the storage under control
-                if storage_manager is not None:
-                    storage_manager.delete_retrieved_paths(force=True)
                 if asset:
-                    asset.delete()
+                    try:
+                        asset.delete()
+                    except Exception as _exc:
+                        logger.warning(_exc)
+                elif storage_manager is not None:
+                    storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
                 logger.exception(e)
