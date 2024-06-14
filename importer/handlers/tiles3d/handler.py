@@ -155,7 +155,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         )
         filename = (
             _exec.input_params.get("original_zip_name")
-            or Path(files.get("base_file")).ste
+            or Path(files.get("base_file")).stem
         )
         # start looping on the layers available
         layer_name = self.fixup_name(filename)
