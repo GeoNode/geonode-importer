@@ -41,7 +41,6 @@ from importer.tests.utils import (
 class TestCeleryTasks(ImporterBaseTestSupport):
     def setUp(self):
         self.user = get_user_model().objects.first()
-
         self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
         self.asset_handler = asset_handler_registry.get_default_handler()
 
