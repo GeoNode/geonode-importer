@@ -2,6 +2,7 @@ import os
 import uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from geonode.tests.base import GeoNodeBaseTestSupport
 from unittest.mock import patch
 from importer.api.exception import ImportException
@@ -125,6 +126,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         mock_celery.assert_called_once()
         mock_celery.assert_called_with("importer.import_resource")
 
+    @override_settings(MEDIA_ROOT="/tmp/")
     @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_last_import_step(self, mock_celery):
         # setup test

@@ -2,7 +2,6 @@ import ast
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
-from itertools import chain
 import json
 import logging
 import os
@@ -29,7 +28,7 @@ from geonode.resource.models import ExecutionRequest
 from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from geonode.storage.manager import storage_manager
+from geonode.assets.utils import copy_assets_and_links, get_default_asset
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
@@ -222,10 +221,12 @@ class BaseVectorFileHandler(BaseHandler):
         _exec = BaseHandler.perform_last_step(execution_id=execution_id)
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
-            # getting all files list
-            resources_files = list(set(chain(*[x.resource.files for x in resources])))
-            # better to delete each single file since it can be a remove storage service
-            list(map(storage_manager.delete, resources_files))
+            # getting all assets list
+            assets = [get_default_asset(x.resource) for x in resources]
+            # we need to loop and cancel one by one to activate the signal
+            # that delete the file from the filesystem
+            for asset in assets:
+                asset.delete()
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
@@ -565,7 +566,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -588,6 +589,7 @@ class BaseVectorFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
@@ -600,12 +602,7 @@ class BaseVectorFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                files=list(
-                    set(
-                        list(_exec.input_params.get("files", {}).values())
-                        or list(files)
-                    )
-                ),
+                asset=asset,
             ),
         )
 
@@ -627,7 +624,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
@@ -640,7 +637,7 @@ class BaseVectorFileHandler(BaseHandler):
             dataset = dataset.first()
 
             dataset = resource_manager.update(
-                dataset.uuid, instance=dataset, files=files
+                dataset.uuid, instance=dataset, files=asset.location
             )
 
             self.handle_xml_file(dataset, _exec)
@@ -656,7 +653,7 @@ class BaseVectorFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, files
+                layer_name, alternate, execution_id, resource_type, asset
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -734,14 +731,16 @@ class BaseVectorFileHandler(BaseHandler):
         new_alternate: str,
         **kwargs,
     ):
-        resource = self.create_geonode_resource(
+
+        new_resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=resource.files,
+            asset=get_default_asset(resource),
         )
-        resource.refresh_from_db()
-        return resource
+        copy_assets_and_links(resource, target=new_resource)
+        new_resource.refresh_from_db()
+        return new_resource
 
     def get_ogr2ogr_task_group(
         self,

@@ -190,6 +190,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
+    @override_settings(MEDIA_ROOT="/tmp/", ASSET_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
