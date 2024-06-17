@@ -328,7 +328,7 @@ class TestBaseVectorFileHandler(TestCase):
         self.assertEqual(1, len(valid_layer))
         self.assertEqual("mattia_test", valid_layer[0].GetName())
 
-    @override_settings(MEDIA_ROOT='/tmp')
+    @override_settings(MEDIA_ROOT="/tmp")
     def test_perform_last_step(self):
         """
         Output params in perform_last_step should return the detail_url and the ID

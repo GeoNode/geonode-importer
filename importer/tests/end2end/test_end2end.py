@@ -37,6 +37,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         }
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
         cls.valid_tif = f"{project_dir}/tests/fixture/test_grid.tif"
+        cls.valid_csv = f"{project_dir}/tests/fixture/valid.csv"
 
         cls.url = reverse("importer_upload")
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
@@ -189,6 +190,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
+    @override_settings(MEDIA_ROOT="/tmp/", ASSET_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
@@ -247,6 +249,48 @@ class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
             self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_geojson, "rb"),
+        }
+        initial_name = "valid"
+        payload["overwrite_existing_layer"] = True
+        self._assertimport(
+            payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated
+        )
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+
+class ImporterGCSVImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_geojson(self):
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+        payload = {
+            "base_file": open(self.valid_csv, "rb"),
+        }
+        initial_name = "valid"
+        self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_csv_overwrite(self):
+        prev_dataset = create_single_dataset(name="valid")
+
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.valid_csv, "rb"),
         }
         initial_name = "valid"
         payload["overwrite_existing_layer"] = True

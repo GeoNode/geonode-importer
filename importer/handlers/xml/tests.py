@@ -23,7 +23,10 @@ class TestXMLFileHandler(TestCase):
         shutil.copy(cls.valid_xml, "/tmp")
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {"base_file": cls.invalid_xml, "xml_file": cls.invalid_xml}
-        cls.valid_files = {"base_file": "/tmp/test_xml.xml", "xml_file": "/tmp/test_xml.xml"}
+        cls.valid_files = {
+            "base_file": "/tmp/test_xml.xml",
+            "xml_file": "/tmp/test_xml.xml",
+        }
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(name="extruded_polygon", owner=cls.owner)
 

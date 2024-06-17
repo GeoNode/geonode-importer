@@ -24,6 +24,7 @@ from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction
 from geonode.base.models import ResourceBase
 from geonode.base.populate_test_data import create_single_dataset
+from geonode.assets.handlers import asset_handler_registry
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from importer.models import ResourceHandlerInfo
@@ -40,7 +41,19 @@ from importer.tests.utils import (
 class TestCeleryTasks(ImporterBaseTestSupport):
     def setUp(self):
         self.user = get_user_model().objects.first()
+       
         self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
+        self.asset_handler = asset_handler_registry.get_default_handler()
+
+        self.asset = self.asset_handler.create(
+            title="Original",
+            owner=self.user,
+            description=None,
+            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            files=[self.existing_file],
+            clone_files=False,
+        )
+
         self.exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
@@ -50,6 +63,8 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
+                "asset_id": self.asset.id,
+                "asset_module_path": f"{self.asset.__module__}.{self.asset.__class__.__name__}",
             },
         )
 
@@ -505,9 +520,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
 
         layer.refresh_from_db()
         self.assertEqual(layer.title, "test_dataset")
-
-        #verify that the original has been deleted
-        self.assertFalse(os.path.exists(xml_in_tmp))
 
 
 class TestDynamicModelSchema(TransactionImporterBaseTestSupport):

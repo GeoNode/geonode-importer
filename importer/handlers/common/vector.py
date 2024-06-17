@@ -2,7 +2,6 @@ import ast
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function, find_key_recursively
-from itertools import chain
 import json
 import logging
 import os
@@ -225,11 +224,10 @@ class BaseVectorFileHandler(BaseHandler):
             # getting all assets list
             assets = [get_default_asset(x.resource) for x in resources]
             # we need to loop and cancel one by one to activate the signal
-            # which delete the file from the filesystem
+            # that delete the file from the filesystem
             for asset in assets:
                 asset.delete()
-        
-        
+
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
     ):
@@ -568,7 +566,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -591,6 +589,7 @@ class BaseVectorFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
@@ -603,16 +602,7 @@ class BaseVectorFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                data_title="Original",
-                data_type=self.supported_file_extension_config["label"],
-                extension=self.supported_file_extension_config["id"],
-                link_type="uploaded",  # should be in geonode.base.enumerations.LINK_TYPES
-                files=list(
-                    set(
-                        list(_exec.input_params.get("files", {}).values())
-                        or list(files)
-                    )
-                ),
+                asset=asset,
             ),
         )
 
@@ -634,7 +624,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
@@ -647,7 +637,7 @@ class BaseVectorFileHandler(BaseHandler):
             dataset = dataset.first()
 
             dataset = resource_manager.update(
-                dataset.uuid, instance=dataset, files=files
+                dataset.uuid, instance=dataset, files=asset.location
             )
 
             self.handle_xml_file(dataset, _exec)
@@ -663,7 +653,7 @@ class BaseVectorFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, files
+                layer_name, alternate, execution_id, resource_type, asset
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -741,11 +731,12 @@ class BaseVectorFileHandler(BaseHandler):
         new_alternate: str,
         **kwargs,
     ):
+
         new_resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=[],
+            asset=get_default_asset(resource),
         )
         copy_assets_and_links(resource, target=new_resource)
         new_resource.refresh_from_db()

@@ -158,7 +158,7 @@ class BaseVectorFileHandler(BaseHandler):
         return
 
     def overwrite_geonode_resource(
-        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, files=None
+        self, layer_name: str, alternate: str, execution_id: str, resource_type: Dataset = Dataset, asset=None
     ):
         """
         Base function to override the resource into geonode. Each handler can specify

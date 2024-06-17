@@ -46,6 +46,8 @@ from rest_framework.authentication import BasicAuthentication, SessionAuthentica
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from geonode.assets.handlers import asset_handler_registry
+from geonode.assets.local import LocalAssetHandler
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,8 @@ class ImporterViewSet(DynamicModelViewSet):
         """
         _file = request.FILES.get("base_file") or request.data.get("base_file")
         execution_id = None
+        asset_handler = LocalAssetHandler()
+        asset_dir = asset_handler._create_asset_dir()
 
         serializer = self.get_serializer_class()
         data = serializer(data=request.data)
@@ -111,13 +115,16 @@ class ImporterViewSet(DynamicModelViewSet):
                 remote_files={"base_file": _data.get("zip_file", _data.get("kmz_file"))}
             )
             # cloning and unzip the base_file
-            storage_manager.clone_remote_files()
+            storage_manager.clone_remote_files(
+                cloning_directory=asset_dir, create_tempdir=False
+            )
             # update the payload with the unziped paths
             _data.update(storage_manager.get_retrieved_paths())
 
         handler = orchestrator.get_handler(_data)
 
         if _file and handler:
+            asset = None
             try:
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
@@ -125,9 +132,13 @@ class ImporterViewSet(DynamicModelViewSet):
                     # means that the storage manager is not initialized yet, so
                     # the file is not a zip
                     storage_manager = StorageManager(remote_files=_data)
-                    storage_manager.clone_remote_files()
+                    storage_manager.clone_remote_files(
+                        cloning_directory=asset_dir, create_tempdir=False
+                    )
                 # get filepath
-                files = storage_manager.get_retrieved_paths()
+                asset, files = self.generate_asset_and_retrieve_paths(
+                    request, storage_manager, handler
+                )
 
                 upload_validator = UploadLimitValidator(request.user)
                 upload_validator.validate_parallelism_limit_per_user()
@@ -144,6 +155,10 @@ class ImporterViewSet(DynamicModelViewSet):
                     input_params={
                         **{"files": files, "handler_module_path": str(handler)},
                         **extracted_params,
+                        **{
+                            "asset_id": asset.id,
+                            "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
+                        },
                     },
                     legacy_upload_name=_file.name,
                     action=action,
@@ -159,7 +174,12 @@ class ImporterViewSet(DynamicModelViewSet):
             except Exception as e:
                 # in case of any exception, is better to delete the
                 # cloned files to keep the storage under control
-                if storage_manager is not None:
+                if asset:
+                    try:
+                        asset.delete()
+                    except Exception as _exc:
+                        logger.warning(_exc)
+                elif storage_manager is not None:
                     storage_manager.delete_retrieved_paths(force=True)
                 if execution_id:
                     orchestrator.set_as_failed(execution_id=str(execution_id), reason=e)
@@ -167,6 +187,20 @@ class ImporterViewSet(DynamicModelViewSet):
                 raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
         raise ImportException(detail="No handlers found for this dataset type")
+
+    def generate_asset_and_retrieve_paths(self, request, storage_manager, handler):
+        asset_handler = asset_handler_registry.get_default_handler()
+        _files = storage_manager.get_retrieved_paths()
+        asset = asset_handler.create(
+            title="Original",
+            owner=request.user,
+            description=None,
+            type=str(handler),
+            files=list(set(_files.values())),
+            clone_files=False,
+        )
+
+        return asset, _files
 
 
 class ResourceImporter(DynamicModelViewSet):
