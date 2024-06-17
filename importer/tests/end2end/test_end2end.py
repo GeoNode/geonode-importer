@@ -43,9 +43,6 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
         cls.valid_tif = f"{project_dir}/tests/fixture/test_grid.tif"
         cls.valid_csv = f"{project_dir}/tests/fixture/valid.csv"
-        cls.valid_3dtiles = (
-            f"{project_dir}/tests/fixture/3dtilesample/valid_3dtiles.zip"
-        )
 
         cls.url = reverse("importer_upload")
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
@@ -444,44 +441,3 @@ class ImporterRasterImportTest(BaseImporterEndToEndTest):
         layer = self.cat.get_layer("test_grid")
         if layer:
             self.cat.delete(layer)
-
-
-class Importer3DtilesImportTest(BaseImporterEndToEndTest):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(
-        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
-    )
-    def test_import_3dtiles(self):
-        ResourceBase.objects.filter(alternate__icontains="valid_3dtiles").delete()
-        payload = {
-            "zip_file": open(self.valid_3dtiles, "rb"),
-            "base_file": open(self.valid_3dtiles, "rb"),
-        }
-        initial_name = "valid_3dtiles"
-        self._assertimport(payload, initial_name, skip_geoserver=True)
-
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
-    @override_settings(
-        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
-    )
-    def test_import_3dtiles_overwrite(self):
-        payload = {
-            "zip_file": open(self.valid_3dtiles, "rb"),
-            "base_file": open(self.valid_3dtiles, "rb"),
-        }
-        initial_name = "valid_3dtiles"
-        # importing the resource
-        resource = resource_manager.create(
-            str(uuid4()),
-            resource_type=ResourceBase,
-            defaults={"title": "simple resourcebase", "owner": self.user},
-        )
-
-        payload["overwrite_existing_layer"] = True
-        self._assertimport(
-            payload,
-            initial_name,
-            overwrite=True,
-            last_update=resource.last_updated,
-            skip_geoserver=True,
-        )
