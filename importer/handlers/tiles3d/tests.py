@@ -38,6 +38,7 @@ class TestTiles3DFileHandler(TestCase):
             name="urban_forestry_street_tree_benefits_epsg_26985", owner=cls.owner
         )
         cls.asset_handler = asset_handler_registry.get_default_handler()
+        cls.default_bbox = [-180.0, 180.0, -90.0, 90.0, "EPSG:4326"]
 
     def test_task_list_is_the_expected_one(self):
         expected = (
@@ -222,7 +223,7 @@ class TestTiles3DFileHandler(TestCase):
             asset="asset",
             link_type="uploaded",
             extension="3dtiles",
-            alternate="alternate"
+            alternate="alternate",
         )
 
         actual = self.handler.generate_resource_payload(
@@ -234,24 +235,7 @@ class TestTiles3DFileHandler(TestCase):
     def test_create_geonode_resource_validate_bbox_with_region(self):
         shutil.copy(self.valid_tileset_with_region, "/tmp/tileset.json")
 
-        exec_id = orchestrator.create_execution_request(
-            user=self.owner,
-            func_name="funct1",
-            step="step",
-            input_params={
-                "files": {"base_file": "/tmp/tileset.json"},
-                "skip_existing_layer": True,
-            },
-        )
-
-        asset = self.asset_handler.create(
-            title="Original",
-            owner=self.owner,
-            description=None,
-            type=str(self.handler),
-            files=["/tmp/tileset.json"],
-            clone_files=False,
-        )
+        exec_id, asset = self._generate_execid_asset()
 
         resource = self.handler.create_geonode_resource(
             "layername",
@@ -262,8 +246,7 @@ class TestTiles3DFileHandler(TestCase):
         )
 
         # validate bbox
-        default_bbox = [-180.0, 180.0, -90.0, 90.0, "EPSG:4326"]
-        self.assertFalse(resource.bbox == default_bbox)
+        self.assertFalse(resource.bbox == self.default_bbox)
         expected = [
             -75.6144410959485,
             -75.60974751970046,
@@ -272,3 +255,121 @@ class TestTiles3DFileHandler(TestCase):
             "EPSG:4326",
         ]
         self.assertTrue(resource.bbox == expected)
+
+    def test_set_bbox_from_bounding_volume_wit_transform(self):
+        # https://github.com/geosolutions-it/MapStore2/blob/master/web/client/api/__tests__/ThreeDTiles-test.js#L102-L146
+        tilesetjson_file = {
+            "asset": {"version": "1.1"},
+            "geometricError": 1.0,
+            "root": {
+                "boundingVolume": {
+                    "transform": [
+                        96.86356343768793,
+                        24.848542777253734,
+                        0,
+                        0,
+                        -15.986465724980844,
+                        62.317780594908875,
+                        76.5566922962899,
+                        0,
+                        19.02322243409411,
+                        -74.15554020821229,
+                        64.3356267137516,
+                        0,
+                        1215107.7612304366,
+                        -4736682.902037748,
+                        4081926.095098698,
+                        1,
+                    ],
+                    "box": [0, 0, 0, 7.0955, 0, 0, 0, 3.1405, 0, 0, 0, 5.0375],
+                }
+            },
+        }
+
+        with open("/tmp/tileset.json", "w+") as js_file:
+            js_file.write(json.dumps(tilesetjson_file))
+
+        exec_id, asset = self._generate_execid_asset()
+
+        resource = self.handler.create_geonode_resource(
+            "layername",
+            "layeralternate",
+            execution_id=exec_id,
+            resource_type="ResourceBase",
+            asset=asset,
+        )
+        self.assertFalse(resource.bbox == self.default_bbox)
+
+        self.assertEqual(resource.bbox_x0, -75.61852101302848)
+        self.assertEqual(resource.bbox_x1, -75.60566760262047)
+        self.assertEqual(resource.bbox_y0, 40.03610390613993)
+        self.assertEqual(resource.bbox_y1, 40.04895731654794)
+
+        os.remove("/tmp/tileset.json")
+
+    def test_set_bbox_from_bounding_volume_without_transform(self):
+        # https://github.com/geosolutions-it/MapStore2/blob/master/web/client/api/__tests__/ThreeDTiles-test.js#L147-L180
+        tilesetjson_file = {
+            "asset": {"version": "1.1"},
+            "geometricError": 1.0,
+            "root": {
+                "boundingVolume": {
+                    "box": [
+                        0.2524109,
+                        9.536743e-7,
+                        4.5,
+                        16.257824,
+                        0.0,
+                        0.0,
+                        0.0,
+                        -19.717258,
+                        0.0,
+                        0.0,
+                        0.0,
+                        4.5,
+                    ]
+                }
+            },
+        }
+
+        with open("/tmp/tileset.json", "w+") as js_file:
+            js_file.write(json.dumps(tilesetjson_file))
+
+        exec_id, asset = self._generate_execid_asset()
+
+        resource = self.handler.create_geonode_resource(
+            "layername",
+            "layeralternate",
+            execution_id=exec_id,
+            resource_type="ResourceBase",
+            asset=asset,
+        )
+        self.assertFalse(resource.bbox == self.default_bbox)
+
+        self.assertEqual(resource.bbox_x0, -1.3348442882497923e-05)
+        self.assertEqual(resource.bbox_x1, 0.0004463052796897286)
+        self.assertEqual(resource.bbox_y0, 86.81078622278615)
+        self.assertEqual(resource.bbox_y1, 86.81124587650872)
+
+        os.remove("/tmp/tileset.json")
+
+    def _generate_execid_asset(self):
+        exec_id = orchestrator.create_execution_request(
+            user=self.owner,
+            func_name="funct1",
+            step="step",
+            input_params={
+                "files": {"base_file": "/tmp/tileset.json"},
+                "skip_existing_layer": True,
+            },
+        )
+        asset = self.asset_handler.create(
+            title="Original",
+            owner=self.owner,
+            description=None,
+            type=str(self.handler),
+            files=["/tmp/tileset.json"],
+            clone_files=False,
+        )
+
+        return exec_id, asset
