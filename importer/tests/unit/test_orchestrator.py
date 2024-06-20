@@ -60,6 +60,10 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         )
         self.assertIsInstance(actual(), BaseHandler)
 
+    def test_load_handler_by_id(self):
+        actual = self.orchestrator.load_handler_by_id("gpkg")
+        self.assertIsInstance(actual(), BaseHandler)
+
     def test_get_execution_object_raise_exp_if_not_exists(self):
         with self.assertRaises(ImportException) as _exc:
             self.orchestrator.get_execution_object(str(uuid.uuid4()))
@@ -197,7 +201,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             title="Original",
             owner=user,
             description=None,
-            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            type="gpkg",
             files=[fake_path],
             clone_files=False,
         )
@@ -345,7 +349,7 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
             title="Original",
             owner=user,
             description=None,
-            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            type="gpkg",
             files=[fake_path],
             clone_files=False,
         )

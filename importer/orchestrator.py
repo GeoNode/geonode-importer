@@ -63,6 +63,13 @@ class ImportOrchestrator:
         except Exception:
             raise ImportException(detail=f"The handler is not available: {module_path}")
 
+    def load_handler_by_id(self, handler_id):
+        for handler in BaseHandler.get_registry():
+            if handler().id == handler_id:
+                return handler
+        logger.error("Handler not found")
+        return None
+
     def get_execution_object(self, exec_id):
         """
         Returns the ExecutionRequest object with the detail about the

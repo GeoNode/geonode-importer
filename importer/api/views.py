@@ -201,7 +201,7 @@ class ImporterViewSet(DynamicModelViewSet):
             title="Original",
             owner=request.user,
             description=None,
-            type=str(handler),
+            type=handler.id,
             files=list(set(_files.values())),
             clone_files=False,
         )
