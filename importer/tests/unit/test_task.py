@@ -48,7 +48,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             title="Original",
             owner=self.user,
             description=None,
-            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            type="gpkg",
             files=[self.existing_file],
             clone_files=False,
         )

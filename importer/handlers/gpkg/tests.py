@@ -126,7 +126,7 @@ class TestGPKGHandler(TestCase):
             title="Original",
             owner=user,
             description=None,
-            type="importer.handlers.gpkg.handler.GPKGFileHandler",
+            type="gpkg",
             files=["/tmp/valid.gpkg"],
             clone_files=False,
         )
