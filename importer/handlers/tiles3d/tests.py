@@ -262,8 +262,7 @@ class TestTiles3DFileHandler(TestCase):
             "asset": {"version": "1.1"},
             "geometricError": 1.0,
             "root": {
-                "boundingVolume": {
-                    "transform": [
+                "transform": [
                         96.86356343768793,
                         24.848542777253734,
                         0,
@@ -280,7 +279,8 @@ class TestTiles3DFileHandler(TestCase):
                         -4736682.902037748,
                         4081926.095098698,
                         1,
-                    ],
+                ],
+                "boundingVolume": {
                     "box": [0, 0, 0, 7.0955, 0, 0, 0, 3.1405, 0, 0, 0, 5.0375],
                 }
             },
