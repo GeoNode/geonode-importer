@@ -222,9 +222,10 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         if not js_file:
             return resource
 
-        resource = self.set_bbox_from_region(js_file, resource=resource)
-
-        resource = self.set_bbox_from_boundingVolume(js_file, resource=resource)
+        if self._has_region(js_file):
+            resource = self.set_bbox_from_region(js_file, resource=resource)
+        else:
+            resource = self.set_bbox_from_boundingVolume(js_file, resource=resource)
 
         return resource
 
@@ -266,7 +267,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
     def set_bbox_from_boundingVolume(self, js_file, resource):
         transform_raw = js_file.get("root", {}).get("transform", [])
         box_raw = js_file.get("root", {}).get("boundingVolume", {}).get("box", None)
-        if not transform_raw and not box_raw:
+        if not box_raw or (not transform_raw and not box_raw):
             # skipping if values are missing from the json file
             return resource
         result = box_to_wgs84(box_raw, transform_raw)
@@ -282,3 +283,6 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         )
 
         return resource
+
+    def _has_region(self, js_file):
+        return js_file.get("root", {}).get("boundingVolume", {}).get("region", None)
