@@ -35,6 +35,7 @@ class XMLFileHandler(MetadataFileHandler):
         Define basic validation steps
         """
         # calling base validation checks
+
         try:
             with open(files.get("base_file")) as _xml:
                 dlxml.fromstring(_xml.read().encode())

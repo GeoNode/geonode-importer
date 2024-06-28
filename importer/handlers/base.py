@@ -4,7 +4,6 @@ from typing import List
 
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.layers.models import Dataset
-from importer.api.exception import ImportException
 from importer.utils import ImporterRequestAction as ira
 from django_celery_results.models import TaskResult
 from django.db.models import Q
@@ -58,17 +57,8 @@ class BaseHandler(ABC):
         return "geometry"
 
     @property
-    def id(self):
-        pk = self.supported_file_extension_config.get("id", None)
-        if pk is None:
-            raise ImportException(
-                "PK must be defined, check that supported_file_extension_config had been correctly defined, it cannot be empty"
-            )
-        return pk
-
-    @property
     def supported_file_extension_config(self):
-        return {}
+        return NotImplementedError
 
     @property
     def can_handle_xml_file(self) -> bool:
@@ -159,7 +149,6 @@ class BaseHandler(ABC):
         ]
         _exec.output_params.update({"resources": resource_output_params})
         _exec.save()
-
         return _exec
 
     def fixup_name(self, name):
