@@ -58,24 +58,7 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         if not base:
             return False
         ext = base.split(".")[-1] if isinstance(base, str) else base.name.split(".")[-1]
-        if ext in ["json", "geojson"]:
-            """
-            Check if is a real geojson based on specification
-            https://datatracker.ietf.org/doc/html/rfc7946#section-1.4
-            """
-            try:
-                _file = base
-                if isinstance(base, str):
-                    with open(base, "r") as f:
-                        _file = json.loads(f.read())
-                else:
-                    _file = json.loads(base.read())
-
-                return _file.get("type", None) in ["FeatureCollection", "Feature"]
-
-            except Exception:
-                return False
-        return False
+        return ext in ["json", "geojson"]
 
     @staticmethod
     def is_valid(files, user):

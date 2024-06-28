@@ -11,9 +11,6 @@ from django.http import HttpResponse, QueryDict
 
 from importer.models import ResourceHandlerInfo
 from importer.tests.utils import ImporterBaseTestSupport
-from importer.orchestrator import orchestrator
-from django.utils.module_loading import import_string
-from geonode.assets.models import LocalAsset
 
 
 class TestImporterViewSet(ImporterBaseTestSupport):
@@ -53,10 +50,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
     def test_gpkg_raise_error_with_invalid_payload(self):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
-            "base_file": SimpleUploadedFile(
-                name="test.gpkg",
-                content=b'{"type": "FeatureCollection", "content": "some-content"}',
-            ),
+            "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),
             "store_spatial_files": "invalid",
         }
         expected = {
@@ -76,10 +70,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
 
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
-            "base_file": SimpleUploadedFile(
-                name="test.gpkg",
-                content=b'{"type": "FeatureCollection", "content": "some-content"}',
-            ),
+            "base_file": SimpleUploadedFile(name="test.gpkg", content=b"some-content"),
             "store_spatial_files": True,
         }
 
@@ -94,8 +85,7 @@ class TestImporterViewSet(ImporterBaseTestSupport):
         self.client.force_login(get_user_model().objects.get(username="admin"))
         payload = {
             "base_file": SimpleUploadedFile(
-                name="test.geojson",
-                content=b'{"type": "FeatureCollection", "content": "some-content"}',
+                name="test.geojson", content=b"some-content"
             ),
             "store_spatial_files": True,
         }
@@ -163,53 +153,3 @@ class TestImporterViewSet(ImporterBaseTestSupport):
 
         self.assertEqual(200, response.status_code)
         _orc.s.assert_called_once()
-
-    @patch("importer.api.views.import_orchestrator")
-    def test_asset_is_created_before_the_import_start(self, patch_upload):
-        patch_upload.apply_async.side_effect = MagicMock()
-
-        self.client.force_login(get_user_model().objects.get(username="admin"))
-        payload = {
-            "base_file": SimpleUploadedFile(
-                name="test.geojson",
-                content=b'{"type": "FeatureCollection", "content": "some-content"}',
-            ),
-            "store_spatial_files": True,
-        }
-
-        response = self.client.post(self.url, data=payload)
-
-        self.assertEqual(201, response.status_code)
-
-        self.assertTrue(201, response.status_code)
-
-        _exec = orchestrator.get_execution_object(response.json()["execution_id"])
-
-        asset_handler = import_string(_exec.input_params["asset_module_path"])
-        self.assertTrue(asset_handler.objects.filter(id=_exec.input_params["asset_id"]))
-
-        asset_handler.objects.filter(id=_exec.input_params["asset_id"]).delete()
-
-    @patch("importer.api.views.import_orchestrator")
-    @patch(
-        "importer.api.views.UploadLimitValidator.validate_parallelism_limit_per_user"
-    )
-    def test_asset_should_be_deleted_if_created_during_with_exception(
-        self, validate_parallelism_limit_per_user, patch_upload
-    ):
-        patch_upload.apply_async.s.side_effect = MagicMock()
-        validate_parallelism_limit_per_user.side_effect = Exception("random exception")
-
-        self.client.force_login(get_user_model().objects.get(username="admin"))
-        payload = {
-            "base_file": SimpleUploadedFile(
-                name="test.geojson",
-                content=b'{"type": "FeatureCollection", "content": "some-content"}',
-            ),
-            "store_spatial_files": True,
-        }
-
-        response = self.client.post(self.url, data=payload)
-
-        self.assertEqual(500, response.status_code)
-        self.assertFalse(LocalAsset.objects.exists())

@@ -243,7 +243,9 @@ class CSVFileHandler(BaseVectorFileHandler):
         return [
             {
                 "name": alternate or layer_name,
-                "crs": (self.identify_authority(_l)),
+                "crs": (
+                    self.identify_authority(_l)
+                ),
             }
             for _l in layers
             if self.fixup_name(_l.GetName()) == layer_name

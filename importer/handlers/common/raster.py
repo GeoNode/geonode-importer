@@ -312,7 +312,7 @@ class BaseRasterFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        asset=None,
+        files=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -335,7 +335,6 @@ class BaseRasterFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
-
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
@@ -347,7 +346,12 @@ class BaseRasterFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                asset=asset,
+                files=list(
+                    set(
+                        list(_exec.input_params.get("files", {}).values())
+                        or list(files)
+                    )
+                ),
             ),
         )
 
@@ -369,7 +373,7 @@ class BaseRasterFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        asset=None,
+        files=None,
     ):
         dataset = resource_type.objects.filter(alternate__icontains=alternate)
 
@@ -397,7 +401,7 @@ class BaseRasterFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, asset
+                layer_name, alternate, execution_id, resource_type, files
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -479,9 +483,9 @@ class BaseRasterFileHandler(BaseHandler):
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            asset=kwargs.get("kwargs", {})
+            files=kwargs.get("kwargs", {})
             .get("new_file_location", {})
-            .get("asset", []),
+            .get("files", []),
         )
         resource.refresh_from_db()
         return resource

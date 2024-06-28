@@ -11,7 +11,6 @@ from geonode.upload.api.exceptions import UploadParallelismLimitException
 from geonode.base.populate_test_data import create_single_dataset
 from osgeo import ogr
 from django_celery_results.models import TaskResult
-from geonode.assets.handlers import asset_handler_registry
 
 from importer.handlers.gpkg.tasks import SingleMessageErrorHandler
 
@@ -118,19 +117,6 @@ class TestGPKGHandler(TestCase):
         # lets copy the file to the temporary folder
         # later will be removed
         shutil.copy(self.valid_gpkg, "/tmp")
-
-        user = get_user_model().objects.first()
-        asset_handler = asset_handler_registry.get_default_handler()
-
-        asset = asset_handler.create(
-            title="Original",
-            owner=user,
-            description=None,
-            type="gpkg",
-            files=["/tmp/valid.gpkg"],
-            clone_files=False,
-        )
-
         exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.first(),
             func_name="funct1",
@@ -138,10 +124,7 @@ class TestGPKGHandler(TestCase):
             input_params={
                 "files": {"base_file": "/tmp/valid.gpkg"},
                 "skip_existing_layer": True,
-                "store_spatial_file": False,
                 "handler_module_path": str(self.handler),
-                "asset_id": asset.id,
-                "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
             },
         )
 
@@ -162,3 +145,4 @@ class TestGPKGHandler(TestCase):
         )
 
         self.assertEqual("FAILURE", TaskResult.objects.get(task_id=str(exec_id)).status)
+        self.assertFalse(os.path.exists("/tmp/valid.gpkg"))
