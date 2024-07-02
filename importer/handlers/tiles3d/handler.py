@@ -6,7 +6,7 @@ import math
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
 from geonode.upload.utils import UploadLimitValidator
-from importer.handlers.tiles3d.utils import box_to_wgs84
+from importer.handlers.tiles3d.utils import box_to_wgs84, sphere_to_wgs84
 from importer.orchestrator import orchestrator
 from importer.celery_tasks import import_orchestrator
 from importer.handlers.common.vector import BaseVectorFileHandler
@@ -224,8 +224,10 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
         if self._has_region(js_file):
             resource = self.set_bbox_from_region(js_file, resource=resource)
-        else:
+        elif self._has_box(js_file):
             resource = self.set_bbox_from_boundingVolume(js_file, resource=resource)
+        else:
+            resource = self.set_bbox_from_boundingVolume_sphere(js_file, resource=resource)
 
         return resource
 
@@ -283,6 +285,29 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         )
 
         return resource
+        
+    def set_bbox_from_boundingVolume_sphere(self, js_file, resource):
+        transform_raw = js_file.get("root", {}).get("transform", [])
+        sphere_raw = js_file.get("root", {}).get("boundingVolume", {}).get("sphere", None)
+        if not sphere_raw or (not transform_raw and not sphere_raw):
+            # skipping if values are missing from the json file
+            return resource
+        result = sphere_to_wgs84(sphere_raw, transform_raw)
+        # [xmin, ymin, xmax, ymax]
+        resource.set_bbox_polygon(
+            bbox=[
+                result["minx"],
+                result["miny"],
+                result["maxx"],
+                result["maxy"],
+            ],
+            srid="EPSG:4326",
+        )
+
+        return resource
 
     def _has_region(self, js_file):
         return js_file.get("root", {}).get("boundingVolume", {}).get("region", None)
+    
+    def _has_box(self, js_file):
+        return js_file.get("root", {}).get("boundingVolume", {}).get("box", None)
