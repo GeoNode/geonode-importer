@@ -63,6 +63,13 @@ class ImportOrchestrator:
         except Exception:
             raise ImportException(detail=f"The handler is not available: {module_path}")
 
+    def load_handler_by_id(self, handler_id):
+        for handler in BaseHandler.get_registry():
+            if handler().id == handler_id:
+                return handler
+        logger.error("Handler not found")
+        return None
+
     def get_execution_object(self, exec_id):
         """
         Returns the ExecutionRequest object with the detail about the
@@ -171,14 +178,11 @@ class ImportOrchestrator:
         # delete
         if delete_file:
             exec_obj = self.get_execution_object(execution_id)
-            _files = exec_obj.input_params.get("files")
-            # better to delete each single file since it can be a remote storage service
-            if _files:
-                logger.info(
-                    "Execution failed, removing uploaded file to save disk space"
-                )
-                for _file in _files.values():
-                    storage_manager.delete(_file)
+            # cleanup asset in case of fail
+            asset_handler = import_string(exec_obj.input_params["asset_module_path"])
+            asset = asset_handler.objects.filter(pk=exec_obj.input_params["asset_id"])
+            if asset.exists():
+                asset.first().delete()
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """
@@ -301,6 +305,7 @@ class ImportOrchestrator:
         action=None,
         name=None,
         source=None,
+        asset_module_path=None,
     ) -> UUID:
         """
         Create an execution request for the user. Return the UUID of the request

@@ -1,6 +1,7 @@
 import ast
 import os
 import time
+from uuid import uuid4
 
 import mock
 from django.conf import settings
@@ -16,6 +17,9 @@ from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
 import gisdata
 from geonode.base.populate_test_data import create_single_dataset
+from django.db.models import Q
+from geonode.base.models import ResourceBase
+from geonode.resource.manager import resource_manager
 
 geourl = settings.GEODATABASE_URL
 
@@ -24,6 +28,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
+        cls.user = get_user_model().objects.exclude(username="Anonymous").first()
         cls.valid_gkpg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
         cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
@@ -58,12 +63,19 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         for el in Dataset.objects.all():
             el.delete()
 
-    def _assertimport(self, payload, initial_name, overwrite=False, last_update=None):
+    def _assertimport(
+        self,
+        payload,
+        initial_name,
+        overwrite=False,
+        last_update=None,
+        skip_geoserver=False,
+    ):
         try:
             self.client.force_login(self.admin)
 
             response = self.client.post(self.url, data=payload)
-            self.assertEqual(201, response.status_code)
+            self.assertEqual(201, response.status_code, response.json())
 
             # if is async, we must wait. It will wait for 1 min before raise exception
             if ast.literal_eval(os.getenv("ASYNC_SIGNALS", "False")):
@@ -99,21 +111,24 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
                 self.assertTrue(entries.as_model().objects.exists())
 
             # check if the geonode resource exists
-            dataset = Dataset.objects.filter(
-                alternate__icontains=f"geonode:{initial_name}"
+            resource = ResourceBase.objects.filter(
+                Q(alternate__icontains=f"geonode:{initial_name}")
+                | Q(alternate__icontains=initial_name)
             )
-            self.assertTrue(dataset.exists())
+            self.assertTrue(resource.exists())
 
-            resources = self.cat.get_resources()
-            # check if the resource is in geoserver
-            self.assertTrue(dataset.first().title in [y.name for y in resources])
+            if not skip_geoserver:
+                resources = self.cat.get_resources()
+                # check if the resource is in geoserver
+                self.assertTrue(resource.first().title in [y.name for y in resources])
             if overwrite:
-                self.assertTrue(dataset.first().last_updated > last_update)
+                self.assertTrue(resource.first().last_updated > last_update)
         finally:
-            dataset = Dataset.objects.filter(
-                alternate__icontains=f"geonode:{initial_name}"
+            resource = ResourceBase.objects.filter(
+                Q(alternate__icontains=f"geonode:{initial_name}")
+                | Q(alternate__icontains=initial_name)
             )
-            dataset.delete()
+            resource.delete()
 
 
 class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
@@ -190,6 +205,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
+    @override_settings(MEDIA_ROOT="/tmp/", ASSETS_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
@@ -200,6 +216,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
 
         payload = {
             "base_file": open(self.no_crs_gpkg, "rb"),
+            "store_spatial_file": True,
         }
 
         with self.assertLogs(level="ERROR") as _log:
