@@ -473,8 +473,6 @@ class TestTiles3DFileHandler(TestCase):
             resource_type="ResourceBase",
             asset=asset,
         )
-        print(resource.bbox)
-        print(self.default_bbox)
         self.assertTrue(resource.bbox == self.default_bbox)
 
         os.remove("/tmp/tileset.json")

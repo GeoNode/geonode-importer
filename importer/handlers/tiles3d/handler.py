@@ -291,9 +291,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
     def set_bbox_from_boundingVolume_sphere(self, js_file, resource):
         transform_raw = js_file.get("root", {}).get("transform", [])
         sphere_raw = js_file.get("root", {}).get("boundingVolume", {}).get("sphere", None)
-        print('sphere_raw[0] ', sphere_raw[0])
-        print('sphere_raw[1] ', sphere_raw[1])
-        print('sphere_raw[2] ', sphere_raw[2])
+
         if not sphere_raw or (not transform_raw and not sphere_raw):
             # skipping if values are missing from the json file
             return resource
