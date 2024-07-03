@@ -372,7 +372,7 @@ class TestTiles3DFileHandler(TestCase):
                         -0.7415555636019701,
                         0.6433560687121489,
                         0,
-                        11215012.8828876738,
+                        1215012.8828876738,
                         -4736313.051199594,
                         4081605.22126042,
                         1,
@@ -442,8 +442,8 @@ class TestTiles3DFileHandler(TestCase):
 
         os.remove("/tmp/tileset.json")
    
-    ''' 
-    def test_set_bbox_from_bounding_volume_sphere_without_transform(self):
+     
+    def test_set_bbox_from_bounding_volume_sphere_with_center_zero_without_transform(self):
         # https://github.com/geosolutions-it/MapStore2/blob/master/web/client/api/__tests__/ThreeDTiles-test.js#L53C4-L79C8
         # This test should not extract bbox from boundingVolume sphere with center 0, 0, 0
         tilesetjson_file = {
@@ -473,15 +473,12 @@ class TestTiles3DFileHandler(TestCase):
             resource_type="ResourceBase",
             asset=asset,
         )
-        self.assertFalse(resource.bbox == self.default_bbox)
-
-        self.assertEqual(resource.bbox_x0, None)
-        self.assertEqual(resource.bbox_x1, None)
-        self.assertEqual(resource.bbox_y0, None)
-        self.assertEqual(resource.bbox_y1, None)
+        print(resource.bbox)
+        print(self.default_bbox)
+        self.assertTrue(resource.bbox == self.default_bbox)
 
         os.remove("/tmp/tileset.json")
-    '''
+    
 
     def _generate_execid_asset(self):
         exec_id = orchestrator.create_execution_request(

@@ -190,13 +190,10 @@ def box_to_wgs84(box_raw, transform_raw):
         "maxy": lat + radiusDegrees,
     }
 
-def sphere_to_wgs84(sphere_raw, transform_raw = [
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1
-    ]):
-       
+def sphere_to_wgs84(sphere_raw, transform_raw):
+    
+    transform_raw = transform_raw or [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    
     transform = np.array([
         transform_raw[0:4],
         transform_raw[4:8],
