@@ -62,7 +62,7 @@ class BaseRemoteResourceHandler(BaseHandler):
         return True
 
     @staticmethod
-    def is_valid(files, user, _execid=None):
+    def is_valid(files, user):
         """
         We mark it as valid if the urls is reachable
         and if the url is valid
@@ -195,7 +195,7 @@ class BaseRemoteResourceHandler(BaseHandler):
             resource=resource,
             extension=params.get("type"),
             url=params.get("url"),
-            link_type="remote",
+            link_type="data",
             name=name,
         )
         link.save()

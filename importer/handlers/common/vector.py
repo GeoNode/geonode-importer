@@ -63,7 +63,7 @@ class BaseVectorFileHandler(BaseHandler):
         return os.environ.get("GEONODE_GEODATABASE", "geonode_data"), True
 
     @staticmethod
-    def is_valid(files, user, _execid=None):
+    def is_valid(files, user):
         """
         Define basic validation steps
         """

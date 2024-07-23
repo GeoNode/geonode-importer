@@ -130,7 +130,7 @@ class ImporterViewSet(DynamicModelViewSet):
         handler = orchestrator.get_handler(_data)
 
         # not file but handler means that is a remote resource
-        if (_file and handler) or (not _file and handler):
+        if handler:
             asset = None
             files = []
             try:
