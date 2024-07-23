@@ -59,7 +59,7 @@ class BaseRemoteResourceHandler(BaseHandler):
         """
         if "url" in _data:
             return True
-        return True
+        return False
 
     @staticmethod
     def is_valid_url(url):
