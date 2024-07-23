@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class BaseRemoteResourceHandler(BaseHandler):
     """
-    Handler to import remote resources files into GeoNode data db
+    Handler to import remote resources into GeoNode data db
     It must provide the task_lists required to comple the upload
     As first implementation only remote 3dtiles are supported
     """
