@@ -12,7 +12,6 @@ from django_celery_results.models import TaskResult
 from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
 from geonode.upload.models import Upload
-from geonode.storage.manager import storage_manager
 from rest_framework import serializers
 
 from importer.api.exception import ImportException
@@ -179,10 +178,11 @@ class ImportOrchestrator:
         if delete_file:
             exec_obj = self.get_execution_object(execution_id)
             # cleanup asset in case of fail
-            asset_handler = import_string(exec_obj.input_params["asset_module_path"])
-            asset = asset_handler.objects.filter(pk=exec_obj.input_params["asset_id"])
-            if asset.exists():
-                asset.first().delete()
+            if exec_obj.input_params.get("asset_module_path", None):
+                asset_handler = import_string(exec_obj.input_params["asset_module_path"])
+                asset = asset_handler.objects.filter(pk=exec_obj.input_params["asset_id"])
+                if asset.exists():
+                    asset.first().delete()
 
     def set_as_partially_failed(self, execution_id, reason=None):
         """

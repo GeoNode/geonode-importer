@@ -97,7 +97,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
         return additional_params, _data
 
     @staticmethod
-    def is_valid(files, user):
+    def is_valid(files, user, _execid=None):
         """
         Define basic validation steps:
         """

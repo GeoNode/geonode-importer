@@ -78,7 +78,7 @@ class GeoJsonFileHandler(BaseVectorFileHandler):
         return False
 
     @staticmethod
-    def is_valid(files, user):
+    def is_valid(files, user, _execid=None):
         """
         Define basic validation steps:
         """

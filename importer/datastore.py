@@ -24,7 +24,7 @@ class DataStoreManager:
         """
         Perform basic validation steps
         """
-        return self.handler.is_valid(self.files, self.user)
+        return self.handler.is_valid(self.files, self.user, self.execution_id)
 
     def prepare_import(self, **kwargs):
         """
