@@ -1,43 +1,36 @@
-import os
-import shutil
-import uuid
-from celery.canvas import Signature
-from celery import group
 from django.test import TestCase
 from mock import MagicMock, patch
-from importer.handlers.common.vector import BaseVectorFileHandler, import_with_ogr2ogr
+from importer.api.exception import ImportException
+from importer.handlers.common.remote import BaseRemoteResourceHandler
 from django.contrib.auth import get_user_model
-from importer import project_dir
-from importer.handlers.gpkg.handler import GPKGFileHandler
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
-from dynamic_models.models import ModelSchema
-from osgeo import ogr
-from django.test.utils import override_settings
 
 
-class BaseRemoteResourceHandler(TestCase):
+class TestBaseRemoteResourceHandler(TestCase):
     databases = ("default", "datastore")
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.handler = BaseRemoteResourceHandler()
-        cls.valid_gpkg = f"{project_dir}/tests/fixture/valid.gpkg"
-        cls.invalid_gpkg = f"{project_dir}/tests/fixture/invalid.gpkg"
-        cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
+        cls.valid_url = "https://raw.githubusercontent.com/CesiumGS/3d-tiles-samples/main/1.1/TilesetWithFullMetadata/tileset.json"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
-        cls.invalid_files = {"base_file": cls.invalid_gpkg}
-        cls.valid_files = {"base_file": "/tmp/valid.gpkg"}
+        cls.invalid_files = {
+            "url": "http://abc123defsadsa.org",
+            "title": "Remote Title",
+            "type": "3dtiles",
+        }
+        cls.valid_files = {
+            "url": cls.valid_url,
+            "title": "Remote Title",
+            "type": "3dtiles",
+        }
         cls.owner = get_user_model().objects.first()
         cls.layer = create_single_dataset(
             name="stazioni_metropolitana", owner=cls.owner
         )
-
-    def setUp(self) -> None:
-        shutil.copy(self.valid_gpkg, "/tmp")
-        super().setUp()
 
     def test_create_error_log(self):
         """
@@ -51,310 +44,82 @@ class BaseRemoteResourceHandler(TestCase):
         expected = "Task: foo_task_name raised an error during actions for layer: alternate: my exception"
         self.assertEqual(expected, actual)
 
-    def test_create_dynamic_model_fields(self):
-        try:
-            # Prepare the test
-            exec_id = orchestrator.create_execution_request(
-                user=get_user_model().objects.first(),
-                func_name="funct1",
-                step="step",
-                input_params={"files": self.valid_files, "skip_existing_layer": True},
-            )
-            schema, _ = ModelSchema.objects.get_or_create(
-                name="test_handler", db_name="datastore"
-            )
-            layers = ogr.Open(self.valid_gpkg)
-
-            # starting the tests
-            dynamic_model, celery_group = self.handler.create_dynamic_model_fields(
-                layer=[x for x in layers][0],
-                dynamic_model_schema=schema,
-                overwrite=False,
-                execution_id=str(exec_id),
-                layer_name="stazioni_metropolitana",
-            )
-
-            self.assertIsNotNone(dynamic_model)
-            self.assertIsInstance(celery_group, group)
-            self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual(
-                "importer.create_dynamic_structure", celery_group.tasks[0].name
-            )
-        finally:
-            if schema:
-                schema.delete()
-            if exec_id:
-                ExecutionRequest.objects.filter(exec_id=exec_id).delete()
-
-    def test_setup_dynamic_model_no_dataset_no_modelschema(self):
-        self._assert_test_result()
-
-    def test_setup_dynamic_model_no_dataset_no_modelschema_overwrite_true(self):
-        self._assert_test_result(overwrite=True)
-
-    def test_setup_dynamic_model_with_dataset_no_modelschema_overwrite_false(self):
-        create_single_dataset(name="stazioni_metropolitana", owner=self.user)
-        self._assert_test_result(overwrite=False)
-
-    def test_setup_dynamic_model_with_dataset_no_modelschema_overwrite_True(self):
-        create_single_dataset(name="stazioni_metropolitana", owner=self.user)
-        self._assert_test_result(overwrite=True)
-
-    def test_setup_dynamic_model_no_dataset_with_modelschema_overwrite_false(self):
-        ModelSchema.objects.get_or_create(
-            name="stazioni_metropolitana", db_name="datastore"
+    def test_task_list_is_the_expected_one(self):
+        expected = (
+            "start_import",
+            "importer.import_resource",
+            "importer.create_geonode_resource",
         )
-        self._assert_test_result(overwrite=False)
+        self.assertEqual(len(self.handler.ACTIONS["import"]), 3)
+        self.assertTupleEqual(expected, self.handler.ACTIONS["import"])
 
-    def test_setup_dynamic_model_with_dataset_with_modelschema_overwrite_false(self):
-        create_single_dataset(name="stazioni_metropolitana", owner=self.user)
-        ModelSchema.objects.create(
-            name="stazioni_metropolitana", db_name="datastore", managed=True
+    def test_task_list_is_the_expected_one_geojson(self):
+        expected = (
+            "start_copy",
+            "importer.copy_geonode_resource",
         )
-        self._assert_test_result(overwrite=False)
+        self.assertEqual(len(self.handler.ACTIONS["copy"]), 2)
+        self.assertTupleEqual(expected, self.handler.ACTIONS["copy"])
 
-    def _assert_test_result(self, overwrite=False):
+    def test_is_valid_should_raise_exception_if_the_url_is_invalid(self):
+        with self.assertRaises(ImportException) as _exc:
+            self.handler.is_valid_url(url=self.invalid_files["url"])
+
+        self.assertIsNotNone(_exc)
+        self.assertTrue("The provided url is not reachable")
+
+    def test_is_valid_should_pass_with_valid_url(self):
+        self.handler.is_valid_url(url=self.valid_files["url"])
+
+    def test_extract_params_from_data(self):
+        actual, _data = self.handler.extract_params_from_data(
+            _data={
+                "defaults": '{"url": "http://abc123defsadsa.org", "title": "Remote Title", "type": "3dtiles"}'
+            },
+            action="import",
+        )
+        self.assertTrue("title" in actual)
+        self.assertTrue("url" in actual)
+        self.assertTrue("type" in actual)
+
+    @patch("importer.handlers.common.remote.import_orchestrator")
+    def test_import_resource_should_work(self, patch_upload):
+        patch_upload.apply_async.side_effect = MagicMock()
         try:
-            # Prepare the test
-            exec_id = orchestrator.create_execution_request(
-                user=self.user,
-                func_name="funct1",
-                step="step",
-                input_params={"files": self.valid_files, "skip_existing_layer": True},
-            )
-
-            layers = ogr.Open(self.valid_gpkg)
-
-            # starting the tests
-            dynamic_model, layer_name, celery_group = self.handler.setup_dynamic_model(
-                layer=[x for x in layers][0],
-                execution_id=str(exec_id),
-                should_be_overwritten=overwrite,
-                username=self.user,
-            )
-
-            self.assertIsNotNone(dynamic_model)
-
-            # check if the uuid has been added to the model name
-            self.assertIsNotNone(layer_name)
-
-            self.assertIsInstance(celery_group, group)
-            self.assertEqual(1, len(celery_group.tasks))
-            self.assertEqual(
-                "importer.create_dynamic_structure", celery_group.tasks[0].name
-            )
-        finally:
-            if exec_id:
-                ExecutionRequest.objects.filter(exec_id=exec_id).delete()
-
-    @patch("importer.handlers.common.vector.BaseVectorFileHandler.get_ogr2ogr_driver")
-    @patch("importer.handlers.common.vector.chord")
-    def test_import_resource_should_not_be_imported(self, celery_chord, ogr2ogr_driver):
-        """
-        If the resource exists and should be skept, the celery task
-        is not going to be called and the layer is skipped
-        """
-        exec_id = None
-        try:
-            # create the executionId
             exec_id = orchestrator.create_execution_request(
                 user=get_user_model().objects.first(),
                 func_name="funct1",
                 step="step",
-                input_params={"files": self.valid_files, "skip_existing_layer": True},
-            )
-
-            with self.assertRaises(Exception) as exception:
-                # start the resource import
-                self.handler.import_resource(
-                    files=self.valid_files, execution_id=str(exec_id)
-                )
-            self.assertIn(
-                "No valid layers found",
-                exception.exception.args[0],
-                "No valid layers found.",
-            )
-
-            celery_chord.assert_not_called()
-        finally:
-            if exec_id:
-                ExecutionRequest.objects.filter(exec_id=exec_id).delete()
-
-    @patch("importer.handlers.common.vector.BaseVectorFileHandler.get_ogr2ogr_driver")
-    @patch("importer.handlers.common.vector.chord")
-    def test_import_resource_should_work(self, celery_chord, ogr2ogr_driver):
-        try:
-            ogr2ogr_driver.return_value = ogr.GetDriverByName("GPKG")
-            exec_id = orchestrator.create_execution_request(
-                user=get_user_model().objects.first(),
-                func_name="funct1",
-                step="step",
-                input_params={"files": self.valid_files},
+                input_params=self.valid_files,
             )
 
             # start the resource import
             self.handler.import_resource(
                 files=self.valid_files, execution_id=str(exec_id)
             )
-
-            celery_chord.assert_called_once()
+            patch_upload.apply_async.assert_called_once()
         finally:
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
-    def test_get_ogr2ogr_task_group(self):
-        _uuid = uuid.uuid4()
-
-        actual = self.handler.get_ogr2ogr_task_group(
-            str(_uuid),
-            files=self.valid_files,
-            layer="dataset",
-            should_be_overwritten=True,
-            alternate="abc",
-        )
-        self.assertIsInstance(actual, (Signature,))
-        self.assertEqual("importer.import_with_ogr2ogr", actual.task)
-
-    @patch("importer.handlers.common.vector.Popen")
-    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command(
-        self, _open
-    ):
-        _uuid = uuid.uuid4()
-
-        comm = MagicMock()
-        comm.communicate.return_value = b"", b""
-        _open.return_value = comm
-
-        _task, alternate, execution_id = import_with_ogr2ogr(
-            execution_id=str(_uuid),
-            files=self.valid_files,
-            original_name="dataset",
-            handler_module_path=str(self.handler),
-            ovverwrite_layer=False,
-            alternate="alternate",
-        )
-
-        self.assertEqual("ogr2ogr", _task)
-        self.assertEqual(alternate, "alternate")
-        self.assertEqual(str(_uuid), execution_id)
-
-        _open.assert_called_once()
-        _open.assert_called_with(
-            "/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
-            + os.getenv("DATABASE_HOST", "localhost")
-            + " port=5432 user='geonode_data' password='geonode_data' \" \""
-            + self.valid_files.get("base_file")
-            + '" -nln alternate "dataset"',
-            stdout=-1,
-            stderr=-1,
-            shell=True,  # noqa
-        )
-
-    @patch("importer.handlers.common.vector.Popen")
-    def test_import_with_ogr2ogr_with_errors_should_raise_exception(self, _open):
-        _uuid = uuid.uuid4()
-
-        comm = MagicMock()
-        comm.communicate.return_value = b"", b"ERROR: some error here"
-        _open.return_value = comm
-
-        with self.assertRaises(Exception):
-            import_with_ogr2ogr(
-                execution_id=str(_uuid),
-                files=self.valid_files,
-                original_name="dataset",
-                handler_module_path=str(self.handler),
-                ovverwrite_layer=False,
-                alternate="alternate",
-            )
-
-        _open.assert_called_once()
-        _open.assert_called_with(
-            "/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
-            + os.getenv("DATABASE_HOST", "localhost")
-            + " port=5432 user='geonode_data' password='geonode_data' \" \""
-            + self.valid_files.get("base_file")
-            + '" -nln alternate "dataset"',
-            stdout=-1,
-            stderr=-1,
-            shell=True,  # noqa
-        )
-
-    @patch.dict(os.environ, {"OGR2OGR_COPY_WITH_DUMP": "True"}, clear=True)
-    @patch("importer.handlers.common.vector.Popen")
-    def test_import_with_ogr2ogr_without_errors_should_call_the_right_command_if_dump_is_enabled(
-        self, _open
-    ):
-        _uuid = uuid.uuid4()
-
-        comm = MagicMock()
-        comm.communicate.return_value = b"", b""
-        _open.return_value = comm
-
-        _task, alternate, execution_id = import_with_ogr2ogr(
-            execution_id=str(_uuid),
-            files=self.valid_files,
-            original_name="dataset",
-            handler_module_path=str(self.handler),
-            ovverwrite_layer=False,
-            alternate="alternate",
-        )
-
-        self.assertEqual("ogr2ogr", _task)
-        self.assertEqual(alternate, "alternate")
-        self.assertEqual(str(_uuid), execution_id)
-
-        _open.assert_called_once()
-        _call_as_string = _open.mock_calls[0][1][0]
-
-        self.assertTrue("-f PGDump /vsistdout/" in _call_as_string)
-        self.assertTrue("psql -d" in _call_as_string)
-        self.assertFalse("-f PostgreSQL PG" in _call_as_string)
-
-    def test_select_valid_layers(self):
-        """
-        The function should return only the datasets with a geometry
-        The other one are discarded
-        """
-        all_layers = GPKGFileHandler().get_ogr2ogr_driver().Open(self.no_crs_gpkg)
-
-        with self.assertLogs(level="ERROR") as _log:
-            valid_layer = GPKGFileHandler()._select_valid_layers(all_layers)
-
-        self.assertIn(
-            "The following layer layer_styles does not have a Coordinate Reference System (CRS) and will be skipped.",
-            [x.message for x in _log.records],
-        )
-        self.assertEqual(1, len(valid_layer))
-        self.assertEqual("mattia_test", valid_layer[0].GetName())
-
-    @override_settings(MEDIA_ROOT="/tmp")
-    def test_perform_last_step(self):
-        """
-        Output params in perform_last_step should return the detail_url and the ID
-        of the resource created
-        """
-        handler = GPKGFileHandler()
-        # creating exec_id for the import
+    def test_create_geonode_resource(self):
         exec_id = orchestrator.create_execution_request(
-            user=get_user_model().objects.first(),
+            user=self.owner,
             func_name="funct1",
             step="step",
-            input_params={"files": self.valid_files, "store_spatial_file": True},
+            input_params={
+                "url": "http://abc123defsadsa.org",
+                "title": "Remote Title",
+                "type": "3dtiles",
+            },
         )
 
-        # create_geonode_resource
-        resource = handler.create_geonode_resource(
-            "layer_name",
-            "layer_alternate",
-            str(exec_id),
+        resource = self.handler.create_geonode_resource(
+            "layername",
+            "layeralternate",
+            execution_id=exec_id,
+            resource_type="ResourceBase",
+            asset=None,
         )
-        exec_obj = orchestrator.get_execution_object(str(exec_id))
-        handler.create_resourcehandlerinfo(str(handler), resource, exec_obj)
-        # calling the last_step
-        handler.perform_last_step(str(exec_id))
-        expected_output = {
-            "resources": [{"id": resource.pk, "detail_url": resource.detail_url}]
-        }
-        exec_obj.refresh_from_db()
-        self.assertDictEqual(expected_output, exec_obj.output_params)
+        self.assertIsNotNone(resource)
+        self.assertEqual(resource.subtype, "3dtiles")

@@ -62,20 +62,18 @@ class BaseRemoteResourceHandler(BaseHandler):
         return True
 
     @staticmethod
-    def is_valid(files, user):
+    def is_valid_url(url):
         """
         We mark it as valid if the urls is reachable
         and if the url is valid
         """
         try:
-            url = orchestrator.get_execution_object(_execid)\
-                .input_params\
-                .get('url')
             r = requests.get(url, timeout=10)
             r.raise_for_status()
         except requests.exceptions.Timeout:
-            ImportException("Timed out")
-
+            raise ImportException("Timed out")
+        except Exception:
+            raise ImportException("The provided URL is not reachable")
         return True
 
     @staticmethod
@@ -160,12 +158,12 @@ class BaseRemoteResourceHandler(BaseHandler):
         resource_type: Dataset = ...,
         asset=None,
     ):
-        '''
+        """
         Creating geonode base resource
         We ignore the params, we use the function as a interface to keep the same
         importer flow.
         We create a standard ResourceBase
-        '''
+        """
         _exec = orchestrator.get_execution_object(execution_id)
         params = _exec.input_params.copy()
         subtype = params.get("type")

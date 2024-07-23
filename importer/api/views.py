@@ -137,9 +137,11 @@ class ImporterViewSet(DynamicModelViewSet):
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
                 if _file:
-                    storage_manager, asset, files = self._handle_files(
+                    storage_manager, asset, files = self._handle_asset(
                         request, asset_dir, storage_manager, _data, handler
                     )
+
+                self.validate_upload(request, storage_manager)
 
                 action = ExecutionRequestAction.IMPORT.value
 
@@ -188,7 +190,7 @@ class ImporterViewSet(DynamicModelViewSet):
 
         raise ImportException(detail="No handlers found for this dataset type")
 
-    def _handle_files(self, request, asset_dir, storage_manager, _data, handler):
+    def _handle_asset(self, request, asset_dir, storage_manager, _data, handler):
         if storage_manager is None:
             # means that the storage manager is not initialized yet, so
             # the file is not a zip
@@ -200,12 +202,12 @@ class ImporterViewSet(DynamicModelViewSet):
         asset, files = self.generate_asset_and_retrieve_paths(
             request, storage_manager, handler
         )
+        return storage_manager, asset, files
 
+    def validate_upload(self, request, storage_manager):
         upload_validator = UploadLimitValidator(request.user)
         upload_validator.validate_parallelism_limit_per_user()
         upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
-
-        return storage_manager, asset, files
 
     def generate_asset_and_retrieve_paths(self, request, storage_manager, handler):
         asset_handler = asset_handler_registry.get_default_handler()

@@ -3,4 +3,4 @@ set -a
 . ./.env_test
 set +a 
 
-coverage run --source='.' --omit="*/test*" /usr/src/geonode/manage.py test importer.tests -v2 --noinput --keepdb
+coverage run --source='.' --omit="*/test*" /usr/src/geonode/manage.py test importer -v2 --noinput
