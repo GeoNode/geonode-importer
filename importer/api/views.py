@@ -141,7 +141,7 @@ class ImporterViewSet(DynamicModelViewSet):
                         request, asset_dir, storage_manager, _data, handler
                     )
 
-                self.validate_upload(request, storage_manager)
+                    self.validate_upload(request, storage_manager)
 
                 action = ExecutionRequestAction.IMPORT.value
 
