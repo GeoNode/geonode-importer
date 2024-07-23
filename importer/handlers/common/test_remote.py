@@ -3,6 +3,7 @@ from mock import MagicMock, patch
 from importer.api.exception import ImportException
 from importer.handlers.common.remote import BaseRemoteResourceHandler
 from django.contrib.auth import get_user_model
+from importer.handlers.common.serializer import RemoteResourceSerializer
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
@@ -31,6 +32,18 @@ class TestBaseRemoteResourceHandler(TestCase):
         cls.layer = create_single_dataset(
             name="stazioni_metropolitana", owner=cls.owner
         )
+
+    def test_can_handle_should_return_true_for_remote(self):
+        actual = self.handler.can_handle(self.valid_files)
+        self.assertTrue(actual)
+
+    def test_can_handle_should_return_false_for_other_files(self):
+        actual = self.handler.can_handle({"base_file": "random.file"})
+        self.assertFalse(actual)
+
+    def test_should_get_the_specific_serializer(self):
+        actual = self.handler.has_serializer(self.valid_files)
+        self.assertEqual(type(actual), type(RemoteResourceSerializer))
 
     def test_create_error_log(self):
         """
