@@ -42,8 +42,6 @@ services:
       retries: 5
     env_file:
       - .env_test
-    ports:
-      - "8080:8080"
     volumes:
       - statics:/mnt/volumes/statics
       - geoserver-data-dir:/geoserver_data/data
@@ -79,8 +77,6 @@ services:
     healthcheck:
       test: "pg_isready -d postgres -U postgres"
     # uncomment to enable remote connections to postgres
-    ports:
-      - "5432:5432"
 
 
 volumes:

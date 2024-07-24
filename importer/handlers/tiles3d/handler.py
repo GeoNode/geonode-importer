@@ -103,28 +103,32 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
                     "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
                 )
 
-            # if the keys are there, let's check if the mandatory child are there too
-            asset = _file.get("asset", {}).get("version", None)
-            if not asset:
-                raise Invalid3DTilesException(
-                    "The mandatory 'version' for the key 'asset' is missing"
-                )
-            volume = _file.get("root", {}).get("boundingVolume", None)
-            if not volume:
-                raise Invalid3DTilesException(
-                    "The mandatory 'boundingVolume' for the key 'root' is missing"
-                )
-
-            error = _file.get("root", {}).get("geometricError", None)
-            if error is None:
-                raise Invalid3DTilesException(
-                    "The mandatory 'geometricError' for the key 'root' is missing"
-                )
+            Tiles3DFileHandler.validate_3dtile_payload(payload=_file)
 
         except Exception as e:
             raise Invalid3DTilesException(e)
 
         return True
+
+    @staticmethod
+    def validate_3dtile_payload(payload):
+        # if the keys are there, let's check if the mandatory child are there too
+        asset = payload.get("asset", {}).get("version", None)
+        if not asset:
+            raise Invalid3DTilesException(
+                "The mandatory 'version' for the key 'asset' is missing"
+            )
+        volume = payload.get("root", {}).get("boundingVolume", None)
+        if not volume:
+            raise Invalid3DTilesException(
+                "The mandatory 'boundingVolume' for the key 'root' is missing"
+            )
+
+        error = payload.get("root", {}).get("geometricError", None)
+        if error is None:
+            raise Invalid3DTilesException(
+                "The mandatory 'geometricError' for the key 'root' is missing"
+            )
 
     @staticmethod
     def extract_params_from_data(_data, action=None):
