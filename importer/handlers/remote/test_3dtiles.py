@@ -4,6 +4,7 @@ from importer.api.exception import ImportException
 from django.contrib.auth import get_user_model
 from importer.handlers.common.serializer import RemoteResourceSerializer
 from importer.handlers.remote.tiles3d import RemoteTiles3DFileHandler
+from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
@@ -115,13 +116,34 @@ class TestRemoteTiles3DFileHandler(TestCase):
             if exec_id:
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
+    def test_create_geonode_resource_raise_error_if_url_is_not_reachabel(self):
+        with self.assertRaises(Invalid3DTilesException) as error:
+            exec_id = orchestrator.create_execution_request(
+                user=self.owner,
+                func_name="funct1",
+                step="step",
+                input_params={
+                    "url": "http://abc123defsadsa.org",
+                    "title": "Remote Title",
+                    "type": "3dtiles",
+                },
+            )
+
+            resource = self.handler.create_geonode_resource(
+                "layername",
+                "layeralternate",
+                execution_id=exec_id,
+                resource_type="ResourceBase",
+                asset=None,
+            )
+
     def test_create_geonode_resource(self):
         exec_id = orchestrator.create_execution_request(
             user=self.owner,
             func_name="funct1",
             step="step",
             input_params={
-                "url": "http://abc123defsadsa.org",
+                "url": "https://dummyjson.com/users",
                 "title": "Remote Title",
                 "type": "3dtiles",
             },
