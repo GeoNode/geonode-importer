@@ -10,7 +10,7 @@ from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 logger = logging.getLogger(__name__)
 
 
-class RemoteTiles3DFileHandler(BaseRemoteResourceHandler, Tiles3DFileHandler):
+class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler):
 
     @staticmethod
     def can_handle(_data) -> bool:

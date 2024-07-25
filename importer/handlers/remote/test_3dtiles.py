@@ -3,7 +3,7 @@ from mock import MagicMock, patch
 from importer.api.exception import ImportException
 from django.contrib.auth import get_user_model
 from importer.handlers.common.serializer import RemoteResourceSerializer
-from importer.handlers.remote.tiles3d import RemoteTiles3DFileHandler
+from importer.handlers.remote.tiles3d import RemoteTiles3DResourceHandler
 from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
@@ -16,7 +16,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.handler = RemoteTiles3DFileHandler()
+        cls.handler = RemoteTiles3DResourceHandler()
         cls.valid_url = "https://raw.githubusercontent.com/CesiumGS/3d-tiles-samples/main/1.1/TilesetWithFullMetadata/tileset.json"
         cls.user, _ = get_user_model().objects.get_or_create(username="admin")
         cls.invalid_files = {
