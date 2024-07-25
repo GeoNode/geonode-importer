@@ -177,7 +177,7 @@ class BaseRemoteResourceHandler(BaseHandler):
                 sourcetype=SOURCE_TYPE_REMOTE,
                 alternate=alternate,
                 dirty_state=True,
-                title=layer_name,
+                title=params.get("title", layer_name),
                 owner=_exec.user,
             ),
         )
