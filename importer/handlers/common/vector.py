@@ -222,7 +222,7 @@ class BaseVectorFileHandler(BaseHandler):
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
             # getting all assets list
-            assets = [get_default_asset(x.resource) for x in resources]
+            assets = filter(None, [get_default_asset(x.resource) for x in resources])
             # we need to loop and cancel one by one to activate the signal
             # that delete the file from the filesystem
             for asset in assets:
