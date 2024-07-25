@@ -40,6 +40,9 @@
 | importer/handlers/kml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
 | importer/handlers/kml/exceptions.py                                                         |        7 |        0 |    100% |           |
 | importer/handlers/kml/handler.py                                                            |       51 |        4 |     92% |58, 68, 105, 114 |
+| importer/handlers/remote/\_\_init\_\_.py                                                    |        0 |        0 |    100% |           |
+| importer/handlers/remote/tests/\_\_init\_\_.py                                              |        0 |        0 |    100% |           |
+| importer/handlers/remote/tiles3d.py                                                         |       41 |        6 |     85% |37, 43-44, 66, 69, 71 |
 | importer/handlers/shapefile/\_\_init\_\_.py                                                 |        0 |        0 |    100% |           |
 | importer/handlers/shapefile/exceptions.py                                                   |        7 |        0 |    100% |           |
 | importer/handlers/shapefile/handler.py                                                      |       87 |        7 |     92% |63, 110, 138, 178, 188-190 |
@@ -49,7 +52,7 @@
 | importer/handlers/sld/handler.py                                                            |       26 |        3 |     88% | 25, 52-55 |
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
-| importer/handlers/tiles3d/handler.py                                                        |      132 |       23 |     83% |139, 148-199, 223, 251-254, 275, 297 |
+| importer/handlers/tiles3d/handler.py                                                        |      135 |       22 |     84% |143, 152-203, 227, 255-258, 301 |
 | importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  139, 218 |
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
@@ -75,7 +78,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2539** |  **338** | **87%** |           |
+|                                                                                   **TOTAL** | **2583** |  **343** | **87%** |           |
 
 
 ## Setup coverage badge
