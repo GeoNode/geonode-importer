@@ -1,6 +1,5 @@
 import pyproj
 from importer.publisher import DataPublisher
-from importer.utils import find_key_recursively
 import json
 import logging
 from pathlib import Path
@@ -496,43 +495,6 @@ class BaseRasterFileHandler(BaseHandler):
         """
         return storage_manager.copy(dataset)
 
-    def rollback(
-        self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
-    ):
-        steps = self.ACTIONS.get(action_to_rollback)
-        if rollback_from_step not in steps:
-            logger.info(f"Step not found {rollback_from_step}, skipping")
-            return
-        step_index = steps.index(rollback_from_step)
-        # the start_import, start_copy etc.. dont do anything as step, is just the start
-        # so there is nothing to rollback
-        steps_to_rollback = steps[1 : step_index + 1]  # noqa
-        if not steps_to_rollback:
-            return
-        # reversing the tuple to going backwards with the rollback
-        reversed_steps = steps_to_rollback[::-1]
-        istance_name = None
-        try:
-            istance_name = (
-                find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
-            )
-        except Exception:
-            pass
-
-        logger.warning(
-            f"Starting rollback for execid: {exec_id} resource published was: {istance_name}"
-        )
-
-        for step in reversed_steps:
-            normalized_step_name = step.split(".")[-1]
-            if getattr(self, f"_{normalized_step_name}_rollback", None):
-                function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, istance_name, *args, **kwargs)
-
-        logger.warning(
-            f"Rollback for execid: {exec_id} resource published was: {istance_name} completed"
-        )
-
     def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
         """
         In the raster, this step just generate the alternate, no real action
@@ -551,27 +513,6 @@ class BaseRasterFileHandler(BaseHandler):
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
         publisher.delete_resource(istance_name)
-
-    def _create_geonode_resource_rollback(
-        self, exec_id, istance_name=None, *args, **kwargs
-    ):
-        """
-        The handler will remove the resource from geonode
-        """
-        logger.info(
-            f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}"
-        )
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
-        if resource.exists():
-            resource.delete()
-
-    def _copy_dynamic_model_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._import_resource_rollback(exec_id, istance_name=istance_name)
-
-    def _copy_geonode_resource_rollback(
-        self, exec_id, istance_name=None, *args, **kwargs
-    ):
-        self._create_geonode_resource_rollback(exec_id, istance_name=istance_name)
 
 
 @importer_app.task(

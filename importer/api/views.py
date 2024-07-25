@@ -43,7 +43,7 @@ from importer.celery_tasks import import_orchestrator
 from importer.orchestrator import orchestrator
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.parsers import FileUploadParser, MultiPartParser
+from rest_framework.parsers import FileUploadParser, MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.assets.handlers import asset_handler_registry
@@ -57,7 +57,7 @@ class ImporterViewSet(DynamicModelViewSet):
     API endpoint that allows uploads to be viewed or edited.
     """
 
-    parser_class = [FileUploadParser, MultiPartParser]
+    parser_class = [JSONParser, FileUploadParser, MultiPartParser]
 
     authentication_classes = [
         BasicAuthentication,
@@ -129,46 +129,42 @@ class ImporterViewSet(DynamicModelViewSet):
 
         handler = orchestrator.get_handler(_data)
 
-        if _file and handler:
+        # not file but handler means that is a remote resource
+        if handler:
             asset = None
+            files = []
             try:
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
-                if storage_manager is None:
-                    # means that the storage manager is not initialized yet, so
-                    # the file is not a zip
-                    storage_manager = StorageManager(remote_files=_data)
-                    storage_manager.clone_remote_files(
-                        cloning_directory=asset_dir, create_tempdir=False
+                if _file:
+                    storage_manager, asset, files = self._handle_asset(
+                        request, asset_dir, storage_manager, _data, handler
                     )
-                # get filepath
-                asset, files = self.generate_asset_and_retrieve_paths(
-                    request, storage_manager, handler
-                )
 
-                upload_validator = UploadLimitValidator(request.user)
-                upload_validator.validate_parallelism_limit_per_user()
-                upload_validator.validate_files_sum_of_sizes(
-                    storage_manager.data_retriever
-                )
+                self.validate_upload(request, storage_manager)
 
                 action = ExecutionRequestAction.IMPORT.value
+
+                input_params = {
+                    **{"files": files, "handler_module_path": str(handler)},
+                    **extracted_params,
+                }
+
+                if asset:
+                    input_params.update(
+                        {
+                            "asset_id": asset.id,
+                            "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
+                        }
+                    )
 
                 execution_id = orchestrator.create_execution_request(
                     user=request.user,
                     func_name=next(iter(handler.get_task_list(action=action))),
                     step=_(next(iter(handler.get_task_list(action=action)))),
-                    input_params={
-                        **{"files": files, "handler_module_path": str(handler)},
-                        **extracted_params,
-                        **{
-                            "asset_id": asset.id,
-                            "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
-                        },
-                    },
-                    legacy_upload_name=_file.name,
+                    input_params=input_params,
                     action=action,
-                    name=_file.name,
+                    name=_file.name if _file else extracted_params.get("title", None),
                     source=extracted_params.get("source"),
                 )
 
@@ -193,6 +189,25 @@ class ImporterViewSet(DynamicModelViewSet):
                 raise ImportException(detail=e.args[0] if len(e.args) > 0 else e)
 
         raise ImportException(detail="No handlers found for this dataset type")
+
+    def _handle_asset(self, request, asset_dir, storage_manager, _data, handler):
+        if storage_manager is None:
+            # means that the storage manager is not initialized yet, so
+            # the file is not a zip
+            storage_manager = StorageManager(remote_files=_data)
+            storage_manager.clone_remote_files(
+                cloning_directory=asset_dir, create_tempdir=False
+            )
+            # get filepath
+        asset, files = self.generate_asset_and_retrieve_paths(
+            request, storage_manager, handler
+        )
+        return storage_manager, asset, files
+
+    def validate_upload(self, request, storage_manager):
+        upload_validator = UploadLimitValidator(request.user)
+        upload_validator.validate_parallelism_limit_per_user()
+        upload_validator.validate_files_sum_of_sizes(storage_manager.data_retriever)
 
     def generate_asset_and_retrieve_paths(self, request, storage_manager, handler):
         asset_handler = asset_handler_registry.get_default_handler()
