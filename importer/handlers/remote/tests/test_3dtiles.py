@@ -134,7 +134,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
                 "layername",
                 "layeralternate",
                 execution_id=exec_id,
-                resource_type="ResourceBase",
+                resource_type=ResourceBase,
                 asset=None,
             )
 

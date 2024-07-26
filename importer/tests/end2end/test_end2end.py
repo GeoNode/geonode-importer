@@ -441,3 +441,44 @@ class ImporterRasterImportTest(BaseImporterEndToEndTest):
         layer = self.cat.get_layer("test_grid")
         if layer:
             self.cat.delete(layer)
+
+
+class Importer3dTilesImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_geopackage(self):
+        layer = self.cat.get_layer("geonode:tileset")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.valid_gkpg, "rb"),
+        }
+        initial_name = "stazioni_metropolitana"
+        self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        if layer:
+            self.cat.delete(layer)
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_gpkg_overwrite(self):
+        prev_dataset = create_single_dataset(name="stazioni_metropolitana")
+
+        layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.valid_gkpg, "rb"),
+        }
+        initial_name = "stazioni_metropolitana"
+        payload["overwrite_existing_layer"] = True
+        self._assertimport(
+            payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated
+        )
+        layer = self.cat.get_layer("geonode:stazioni_metropolitana")
+        if layer:
+            self.cat.delete(layer)
