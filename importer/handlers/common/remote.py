@@ -110,7 +110,7 @@ class BaseRemoteResourceHandler(BaseHandler):
         try:
             params = _exec.input_params.copy()
             url = params.get("url")
-            title = params.get("title", os.path.basename(urlparse(url).path))
+            title = params.get("title", None) or os.path.basename(urlparse(url).path)
 
             # start looping on the layers available
             layer_name = self.fixup_name(title)

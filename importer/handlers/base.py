@@ -326,13 +326,15 @@ class BaseHandler(ABC):
     def _create_geonode_resource_rollback(
         self, exec_id, istance_name=None, *args, **kwargs
     ):
+        from importer.orchestrator import orchestrator
         """
         The handler will remove the resource from geonode
         """
         logger.info(
             f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}"
         )
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
+        _exec_obj = orchestrator.get_execution_object(exec_id)
+        resource = ResourceBase.objects.filter(alternate__icontains=istance_name, owner=_exec_obj.user)
         if resource.exists():
             resource.delete()
 
