@@ -16,7 +16,7 @@ class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler
 
     @staticmethod
     def has_serializer(data) -> bool:
-        if "url" in data and "3dtiles" in data.get("type", "").upper():
+        if "url" in data and "3dtiles" in data.get("type", "").lower():
             return RemoteResourceSerializer
         return False
 
