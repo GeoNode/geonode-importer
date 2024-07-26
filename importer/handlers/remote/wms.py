@@ -72,8 +72,7 @@ class RemoteWMSResourceHandler(BaseRemoteResourceHandler):
         }
         if _exec.input_params.get("parse_remote_metadata", False):
             try:
-                _, wms = WebMapService(_exec.input_params.get("url"))
-                wms_resource = wms[_exec.input_params.get("lookup")]
+                wms_resource = self.get_wms_resource(_exec)
                 to_update.update(
                     {
                         "title": wms_resource.title,
@@ -88,6 +87,11 @@ class RemoteWMSResourceHandler(BaseRemoteResourceHandler):
 
         _exec.input_params.update(to_update)
         _exec.save()
+
+    def get_wms_resource(self, _exec):
+        _, wms = WebMapService(_exec.input_params.get("url"))
+        wms_resource = wms[_exec.input_params.get("lookup")]
+        return wms_resource
 
     def generate_alternate(
         self,
