@@ -3,14 +3,22 @@ import logging
 import requests
 from geonode.layers.models import Dataset
 from importer.handlers.common.remote import BaseRemoteResourceHandler
+from importer.handlers.common.serializer import RemoteResourceSerializer
 from importer.handlers.tiles3d.handler import Tiles3DFileHandler
 from importer.orchestrator import orchestrator
 from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
+from geonode.base.enumerations import SOURCE_TYPE_REMOTE
 
 logger = logging.getLogger(__name__)
 
 
 class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler):
+
+    @staticmethod
+    def has_serializer(data) -> bool:
+        if "url" in data and "3dtiles" in data.get("type", "").upper():
+            return RemoteResourceSerializer
+        return False
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -75,3 +83,16 @@ class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler
             resource = self.set_bbox_from_boundingVolume(js_file, resource=resource)
 
         return resource
+
+    def generate_resource_payload(
+        self, layer_name, alternate, asset, _exec, workspace, **kwargs
+    ):
+        return dict(
+            resource_type="dataset",
+            subtype=kwargs.get("type"),
+            sourcetype=SOURCE_TYPE_REMOTE,
+            alternate=alternate,
+            dirty_state=True,
+            title=kwargs.get("title", layer_name),
+            owner=_exec.user,
+        )

@@ -117,21 +117,22 @@ class BaseRemoteResourceHandler(BaseHandler):
 
             should_be_overwritten = _exec.input_params.get("overwrite_existing_layer")
 
+            payload_alternate = params.get("remote_resource_id", None)
+
             user_datasets = ResourceBase.objects.filter(
-                owner=_exec.user, alternate=layer_name
+                owner=_exec.user, alternate=payload_alternate or layer_name
             )
 
             dataset_exists = user_datasets.exists()
 
-            if dataset_exists and should_be_overwritten:
-                layer_name, alternate = (
-                    layer_name,
-                    user_datasets.first().alternate.split(":")[-1],
-                )
-            elif not dataset_exists:
-                alternate = layer_name
-            else:
-                alternate = create_alternate(layer_name, execution_id)
+            layer_name, alternate = self.generate_alternate(
+                layer_name,
+                execution_id,
+                should_be_overwritten,
+                payload_alternate,
+                user_datasets,
+                dataset_exists,
+            )
 
             import_orchestrator.apply_async(
                 (
@@ -150,12 +151,32 @@ class BaseRemoteResourceHandler(BaseHandler):
             logger.error(e)
             raise e
 
+    def generate_alternate(
+        self,
+        layer_name,
+        execution_id,
+        should_be_overwritten,
+        payload_alternate,
+        user_datasets,
+        dataset_exists,
+    ):
+        if dataset_exists and should_be_overwritten:
+            layer_name, alternate = (
+                payload_alternate or layer_name,
+                user_datasets.first().alternate.split(":")[-1],
+            )
+        elif not dataset_exists:
+            alternate = payload_alternate or layer_name
+        else:
+            alternate = create_alternate(payload_alternate or layer_name, execution_id)
+        return layer_name, alternate
+
     def create_geonode_resource(
         self,
         layer_name: str,
         alternate: str,
         execution_id: str,
-        resource_type: Dataset = ...,
+        resource_type: ResourceBase = ResourceBase,
         asset=None,
     ):
         """
@@ -166,19 +187,12 @@ class BaseRemoteResourceHandler(BaseHandler):
         """
         _exec = orchestrator.get_execution_object(execution_id)
         params = _exec.input_params.copy()
-        subtype = params.get("type")
 
         resource = resource_manager.create(
             None,
-            resource_type=ResourceBase,
-            defaults=dict(
-                resource_type="dataset",
-                subtype=subtype,
-                sourcetype=SOURCE_TYPE_REMOTE,
-                alternate=alternate,
-                dirty_state=True,
-                title=params.get("title", layer_name),
-                owner=_exec.user,
+            resource_type=resource_type,
+            defaults=self.generate_resource_payload(
+                layer_name, alternate, asset, _exec, None, **params
             ),
         )
         resource_manager.set_thumbnail(None, instance=resource)
@@ -216,4 +230,16 @@ class BaseRemoteResourceHandler(BaseHandler):
             resource=resource,
             execution_request=execution_id,
             kwargs=kwargs.get("kwargs", {}) or kwargs,
+        )
+
+    def generate_resource_payload(
+        self, layer_name, alternate, asset, _exec, workspace, **kwargs
+    ):
+        return dict(
+            subtype=kwargs.get("type"),
+            sourcetype=SOURCE_TYPE_REMOTE,
+            alternate=alternate,
+            dirty_state=True,
+            title=kwargs.get("title", layer_name),
+            owner=_exec.user,
         )

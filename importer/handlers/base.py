@@ -254,11 +254,12 @@ class BaseHandler(ABC):
         """
         return NotImplementedError
 
-    def delete_resource(self, instance):
+    @staticmethod
+    def delete_resource(instance):
         """
         Base function to delete the resource with all the dependencies (example: dynamic model)
         """
-        return NotImplementedError
+        return
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
