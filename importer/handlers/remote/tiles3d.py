@@ -8,6 +8,7 @@ from importer.handlers.tiles3d.handler import Tiles3DFileHandler
 from importer.orchestrator import orchestrator
 from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 from geonode.base.enumerations import SOURCE_TYPE_REMOTE
+from geonode.base.models import ResourceBase
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler
         layer_name: str,
         alternate: str,
         execution_id: str,
-        resource_type: Dataset = ...,
+        resource_type: Dataset = ResourceBase,
         asset=None,
     ):
         resource = super().create_geonode_resource(

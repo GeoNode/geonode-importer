@@ -91,6 +91,7 @@ class BaseRemoteResourceHandler(BaseHandler):
             "title": _data.pop("title", None),
             "url": _data.pop("url", None),
             "type": _data.pop("type", None),
+            "overwrite_existing_layer": _data.pop("overwrite_existing_layer", False),
         }, _data
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
@@ -243,3 +244,41 @@ class BaseRemoteResourceHandler(BaseHandler):
             title=kwargs.get("title", layer_name),
             owner=_exec.user,
         )
+
+    def overwrite_geonode_resource(
+        self,
+        layer_name: str,
+        alternate: str,
+        execution_id: str,
+        resource_type: Dataset = ResourceBase,
+        asset=None,
+    ):
+        _exec = self._get_execution_request_object(execution_id)
+        resource = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
+
+        _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
+        # if the layer exists, we just update the information of the dataset by
+        # let it recreate the catalogue
+        if resource.exists() and _overwrite:
+            resource = resource.first()
+
+            resource = resource_manager.update(
+                resource.uuid, instance=resource
+            )
+            resource_manager.set_thumbnail(
+                resource.uuid, instance=resource, overwrite=True
+            )
+            resource.refresh_from_db()
+            return resource
+        elif not resource.exists() and _overwrite:
+            logger.warning(
+                f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
+            )
+            return self.create_geonode_resource(
+                layer_name, alternate, execution_id, resource_type, asset
+            )
+        elif not resource.exists() and not _overwrite:
+            logger.warning(
+                "The resource does not exists, please use 'create_geonode_resource' to create one"
+            )
+        return

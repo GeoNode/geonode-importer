@@ -13,6 +13,7 @@ class RemoteResourceSerializer(DynamicModelSerializer):
             "title",
             "type",
             "source",
+            "overwrite_existing_layer"
         )
 
     url = serializers.URLField(
@@ -26,3 +27,5 @@ class RemoteResourceSerializer(DynamicModelSerializer):
         help_text="Remote resource type, for example wms or 3dtiles. Is used by the handler to understand if can handle the resource",
     )
     source = serializers.CharField(required=False, default="upload")
+
+    overwrite_existing_layer = serializers.BooleanField(required=False, default=False)
