@@ -1,7 +1,6 @@
 import ast
 import os
 import time
-from uuid import uuid4
 
 import mock
 from django.conf import settings
@@ -9,22 +8,18 @@ from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
 from dynamic_models.models import FieldSchema, ModelSchema
-import requests
 from geonode.layers.models import Dataset
 from geonode.resource.models import ExecutionRequest
 from geonode.utils import OGC_Servers_Handler
 from geoserver.catalog import Catalog
 from importer import project_dir
-from importer.publisher import DataPublisher
 from importer.tests.utils import ImporterBaseTestSupport
 import gisdata
 from geonode.base.populate_test_data import create_single_dataset
 from django.db.models import Q
 from geonode.base.models import ResourceBase
-from geonode.resource.manager import resource_manager
 import logging
 from geonode.harvesting.harvesters.wms import WebMapService
-from geonode.services.serviceprocessors.wms import WmsServiceHandler
 
 logger = logging.getLogger()
 geourl = settings.GEODATABASE_URL
@@ -134,6 +129,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
 
             if assert_payload:
                 target = resource.first()
+                target.refresh_from_db()
                 for key, value in assert_payload.items():
                     if hasattr(target, key):
                         self.assertEqual(getattr(target, key), value)
@@ -465,9 +461,10 @@ class ImporterRasterImportTest(BaseImporterEndToEndTest):
 
 
 class Importer3dTilesImportTest(BaseImporterEndToEndTest):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
     @override_settings(
-        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
     )
     def test_import_3dtiles(self):
         payload = {
@@ -485,12 +482,12 @@ class Importer3dTilesImportTest(BaseImporterEndToEndTest):
             payload, initial_name, skip_geoserver=True, assert_payload=assert_payload
         )
 
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
     @override_settings(
-        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
     )
     def test_import_3dtiles_overwrite(self):
-
         payload = {
             "url": "https://raw.githubusercontent.com/CesiumGS/3d-tiles-samples/main/1.1/TilesetWithFullMetadata/tileset.json",
             "title": "Remote Title",
@@ -528,9 +525,10 @@ class Importer3dTilesImportTest(BaseImporterEndToEndTest):
 
 
 class ImporterWMSImportTest(BaseImporterEndToEndTest):
-    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "geonode_data"})
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
     @override_settings(
-        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/geonode_data"
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
     )
     def test_import_wms(self):
         _, wms = WebMapService(
