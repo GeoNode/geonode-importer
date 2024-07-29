@@ -500,7 +500,7 @@ class Importer3dTilesImportTest(BaseImporterEndToEndTest):
         assert_payload = {
             "subtype": "3dtiles",
             "title": "Remote Title",
-            "resource_type": "resourcebase",
+            "resource_type": "dataset",
         }
         # Lets import the resource first but without deleting it
         resource = self._assertimport(
