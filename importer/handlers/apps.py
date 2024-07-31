@@ -22,18 +22,19 @@ class HandlersConfig(AppConfig):
 
 
 def run_setup_hooks(*args, **kwargs):
+    available_handlers = settings.IMPORTER_HANDLERS + SYSTEM_HANDLERS
     _handlers = [
-        import_string(module_path) for module_path in settings.IMPORTER_HANDLERS + SYSTEM_HANDLERS
+        import_string(module_path) for module_path in available_handlers
     ]
     for item in _handlers:
         item.register()
     logger.info(
-        f"The following handlers have been registered: {', '.join(settings.IMPORTER_HANDLERS + SYSTEM_HANDLERS)}"
+        f"The following handlers have been registered: {', '.join(available_handlers)}"
     )
 
     _available_settings = [
         import_string(module_path)().supported_file_extension_config
-        for module_path in settings.IMPORTER_HANDLERS
+        for module_path in available_handlers
         if import_string(module_path)().supported_file_extension_config
     ]
     # injecting the new config required for FE
