@@ -16,12 +16,12 @@
 | importer/datastore.py                                                                       |       20 |        4 |     80% |     31-34 |
 | importer/db\_router.py                                                                      |       18 |        0 |    100% |           |
 | importer/handlers/\_\_init\_\_.py                                                           |        0 |        0 |    100% |           |
-| importer/handlers/apps.py                                                                   |       25 |        3 |     88% |     79-83 |
-| importer/handlers/base.py                                                                   |      136 |       29 |     79% |42, 55, 60, 66, 106, 114, 124, 132, 198, 205, 227, 235, 244, 247, 255, 261, 276-284, 293-294, 300, 331-336, 339, 344 |
+| importer/handlers/apps.py                                                                   |       29 |        3 |     90% |     81-85 |
+| importer/handlers/base.py                                                                   |      136 |       30 |     78% |43, 56, 61, 67, 74, 107, 115, 125, 133, 199, 206, 228, 236, 245, 248, 256, 262, 277-285, 294-295, 301, 332-337, 340, 345 |
 | importer/handlers/common/\_\_init\_\_.py                                                    |        0 |        0 |    100% |           |
 | importer/handlers/common/metadata.py                                                        |       45 |        4 |     91% |35, 48, 66, 92 |
 | importer/handlers/common/raster.py                                                          |      224 |       76 |     66% |40, 44, 64, 73, 89, 106-107, 132-138, 145-147, 150-162, 165-176, 193, 210, 227-239, 303-305, 334, 394-405, 457-463, 477-486, 496, 503, 509-515, 533-568 |
-| importer/handlers/common/remote.py                                                          |       86 |        9 |     90% |74, 86-87, 127, 134, 149-151, 214 |
+| importer/handlers/common/remote.py                                                          |       86 |       10 |     88% |52, 74, 86-87, 127, 134, 149-151, 214 |
 | importer/handlers/common/serializer.py                                                      |       13 |        0 |    100% |           |
 | importer/handlers/common/vector.py                                                          |      348 |       44 |     87% |54, 73, 82, 142-143, 210-211, 268, 274-277, 385-389, 451-455, 485, 589, 656-667, 719-725, 791, 793-797, 806-811, 817-823, 863-864, 925-926, 941 |
 | importer/handlers/csv/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
@@ -69,7 +69,7 @@
 | importer/models.py                                                                          |       23 |        2 |     91% |     28-29 |
 | importer/orchestrator.py                                                                    |      147 |       16 |     89% |69-70, 101, 158-160, 191, 259-268, 272-273, 284, 292-295 |
 | importer/publisher.py                                                                       |       74 |       14 |     81% |61, 91, 94-111, 146-148, 193-194 |
-| importer/settings.py                                                                        |        6 |        0 |    100% |           |
+| importer/settings.py                                                                        |        7 |        0 |    100% |           |
 | importer/tests/\_\_init\_\_.py                                                              |        0 |        0 |    100% |           |
 | importer/tests/end2end/\_\_init\_\_.py                                                      |        0 |        0 |    100% |           |
 | importer/tests/unit/\_\_init\_\_.py                                                         |        0 |        0 |    100% |           |
@@ -78,7 +78,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2583** |  **343** | **87%** |           |
+|                                                                                   **TOTAL** | **2588** |  **345** | **87%** |           |
 
 
 ## Setup coverage badge
