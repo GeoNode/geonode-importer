@@ -11,10 +11,11 @@ from django.db.models import Q
 from geonode.resource.models import ExecutionRequest
 from geonode.base.models import ResourceBase
 
+
 logger = logging.getLogger(__name__)
 
 
-class BaseHandler(ABC):
+class BaseHandler(ABC, object):
     """
     Base abstract handler object
     define the required method needed to define an upload handler
