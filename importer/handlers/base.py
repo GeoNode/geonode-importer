@@ -15,7 +15,7 @@ from geonode.base.models import ResourceBase
 logger = logging.getLogger(__name__)
 
 
-class BaseHandler(ABC, object):
+class BaseHandler(ABC):
     """
     Base abstract handler object
     define the required method needed to define an upload handler
