@@ -255,11 +255,12 @@ class BaseHandler(ABC):
         """
         return NotImplementedError
 
-    def delete_resource(self, instance):
+    @staticmethod
+    def delete_resource(instance):
         """
         Base function to delete the resource with all the dependencies (example: dynamic model)
         """
-        return NotImplementedError
+        return
 
     def _get_execution_request_object(self, execution_id: str):
         return ExecutionRequest.objects.filter(exec_id=execution_id).first()
@@ -326,13 +327,15 @@ class BaseHandler(ABC):
     def _create_geonode_resource_rollback(
         self, exec_id, istance_name=None, *args, **kwargs
     ):
+        from importer.orchestrator import orchestrator
         """
         The handler will remove the resource from geonode
         """
         logger.info(
             f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}"
         )
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
+        _exec_obj = orchestrator.get_execution_object(exec_id)
+        resource = ResourceBase.objects.filter(alternate__icontains=istance_name, owner=_exec_obj.user)
         if resource.exists():
             resource.delete()
 

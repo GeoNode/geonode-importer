@@ -7,6 +7,7 @@ from importer.handlers.common.serializer import RemoteResourceSerializer
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
+from geonode.base.models import ResourceBase
 
 
 class TestBaseRemoteResourceHandler(TestCase):
@@ -131,7 +132,7 @@ class TestBaseRemoteResourceHandler(TestCase):
             "layername",
             "layeralternate",
             execution_id=exec_id,
-            resource_type="ResourceBase",
+            resource_type=ResourceBase,
             asset=None,
         )
         self.assertIsNotNone(resource)

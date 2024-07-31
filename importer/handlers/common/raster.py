@@ -370,9 +370,10 @@ class BaseRasterFileHandler(BaseHandler):
         resource_type: Dataset = Dataset,
         asset=None,
     ):
-        dataset = resource_type.objects.filter(alternate__icontains=alternate)
-
+        
         _exec = self._get_execution_request_object(execution_id)
+
+        dataset = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
 
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by

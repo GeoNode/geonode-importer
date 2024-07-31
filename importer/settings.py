@@ -21,4 +21,5 @@ SYSTEM_HANDLERS = [
     'importer.handlers.sld.handler.SLDFileHandler',
     'importer.handlers.tiles3d.handler.Tiles3DFileHandler',
     'importer.handlers.remote.tiles3d.RemoteTiles3DResourceHandler',
+    'importer.handlers.remote.wms.RemoteWMSResourceHandler',
 ]

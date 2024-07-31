@@ -1,5 +1,5 @@
 from django.core.management import call_command
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 
 
 class ImporterBaseTestSupport(TestCase):

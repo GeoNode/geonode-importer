@@ -146,6 +146,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
             "store_spatial_file": _data.pop("store_spatial_files", "True"),
             "source": _data.pop("source", "upload"),
             "original_zip_name": _data.pop("original_zip_name", None),
+            "overwrite_existing_layer": _data.pop("overwrite_existing_layer", False),
         }, _data
 
     def import_resource(self, files: dict, execution_id: str, **kwargs) -> str:
