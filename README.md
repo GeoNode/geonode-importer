@@ -16,7 +16,7 @@
 | importer/datastore.py                                                                       |       20 |        4 |     80% |     31-34 |
 | importer/db\_router.py                                                                      |       18 |        0 |    100% |           |
 | importer/handlers/\_\_init\_\_.py                                                           |        0 |        0 |    100% |           |
-| importer/handlers/apps.py                                                                   |       30 |        3 |     90% |     82-86 |
+| importer/handlers/apps.py                                                                   |       26 |        3 |     88% |     78-82 |
 | importer/handlers/base.py                                                                   |      136 |       30 |     78% |43, 56, 61, 67, 74, 107, 115, 125, 133, 199, 206, 228, 236, 245, 248, 256, 262, 277-285, 294-295, 301, 332-337, 340, 345 |
 | importer/handlers/common/\_\_init\_\_.py                                                    |        0 |        0 |    100% |           |
 | importer/handlers/common/metadata.py                                                        |       45 |        4 |     91% |35, 48, 66, 92 |
@@ -53,7 +53,7 @@
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
 | importer/handlers/tiles3d/handler.py                                                        |      135 |       22 |     84% |143, 152-203, 227, 255-258, 301 |
-| importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  139, 218 |
+| importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  140, 221 |
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
 | importer/handlers/xml/exceptions.py                                                         |        7 |        0 |    100% |           |
@@ -78,7 +78,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2589** |  **344** | **87%** |           |
+|                                                                                   **TOTAL** | **2585** |  **344** | **87%** |           |
 
 
 ## Setup coverage badge
