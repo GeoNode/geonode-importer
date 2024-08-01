@@ -291,7 +291,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         )
 
         return resource
-        
+
     def set_bbox_from_boundingVolume_sphere(self, js_file, resource):
         transform_raw = js_file.get("root", {}).get("transform", [])
         sphere_raw = js_file.get("root", {}).get("boundingVolume", {}).get("sphere", None)
@@ -317,6 +317,6 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
 
     def _has_region(self, js_file):
         return js_file.get("root", {}).get("boundingVolume", {}).get("region", None)
-    
+
     def _has_sphere(self, js_file):
         return js_file.get("root", {}).get("boundingVolume", {}).get("sphere", None)
