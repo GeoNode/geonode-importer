@@ -1,8 +1,4 @@
-from glob import iglob
-from importlib import import_module
 import logging
-import sys
-from importer import project_dir
 from django.apps import AppConfig
 from django.conf import settings
 from django.utils.module_loading import import_string

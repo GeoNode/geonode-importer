@@ -1,4 +1,3 @@
-import os
 import shutil
 from django.test import TestCase, override_settings
 from importer.handlers.gpkg.exceptions import InvalidGeopackageException

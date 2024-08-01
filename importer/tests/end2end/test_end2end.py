@@ -1,8 +1,6 @@
 import ast
 import os
 import time
-from uuid import uuid4
-
 import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -19,7 +17,6 @@ import gisdata
 from geonode.base.populate_test_data import create_single_dataset
 from django.db.models import Q
 from geonode.base.models import ResourceBase
-from geonode.resource.manager import resource_manager
 
 geourl = settings.GEODATABASE_URL
 

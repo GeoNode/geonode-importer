@@ -1,12 +1,9 @@
-import os
 from django.test import TestCase
-from mock import patch
 from importer import project_dir
 from importer.orchestrator import orchestrator
 from importer.datastore import DataStoreManager
-from importer.publisher import DataPublisher
-from unittest.mock import MagicMock
 from django.contrib.auth import get_user_model
+
 
 class TestDataStoreManager(TestCase):
     """
