@@ -35,6 +35,8 @@ from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from django.db.models import Q
 import pyproj
+from geonode.geoserver.security import set_geowebcache_invalidate_cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -631,19 +633,23 @@ class BaseVectorFileHandler(BaseHandler):
         resource_type: Dataset = Dataset,
         asset=None,
     ):
-        dataset = resource_type.objects.filter(alternate__icontains=alternate)
-
         _exec = self._get_execution_request_object(execution_id)
+        dataset = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
 
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
         # let it recreate the catalogue
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
+            
+            # recalculate featuretype info
+            DataPublisher(str(self)).cat.recalculate_featuretype(dataset)
+            set_geowebcache_invalidate_cache(dataset_alternate=dataset.alternate)
 
             dataset = resource_manager.update(
                 dataset.uuid, instance=dataset, files=asset.location
             )
+
 
             self.handle_xml_file(dataset, _exec)
             self.handle_sld_file(dataset, _exec)
@@ -652,6 +658,7 @@ class BaseVectorFileHandler(BaseHandler):
                 dataset.uuid, instance=dataset, overwrite=True
             )
             dataset.refresh_from_db()
+
             return dataset
         elif not dataset.exists() and _overwrite:
             logger.warning(
