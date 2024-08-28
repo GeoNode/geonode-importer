@@ -37,7 +37,7 @@ class MetadataFileHandler(BaseHandler):
 
     @property
     def supported_file_extension_config(self):
-        return None
+        return {}
 
     @staticmethod
     def extract_params_from_data(_data, action=None):
