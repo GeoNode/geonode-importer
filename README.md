@@ -16,10 +16,10 @@
 | importer/datastore.py                                                                       |       20 |        4 |     80% |     31-34 |
 | importer/db\_router.py                                                                      |       18 |        0 |    100% |           |
 | importer/handlers/\_\_init\_\_.py                                                           |        0 |        0 |    100% |           |
-| importer/handlers/apps.py                                                                   |       26 |        3 |     88% |     78-82 |
+| importer/handlers/apps.py                                                                   |       26 |        3 |     88% |     41-45 |
 | importer/handlers/base.py                                                                   |      136 |       30 |     78% |43, 56, 61, 67, 74, 107, 115, 125, 133, 199, 206, 228, 236, 245, 248, 256, 262, 277-285, 294-295, 301, 332-337, 340, 345 |
 | importer/handlers/common/\_\_init\_\_.py                                                    |        0 |        0 |    100% |           |
-| importer/handlers/common/metadata.py                                                        |       45 |        4 |     91% |35, 48, 66, 92 |
+| importer/handlers/common/metadata.py                                                        |       42 |        4 |     90% |35, 44, 62, 88 |
 | importer/handlers/common/raster.py                                                          |      224 |       76 |     66% |40, 44, 64, 73, 89, 106-107, 132-138, 145-147, 150-162, 165-176, 193, 210, 227-239, 303-305, 334, 394-405, 457-463, 477-486, 496, 503, 509-515, 533-568 |
 | importer/handlers/common/remote.py                                                          |       86 |        9 |     90% |74, 86-87, 127, 134, 149-151, 214 |
 | importer/handlers/common/serializer.py                                                      |       13 |        0 |    100% |           |
@@ -49,7 +49,7 @@
 | importer/handlers/shapefile/serializer.py                                                   |       19 |        0 |    100% |           |
 | importer/handlers/sld/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
 | importer/handlers/sld/exceptions.py                                                         |        7 |        0 |    100% |           |
-| importer/handlers/sld/handler.py                                                            |       26 |        3 |     88% | 25, 52-55 |
+| importer/handlers/sld/handler.py                                                            |       29 |        3 |     90% | 45, 72-75 |
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
 | importer/handlers/tiles3d/handler.py                                                        |      135 |       22 |     84% |143, 152-203, 227, 255-258, 301 |
@@ -57,7 +57,7 @@
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
 | importer/handlers/xml/exceptions.py                                                         |        7 |        0 |    100% |           |
-| importer/handlers/xml/handler.py                                                            |       26 |        3 |     88% | 25, 51-54 |
+| importer/handlers/xml/handler.py                                                            |       29 |        3 |     90% | 45, 71-74 |
 | importer/handlers/xml/serializer.py                                                         |       12 |        0 |    100% |           |
 | importer/migrations/0001\_initial.py                                                        |        6 |        0 |    100% |           |
 | importer/migrations/0002\_resourcehandlerinfo\_kwargs.py                                    |        4 |        0 |    100% |           |
@@ -78,7 +78,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2585** |  **344** | **87%** |           |
+|                                                                                   **TOTAL** | **2588** |  **344** | **87%** |           |
 
 
 ## Setup coverage badge
