@@ -34,44 +34,7 @@ def run_setup_hooks(*args, **kwargs):
         if import_string(module_path)().supported_file_extension_config
     ]
     # injecting the new config required for FE
-    supported_type = [
-        {
-            "id": "xml",
-            "label": "XML Metadata File",
-            "format": "metadata",
-            "ext": ["xml"],
-            "mimeType": ["application/json"],
-            "needsFiles": [
-                "shp",
-                "prj",
-                "dbf",
-                "shx",
-                "csv",
-                "tiff",
-                "zip",
-                "sld",
-                "geojson",
-            ],
-        },
-        {
-            "id": "sld",
-            "label": "Styled Layer Descriptor (SLD)",
-            "format": "metadata",
-            "ext": ["sld"],
-            "mimeType": ["application/json"],
-            "needsFiles": [
-                "shp",
-                "prj",
-                "dbf",
-                "shx",
-                "csv",
-                "tiff",
-                "zip",
-                "xml",
-                "geojson",
-            ],
-        },
-    ]
+    supported_type = []
     supported_type.extend(_available_settings)
     if not getattr(settings, "ADDITIONAL_DATASET_FILE_TYPES", None):
         setattr(settings, "ADDITIONAL_DATASET_FILE_TYPES", supported_type)
