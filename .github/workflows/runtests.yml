@@ -15,7 +15,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     - name: Start containers
-      run: docker-compose -f "docker-compose-test.yaml" up -d --build
+      run: docker compose -f "docker-compose-test.yaml" up -d --build
     - name: Run django entrypoint
       run: docker exec django4importer /bin/sh -c "sh /usr/src/importer/entrypoint_test.sh"
     - name: Run geonode-importer tests
@@ -34,4 +34,4 @@ jobs:
         path: python-coverage-comment-action.txt
     - name: Stop containers
       if: always()
-      run: docker-compose -f "docker-compose-test.yaml" down
+      run: docker compose -f "docker-compose-test.yaml" down
