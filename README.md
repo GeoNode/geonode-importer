@@ -70,7 +70,7 @@
 | importer/migrations/0006\_dataset\_migration.py                                             |       21 |       12 |     43% |     14-29 |
 | importer/migrations/\_\_init\_\_.py                                                         |        0 |        0 |    100% |           |
 | importer/models.py                                                                          |       23 |        2 |     91% |     28-29 |
-| importer/orchestrator.py                                                                    |      147 |       16 |     89% |69-70, 101, 158-160, 191, 259-268, 272-273, 284, 292-295 |
+| importer/orchestrator.py                                                                    |      139 |       16 |     88% |62-63, 94, 151-153, 183, 249-258, 262-263, 274, 282-285 |
 | importer/publisher.py                                                                       |       74 |       14 |     81% |61, 91, 94-111, 146-148, 193-194 |
 | importer/settings.py                                                                        |        7 |        0 |    100% |           |
 | importer/tests/\_\_init\_\_.py                                                              |        0 |        0 |    100% |           |
@@ -81,7 +81,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2700** |  **339** | **87%** |           |
+|                                                                                   **TOTAL** | **2692** |  **339** | **87%** |           |
 
 
 ## Setup coverage badge
