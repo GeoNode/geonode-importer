@@ -57,7 +57,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
-            legacy_upload_name="dummy",
             input_params={
                 "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
@@ -97,7 +96,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             user=get_user_model().objects.get(username=user),
             func_name="dummy_func",
             step="dummy_step",
-            legacy_upload_name="dummy",
             input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
@@ -131,7 +129,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             user=get_user_model().objects.get(username=user),
             func_name="dummy_func",
             step="dummy_step",
-            legacy_upload_name="dummy",
             input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
@@ -203,7 +200,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 user=get_user_model().objects.get(username=self.user),
                 func_name="dummy_func",
                 step="dummy_step",
-                legacy_upload_name="dummy",
                 input_params={
                     "files": {"base_file": self.existing_file},
                     "overwrite_existing_layer": True,
@@ -258,7 +254,6 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     user=get_user_model().objects.get(username=self.user),
                     func_name="dummy_func",
                     step="dummy_step",
-                    legacy_upload_name="dummy",
                     input_params={
                         "files": {"base_file": self.existing_file},
                         "overwrite_existing_layer": True,
@@ -531,7 +526,6 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
-            legacy_upload_name="dummy",
             input_params={
                 "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,

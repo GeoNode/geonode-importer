@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional
 from uuid import UUID
 
@@ -9,9 +8,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_celery_results.models import TaskResult
-from geonode.base.enumerations import STATE_INVALID, STATE_PROCESSED, STATE_RUNNING
 from geonode.resource.models import ExecutionRequest
-from geonode.upload.models import Upload
+from geonode.storage.manager import storage_manager
 from rest_framework import serializers
 
 from importer.api.exception import ImportException
@@ -30,12 +28,7 @@ class ImportOrchestrator:
     it call the next step of the import pipeline
     Params:
 
-    enable_legacy_upload_status default=True: if true, will save the upload progress
-        also in the legacy upload system
     """
-
-    def __init__(self, enable_legacy_upload_status=True) -> None:
-        self.enable_legacy_upload_status = enable_legacy_upload_status
 
     def get_handler(self, _data) -> Optional[BaseHandler]:
         """
@@ -172,7 +165,6 @@ class ImportOrchestrator:
             finished=timezone.now(),
             last_updated=timezone.now(),
             log=reason,
-            legacy_status=STATE_INVALID,
         )
         # delete
         if delete_file:
@@ -194,7 +186,6 @@ class ImportOrchestrator:
             finished=timezone.now(),
             last_updated=timezone.now(),
             log=f"The execution is completed, but the following layers are not imported: \n {', '.join(reason)}. Check the logs for additional infos",
-            legacy_status=STATE_INVALID,
         )
 
     def set_as_completed(self, execution_id):
@@ -206,7 +197,6 @@ class ImportOrchestrator:
             status=ExecutionRequest.STATUS_FINISHED,
             finished=timezone.now(),
             last_updated=timezone.now(),
-            legacy_status=STATE_PROCESSED,
         )
 
     def evaluate_execution_progress(
@@ -301,7 +291,6 @@ class ImportOrchestrator:
         step: str,
         input_params: dict = {},
         resource=None,
-        legacy_upload_name="",
         action=None,
         name=None,
         source=None,
@@ -320,29 +309,12 @@ class ImportOrchestrator:
             name=name,
             source=source,
         )
-        if self.enable_legacy_upload_status:
-            # getting the package name from the base_filename
-            Upload.objects.create(
-                name=legacy_upload_name
-                or os.path.basename(input_params.get("files", {}).get("base_file")),
-                state=STATE_RUNNING,
-                user=user,
-                metadata={
-                    **{
-                        "func_name": func_name,
-                        "step": step,
-                        "exec_id": str(execution.exec_id),
-                    },
-                    **input_params,
-                },
-            )
         return execution.exec_id
 
     def update_execution_request_status(
         self,
         execution_id,
         status=None,
-        legacy_status=STATE_RUNNING,
         celery_task_request=None,
         **kwargs,
     ):
@@ -355,12 +327,6 @@ class ImportOrchestrator:
 
         ExecutionRequest.objects.filter(exec_id=execution_id).update(**kwargs)
 
-        if self.enable_legacy_upload_status:
-            Upload.objects.filter(metadata__contains=execution_id).update(
-                state=legacy_status,
-                complete=True,
-                metadata={**kwargs, **{"exec_id": execution_id}},
-            )
         if celery_task_request:
             TaskResult.objects.filter(task_id=celery_task_request.id).update(
                 task_args=celery_task_request.args
@@ -376,4 +342,4 @@ class ImportOrchestrator:
         return self.load_handler(handler_module_path).perform_last_step(execution_id)
 
 
-orchestrator = ImportOrchestrator(enable_legacy_upload_status=False)
+orchestrator = ImportOrchestrator()

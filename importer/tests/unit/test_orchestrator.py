@@ -10,12 +10,10 @@ from importer.api.serializer import ImporterSerializer
 from importer.handlers.base import BaseHandler
 from importer.handlers.shapefile.serializer import ShapeFileSerializer
 from importer.orchestrator import ImportOrchestrator
-from geonode.upload.models import Upload
 from django.utils import timezone
 from django_celery_results.models import TaskResult
 from geonode.assets.handlers import asset_handler_registry
 
-from geonode.base import enumerations as enum
 from geonode.resource.models import ExecutionRequest
 
 # Create your tests here.
@@ -103,8 +101,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertEqual(count + 1, ExecutionRequest.objects.count())
         self.assertDictEqual(input_files, exec_obj.input_params)
         self.assertEqual(exec_obj.STATUS_READY, exec_obj.status)
-        # check that also the legacy is created
-        self.assertIsNotNone(Upload.objects.get(metadata__icontains=exec_id))
 
     @patch("importer.orchestrator.importer_app.tasks.get")
     def test_perform_next_step(self, mock_celery):
@@ -184,7 +180,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         _excec = ExecutionRequest.objects.filter(exec_id=_id).first()
         self.assertIsNotNone(_excec)
         self.assertEqual(ExecutionRequest.STATUS_FAILED, _excec.status)
-        self.assertIsNotNone(Upload.objects.get(metadata__icontains=_id))
 
     def test_set_as_failed(self):
         # creating the temporary file that will be deleted
@@ -227,14 +222,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertTrue(req.status, ExecutionRequest.STATUS_FAILED)
         self.assertTrue(req.log, "automatic test")
         self.assertFalse(os.path.exists(fake_path))
-        # check legacy execution status
-        legacy = Upload.objects.filter(metadata__contains=_uuid)
-        self.assertTrue(legacy.exists())
-        self.assertEqual(legacy.first().state, enum.STATE_INVALID)
-
         # cleanup
         req.delete()
-        legacy.delete()
 
     def test_set_as_completed(self):
         # we need to create first the execution
@@ -254,14 +243,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         req = ExecutionRequest.objects.get(exec_id=_uuid)
         self.assertTrue(req.status, ExecutionRequest.STATUS_FINISHED)
 
-        # check legacy execution status
-        legacy = Upload.objects.filter(metadata__contains=_uuid)
-        self.assertTrue(legacy.exists())
-        self.assertEqual(legacy.first().state, enum.STATE_PROCESSED)
-
         # cleanup
         req.delete()
-        legacy.delete()
 
     def test_update_execution_request_status(self):
         # we need to create first the execution
@@ -287,14 +270,8 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
         self.assertTrue(req.func_name, "function_name")
         self.assertTrue(req.step, "step_here")
 
-        # check legacy execution status
-        legacy = Upload.objects.filter(metadata__contains=_uuid)
-        self.assertTrue(legacy.exists())
-        self.assertEqual(legacy.first().state, enum.STATE_RUNNING)
-
         # cleanup
         req.delete()
-        legacy.delete()
 
     def test_evaluate_execution_progress_should_continue_if_some_task_is_not_finished(
         self,
@@ -306,7 +283,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                     user=get_user_model().objects.first(),
                     func_name="test",
                     step="test",
-                    legacy_upload_name="test",
                 )
             )
 
@@ -360,7 +336,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                     user=get_user_model().objects.first(),
                     func_name="test",
                     step="test",
-                    legacy_upload_name="test",
                     input_params={
                         "asset_id": asset.id,
                         "asset_module_path": f"{asset.__module__}.{asset.__class__.__name__}",
@@ -389,7 +364,6 @@ class TestsImporterOrchestrator(GeoNodeBaseTestSupport):
                     user=get_user_model().objects.first(),
                     func_name="test",
                     step="test",
-                    legacy_upload_name="test",
                 )
             )
 
