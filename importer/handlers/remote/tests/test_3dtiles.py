@@ -8,6 +8,7 @@ from importer.handlers.tiles3d.exceptions import Invalid3DTilesException
 from importer.orchestrator import orchestrator
 from geonode.base.populate_test_data import create_single_dataset
 from geonode.resource.models import ExecutionRequest
+from geonode.base.models import ResourceBase
 
 
 class TestRemoteTiles3DFileHandler(TestCase):
@@ -133,7 +134,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
                 "layername",
                 "layeralternate",
                 execution_id=exec_id,
-                resource_type="ResourceBase",
+                resource_type=ResourceBase,
                 asset=None,
             )
 
@@ -153,7 +154,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
             "layername",
             "layeralternate",
             execution_id=exec_id,
-            resource_type="ResourceBase",
+            resource_type=ResourceBase,
             asset=None,
         )
         self.assertIsNotNone(resource)
