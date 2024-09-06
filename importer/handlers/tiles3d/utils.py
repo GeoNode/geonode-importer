@@ -127,6 +127,7 @@ def fromCartesian(cartesian):
 
     return {"longitude": longitude, "latitude": latitude, "height": height}
 
+
 def getScale(matrix):
     '''
     Cesium.Matrix4.getScale()
@@ -135,16 +136,17 @@ def getScale(matrix):
     '''
 
     # check the type of the matrix
-    if isinstance(matrix, np.ndarray)!=True:
+    if not isinstance(matrix, np.ndarray):
         print('Please define a NumPy array object')
 
     x = np.linalg.norm([matrix[0][0], matrix[0][1], matrix[0][2]])
     y = np.linalg.norm([matrix[1][0], matrix[1][1], matrix[1][2]])
     z = np.linalg.norm([matrix[2][0], matrix[2][1], matrix[2][2]])
-    
+
     result = np.array([x, y, z])
 
     return result
+
 
 def box_to_wgs84(box_raw, transform_raw):
     box = box_raw
@@ -190,33 +192,34 @@ def box_to_wgs84(box_raw, transform_raw):
         "maxy": lat + radiusDegrees,
     }
 
+
 def sphere_to_wgs84(sphere_raw, transform_raw):
-    
+
     transform_raw = transform_raw or [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-    
+
     transform = np.array([
         transform_raw[0:4],
         transform_raw[4:8],
         transform_raw[8:12],
         transform_raw[12:16],
     ])
-    
+
     centerPoint = np.array([sphere_raw[0], sphere_raw[1], sphere_raw[2], 1])
 
     radius = sphere_raw[3]
-    
+
     # Sphere center after the transformation
-    center = centerPoint.dot(transform) # Cesium.Matrix4.multiplyByPoint
+    center = centerPoint.dot(transform)  # Cesium.Matrix4.multiplyByPoint
 
     scale = getScale(transform)
     uniformScale = np.max(scale)
-    radiusDegrees = (radius * uniformScale) / 111194.87428468118 # degrees of one meter
+    radiusDegrees = (radius * uniformScale) / 111194.87428468118  # degrees of one meter
 
     cartographic = fromCartesian(center)
-    
+
     if not cartographic:
         return None
-    
+
     lng = math.degrees(cartographic['longitude'])
     lat = math.degrees(cartographic['latitude'])
 

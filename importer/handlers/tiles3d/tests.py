@@ -441,8 +441,7 @@ class TestTiles3DFileHandler(TestCase):
         self.assertEqual(resource.bbox_y1, 86.8110610157489)
 
         os.remove("/tmp/tileset.json")
-   
-     
+
     def test_set_bbox_from_bounding_volume_sphere_with_center_zero_without_transform(self):
         # https://github.com/geosolutions-it/MapStore2/blob/master/web/client/api/__tests__/ThreeDTiles-test.js#L53C4-L79C8
         # This test should not extract bbox from boundingVolume sphere with center 0, 0, 0
@@ -476,7 +475,6 @@ class TestTiles3DFileHandler(TestCase):
         self.assertTrue(resource.bbox == self.default_bbox)
 
         os.remove("/tmp/tileset.json")
-    
 
     def _generate_execid_asset(self):
         exec_id = orchestrator.create_execution_request(

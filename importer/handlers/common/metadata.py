@@ -35,10 +35,6 @@ class MetadataFileHandler(BaseHandler):
             return MetadataFileSerializer
         return False
 
-    @property
-    def supported_file_extension_config(self):
-        return None
-
     @staticmethod
     def extract_params_from_data(_data, action=None):
         """

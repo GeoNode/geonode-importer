@@ -118,7 +118,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
                 ExecutionRequest.objects.filter(exec_id=exec_id).delete()
 
     def test_create_geonode_resource_raise_error_if_url_is_not_reachabel(self):
-        with self.assertRaises(Invalid3DTilesException) as error:
+        with self.assertRaises(Invalid3DTilesException):
             exec_id = orchestrator.create_execution_request(
                 user=self.owner,
                 func_name="funct1",
@@ -130,7 +130,7 @@ class TestRemoteTiles3DFileHandler(TestCase):
                 },
             )
 
-            resource = self.handler.create_geonode_resource(
+            self.handler.create_geonode_resource(
                 "layername",
                 "layeralternate",
                 execution_id=exec_id,
