@@ -1,6 +1,5 @@
 import pyproj
 from importer.publisher import DataPublisher
-from importer.utils import find_key_recursively
 import json
 import logging
 from pathlib import Path
@@ -9,7 +8,6 @@ from typing import List
 
 from django.conf import settings
 from django.db.models import Q
-from django_celery_results.models import TaskResult
 from geonode.base.models import ResourceBase
 from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction as exa
@@ -186,34 +184,7 @@ class BaseRasterFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        """
-        Override this method if there is some extra step to perform
-        before considering the execution as completed.
-        For example can be used to trigger an email-send to notify
-        that the execution is completed
-        """
-        # as last step, we delete the celery task to keep the number of rows under control
-        lower_exec_id = execution_id.replace("-", "_").lower()
-        TaskResult.objects.filter(
-            Q(task_args__icontains=lower_exec_id)
-            | Q(task_kwargs__icontains=lower_exec_id)
-            | Q(result__icontains=lower_exec_id)
-            | Q(task_args__icontains=execution_id)
-            | Q(task_kwargs__icontains=execution_id)
-            | Q(result__icontains=execution_id)
-        ).delete()
-
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
+        BaseHandler.perform_last_step(execution_id=execution_id)
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
@@ -340,7 +311,7 @@ class BaseRasterFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -363,6 +334,7 @@ class BaseRasterFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
@@ -374,12 +346,7 @@ class BaseRasterFileHandler(BaseHandler):
                 dirty_state=True,
                 title=layer_name,
                 owner=_exec.user,
-                files=list(
-                    set(
-                        list(_exec.input_params.get("files", {}).values())
-                        or list(files)
-                    )
-                ),
+                asset=asset,
             ),
         )
 
@@ -401,11 +368,12 @@ class BaseRasterFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
-        dataset = resource_type.objects.filter(alternate__icontains=alternate)
-
+        
         _exec = self._get_execution_request_object(execution_id)
+
+        dataset = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
 
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
@@ -429,7 +397,7 @@ class BaseRasterFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, files
+                layer_name, alternate, execution_id, resource_type, asset
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -511,9 +479,9 @@ class BaseRasterFileHandler(BaseHandler):
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=kwargs.get("kwargs", {})
+            asset=kwargs.get("kwargs", {})
             .get("new_file_location", {})
-            .get("files", []),
+            .get("asset", []),
         )
         resource.refresh_from_db()
         return resource
@@ -527,43 +495,6 @@ class BaseRasterFileHandler(BaseHandler):
         Copy the original file into a new location
         """
         return storage_manager.copy(dataset)
-
-    def rollback(
-        self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
-    ):
-        steps = self.ACTIONS.get(action_to_rollback)
-        if rollback_from_step not in steps:
-            logger.info(f"Step not found {rollback_from_step}, skipping")
-            return
-        step_index = steps.index(rollback_from_step)
-        # the start_import, start_copy etc.. dont do anything as step, is just the start
-        # so there is nothing to rollback
-        steps_to_rollback = steps[1 : step_index + 1]  # noqa
-        if not steps_to_rollback:
-            return
-        # reversing the tuple to going backwards with the rollback
-        reversed_steps = steps_to_rollback[::-1]
-        istance_name = None
-        try:
-            istance_name = (
-                find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
-            )
-        except Exception:
-            pass
-
-        logger.warning(
-            f"Starting rollback for execid: {exec_id} resource published was: {istance_name}"
-        )
-
-        for step in reversed_steps:
-            normalized_step_name = step.split(".")[-1]
-            if getattr(self, f"_{normalized_step_name}_rollback", None):
-                function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, istance_name, *args, **kwargs)
-
-        logger.warning(
-            f"Rollback for execid: {exec_id} resource published was: {istance_name} completed"
-        )
 
     def _import_resource_rollback(self, exec_id, istance_name=None, *args, **kwargs):
         """
@@ -583,27 +514,6 @@ class BaseRasterFileHandler(BaseHandler):
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
         publisher.delete_resource(istance_name)
-
-    def _create_geonode_resource_rollback(
-        self, exec_id, istance_name=None, *args, **kwargs
-    ):
-        """
-        The handler will remove the resource from geonode
-        """
-        logger.info(
-            f"Rollback geonode step in progress for execid: {exec_id} resource created was: {istance_name}"
-        )
-        resource = ResourceBase.objects.filter(alternate__icontains=istance_name)
-        if resource.exists():
-            resource.delete()
-
-    def _copy_dynamic_model_rollback(self, exec_id, istance_name=None, *args, **kwargs):
-        self._import_resource_rollback(exec_id, istance_name=istance_name)
-
-    def _copy_geonode_resource_rollback(
-        self, exec_id, istance_name=None, *args, **kwargs
-    ):
-        self._create_geonode_resource_rollback(exec_id, istance_name=istance_name)
 
 
 @importer_app.task(

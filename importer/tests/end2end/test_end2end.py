@@ -16,7 +16,12 @@ from importer import project_dir
 from importer.tests.utils import ImporterBaseTestSupport
 import gisdata
 from geonode.base.populate_test_data import create_single_dataset
+from django.db.models import Q
+from geonode.base.models import ResourceBase
+import logging
+from geonode.harvesting.harvesters.wms import WebMapService
 
+logger = logging.getLogger()
 geourl = settings.GEODATABASE_URL
 
 
@@ -24,6 +29,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
+        cls.user = get_user_model().objects.exclude(username="Anonymous").first()
         cls.valid_gkpg = f"{project_dir}/tests/fixture/valid.gpkg"
         cls.valid_geojson = f"{project_dir}/tests/fixture/valid.geojson"
         cls.no_crs_gpkg = f"{project_dir}/tests/fixture/noCrsTable.gpkg"
@@ -37,6 +43,7 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         }
         cls.valid_kml = f"{project_dir}/tests/fixture/valid.kml"
         cls.valid_tif = f"{project_dir}/tests/fixture/test_grid.tif"
+        cls.valid_csv = f"{project_dir}/tests/fixture/valid.csv"
 
         cls.url = reverse("importer_upload")
         ogc_server_settings = OGC_Servers_Handler(settings.OGC_SERVER)["default"]
@@ -57,12 +64,21 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
         for el in Dataset.objects.all():
             el.delete()
 
-    def _assertimport(self, payload, initial_name, overwrite=False, last_update=None):
+    def _assertimport(
+        self,
+        payload,
+        initial_name,
+        overwrite=False,
+        last_update=None,
+        skip_geoserver=False,
+        assert_payload=None,
+        keep_resource=False,
+    ):
         try:
             self.client.force_login(self.admin)
 
             response = self.client.post(self.url, data=payload)
-            self.assertEqual(201, response.status_code)
+            self.assertEqual(201, response.status_code, response.json())
 
             # if is async, we must wait. It will wait for 1 min before raise exception
             if ast.literal_eval(os.getenv("ASYNC_SIGNALS", "False")):
@@ -98,21 +114,38 @@ class BaseImporterEndToEndTest(ImporterBaseTestSupport):
                 self.assertTrue(entries.as_model().objects.exists())
 
             # check if the geonode resource exists
-            dataset = Dataset.objects.filter(
-                alternate__icontains=f"geonode:{initial_name}"
+            resource = ResourceBase.objects.filter(
+                Q(alternate__icontains=f"geonode:{initial_name}")
+                | Q(alternate__icontains=initial_name)
             )
-            self.assertTrue(dataset.exists())
+            self.assertTrue(resource.exists())
 
-            resources = self.cat.get_resources()
-            # check if the resource is in geoserver
-            self.assertTrue(dataset.first().title in [y.name for y in resources])
+            if not skip_geoserver:
+                resources = self.cat.get_resources()
+                # check if the resource is in geoserver
+                self.assertTrue(resource.first().title in [y.name for y in resources])
             if overwrite:
-                self.assertTrue(dataset.first().last_updated > last_update)
+                self.assertTrue(resource.first().last_updated > last_update)
+
+            if assert_payload:
+                target = resource.first()
+                target.refresh_from_db()
+                for key, value in assert_payload.items():
+                    if hasattr(target, key):
+                        self.assertEqual(getattr(target, key), value)
+                    else:
+                        logger.error(
+                            f"The attribute {key} doesn't belong to the resource."
+                        )
+            if keep_resource:
+                return resource.first()
         finally:
-            dataset = Dataset.objects.filter(
-                alternate__icontains=f"geonode:{initial_name}"
-            )
-            dataset.delete()
+            if not keep_resource:
+                resource = ResourceBase.objects.filter(
+                    Q(alternate__icontains=f"geonode:{initial_name}")
+                    | Q(alternate__icontains=initial_name)
+                )
+                resource.delete()
 
 
 class ImporterGeoPackageImportTest(BaseImporterEndToEndTest):
@@ -189,6 +222,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
     @mock.patch(
         "importer.handlers.common.vector.BaseVectorFileHandler._select_valid_layers"
     )
+    @override_settings(MEDIA_ROOT="/tmp/", ASSETS_ROOT="/tmp/")
     def test_import_geopackage_with_no_crs_table_should_raise_error_if_all_layer_are_invalid(
         self, _select_valid_layers
     ):
@@ -199,6 +233,7 @@ class ImporterNoCRSImportTest(BaseImporterEndToEndTest):
 
         payload = {
             "base_file": open(self.no_crs_gpkg, "rb"),
+            "store_spatial_file": True,
         }
 
         with self.assertLogs(level="ERROR") as _log:
@@ -247,6 +282,48 @@ class ImporterGeoJsonImportTest(BaseImporterEndToEndTest):
             self.cat.delete(layer)
         payload = {
             "base_file": open(self.valid_geojson, "rb"),
+        }
+        initial_name = "valid"
+        payload["overwrite_existing_layer"] = True
+        self._assertimport(
+            payload, initial_name, overwrite=True, last_update=prev_dataset.last_updated
+        )
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+
+class ImporterGCSVImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_geojson(self):
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+        payload = {
+            "base_file": open(self.valid_csv, "rb"),
+        }
+        initial_name = "valid"
+        self._assertimport(payload, initial_name)
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data"
+    )
+    def test_import_csv_overwrite(self):
+        prev_dataset = create_single_dataset(name="valid")
+
+        layer = self.cat.get_layer("geonode:valid")
+        if layer:
+            self.cat.delete(layer)
+        payload = {
+            "base_file": open(self.valid_csv, "rb"),
         }
         initial_name = "valid"
         payload["overwrite_existing_layer"] = True
@@ -381,3 +458,99 @@ class ImporterRasterImportTest(BaseImporterEndToEndTest):
         layer = self.cat.get_layer("test_grid")
         if layer:
             self.cat.delete(layer)
+
+
+class Importer3dTilesImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
+    )
+    def test_import_3dtiles(self):
+        payload = {
+            "url": "https://raw.githubusercontent.com/CesiumGS/3d-tiles-samples/main/1.1/TilesetWithFullMetadata/tileset.json",
+            "title": "Remote Title",
+            "type": "3dtiles",
+        }
+        initial_name = "remote_title"
+        assert_payload = {
+            "subtype": "3dtiles",
+            "title": "Remote Title",
+            "resource_type": "dataset",
+        }
+        self._assertimport(
+            payload, initial_name, skip_geoserver=True, assert_payload=assert_payload
+        )
+
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
+    )
+    def test_import_3dtiles_overwrite(self):
+        payload = {
+            "url": "https://raw.githubusercontent.com/CesiumGS/3d-tiles-samples/main/1.1/TilesetWithFullMetadata/tileset.json",
+            "title": "Remote Title",
+            "type": "3dtiles",
+        }
+        initial_name = "remote_title"
+        assert_payload = {
+            "subtype": "3dtiles",
+            "title": "Remote Title",
+            "resource_type": "dataset",
+        }
+        # Lets import the resource first but without deleting it
+        resource = self._assertimport(
+            payload,
+            initial_name,
+            skip_geoserver=True,
+            keep_resource=True,
+            assert_payload=assert_payload,
+        )
+        prev_timestamp = resource.last_updated
+        # let's re-import it again with the overwrite mode activated
+        assert_payload = {
+            "subtype": "3dtiles",
+            "resource_type": "dataset",
+        }
+        payload["overwrite_existing_layer"] = True
+        self._assertimport(
+            payload,
+            initial_name,
+            skip_geoserver=True,
+            overwrite=True,
+            assert_payload=assert_payload,
+            last_update=prev_timestamp,
+        )
+
+
+class ImporterWMSImportTest(BaseImporterEndToEndTest):
+    @mock.patch.dict(os.environ, {"GEONODE_GEODATABASE": "test_geonode_data", "ASYNC_SIGNALS": "False"})
+    @override_settings(
+        GEODATABASE_URL=f"{geourl.split('/geonode_data')[0]}/test_geonode_data",
+        ASYNC_SIGNALS=False
+    )
+    def test_import_wms(self):
+        _, wms = WebMapService(
+            "https://development.demo.geonode.org/geoserver/ows?service=WMS&version=1.3.0&request=GetCapabilities"
+        )
+        resource_to_take = next(iter(wms.contents))
+        res = wms[next(iter(wms.contents))]
+        payload = {
+            "url": "https://development.demo.geonode.org/geoserver/ows?service=WMS&version=1.3.0&request=GetCapabilities",
+            "title": "Remote Title",
+            "type": "wms",
+            "lookup": resource_to_take,
+            "parse_remote_metadata": True,
+        }
+        initial_name = res.title
+        assert_payload = {
+            "subtype": "remote",
+            "title": res.title,
+            "resource_type": "dataset",
+            "sourcetype": "REMOTE",
+            "ptype": "gxp_wmscsource",
+        }
+        self._assertimport(
+            payload, initial_name, skip_geoserver=True, assert_payload=assert_payload
+        )

@@ -35,10 +35,6 @@ class MetadataFileHandler(BaseHandler):
             return MetadataFileSerializer
         return False
 
-    @property
-    def supported_file_extension_config(self):
-        return None
-
     @staticmethod
     def extract_params_from_data(_data, action=None):
         """
@@ -55,17 +51,7 @@ class MetadataFileHandler(BaseHandler):
 
     @staticmethod
     def perform_last_step(execution_id):
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
+        BaseHandler.perform_last_step(execution_id=execution_id)
 
     def import_resource(self, files: dict, execution_id: str, **kwargs):
         _exec = orchestrator.get_execution_object(execution_id)

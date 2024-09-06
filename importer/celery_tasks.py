@@ -299,7 +299,7 @@ def create_geonode_resource(
     layer_name: Optional[str] = None,
     alternate: Optional[str] = None,
     handler_module_path: str = None,
-    action: str = None,
+    action: str = exa.IMPORT.value,
     **kwargs,
 ):
     """
@@ -329,6 +329,17 @@ def create_geonode_resource(
 
         _files = _exec.input_params.get("files")
 
+        if not _files:
+            _asset = None
+        else:
+            _asset = (
+                import_string(_exec.input_params.get("asset_module_path"))
+                .objects.filter(id=_exec.input_params.get("asset_id"))
+                .first()
+            )
+
+        handler_module_path = handler_module_path or _exec.input_params.get('handler_module_path')
+
         handler = import_string(handler_module_path)()
         _overwrite = _exec.input_params.get("overwrite_existing_layer")
 
@@ -337,14 +348,14 @@ def create_geonode_resource(
                 layer_name=layer_name,
                 alternate=alternate,
                 execution_id=execution_id,
-                files=_files,
+                asset=_asset,
             )
         else:
             resource = handler.create_geonode_resource(
                 layer_name=layer_name,
                 alternate=alternate,
                 execution_id=execution_id,
-                files=_files,
+                asset=_asset,
             )
 
         if _overwrite:

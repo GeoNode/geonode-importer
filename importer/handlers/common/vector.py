@@ -1,8 +1,7 @@
 import ast
 from django.db import connections
 from importer.publisher import DataPublisher
-from importer.utils import call_rollback_function, find_key_recursively
-from itertools import chain
+from importer.utils import call_rollback_function
 import json
 import logging
 import os
@@ -11,7 +10,6 @@ from typing import List
 from celery import chord, group
 
 from django.conf import settings
-from django_celery_results.models import TaskResult
 from dynamic_models.models import ModelSchema
 from dynamic_models.schema import ModelSchemaEditor
 from geonode.base.models import ResourceBase
@@ -30,13 +28,14 @@ from geonode.resource.models import ExecutionRequest
 from osgeo import ogr
 from importer.api.exception import ImportException
 from importer.celery_app import importer_app
-from geonode.storage.manager import storage_manager
+from geonode.assets.utils import copy_assets_and_links, get_default_asset
 
 from importer.handlers.utils import create_alternate, should_be_imported
 from importer.models import ResourceHandlerInfo
 from importer.orchestrator import orchestrator
 from django.db.models import Q
 import pyproj
+from geonode.geoserver.security import delete_dataset_cache, set_geowebcache_invalidate_cache
 
 logger = logging.getLogger(__name__)
 
@@ -220,34 +219,15 @@ class BaseVectorFileHandler(BaseHandler):
         For example can be used to trigger an email-send to notify
         that the execution is completed
         """
-        # as last step, we delete the celery task to keep the number of rows under control
-        lower_exec_id = execution_id.replace("-", "_").lower()
-        TaskResult.objects.filter(
-            Q(task_args__icontains=lower_exec_id)
-            | Q(task_kwargs__icontains=lower_exec_id)
-            | Q(result__icontains=lower_exec_id)
-            | Q(task_args__icontains=execution_id)
-            | Q(task_kwargs__icontains=execution_id)
-            | Q(result__icontains=execution_id)
-        ).delete()
-
-        _exec = orchestrator.get_execution_object(execution_id)
-
-        _exec.output_params.update(
-            **{
-                "detail_url": [
-                    x.resource.detail_url
-                    for x in ResourceHandlerInfo.objects.filter(execution_request=_exec)
-                ]
-            }
-        )
-        _exec.save()
+        _exec = BaseHandler.perform_last_step(execution_id=execution_id)
         if _exec and not _exec.input_params.get("store_spatial_file", False):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
-            # getting all files list
-            resources_files = list(set(chain(*[x.resource.files for x in resources])))
-            # better to delete each single file since it can be a remove storage service
-            list(map(storage_manager.delete, resources_files))
+            # getting all assets list
+            assets = filter(None, [get_default_asset(x.resource) for x in resources])
+            # we need to loop and cancel one by one to activate the signal
+            # that delete the file from the filesystem
+            for asset in assets:
+                asset.delete()
 
     def extract_resource_to_publish(
         self, files, action, layer_name, alternate, **kwargs
@@ -587,7 +567,7 @@ class BaseVectorFileHandler(BaseHandler):
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -610,24 +590,12 @@ class BaseVectorFileHandler(BaseHandler):
             logger.warning(
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
+
         saved_dataset = resource_manager.create(
             None,
             resource_type=resource_type,
-            defaults=dict(
-                name=alternate,
-                workspace=workspace,
-                store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
-                subtype="vector",
-                alternate=f"{workspace}:{alternate}",
-                dirty_state=True,
-                title=layer_name,
-                owner=_exec.user,
-                files=list(
-                    set(
-                        list(_exec.input_params.get("files", {}).values())
-                        or list(files)
-                    )
-                ),
+            defaults=self.generate_resource_payload(
+                layer_name, alternate, asset, _exec, workspace
             ),
         )
 
@@ -643,17 +611,30 @@ class BaseVectorFileHandler(BaseHandler):
         saved_dataset.refresh_from_db()
         return saved_dataset
 
+    def generate_resource_payload(self, layer_name, alternate, asset, _exec, workspace):
+        return dict(
+            name=alternate,
+            workspace=workspace,
+            store=os.environ.get("GEONODE_GEODATABASE", "geonode_data"),
+            subtype="vector",
+            alternate=f"{workspace}:{alternate}",
+            dirty_state=True,
+            title=layer_name,
+            owner=_exec.user,
+            asset=asset,
+        )
+
     def overwrite_geonode_resource(
         self,
         layer_name: str,
         alternate: str,
         execution_id: str,
         resource_type: Dataset = Dataset,
-        files=None,
+        asset=None,
     ):
-        dataset = resource_type.objects.filter(alternate__icontains=alternate)
-
         _exec = self._get_execution_request_object(execution_id)
+
+        dataset = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
 
         _overwrite = _exec.input_params.get("overwrite_existing_layer", False)
         # if the layer exists, we just update the information of the dataset by
@@ -661,8 +642,11 @@ class BaseVectorFileHandler(BaseHandler):
         if dataset.exists() and _overwrite:
             dataset = dataset.first()
 
+            delete_dataset_cache(dataset.alternate)
+            set_geowebcache_invalidate_cache(dataset.typename)
+
             dataset = resource_manager.update(
-                dataset.uuid, instance=dataset, files=files
+                dataset.uuid, instance=dataset, files=asset.location
             )
 
             self.handle_xml_file(dataset, _exec)
@@ -678,7 +662,7 @@ class BaseVectorFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, files
+                layer_name, alternate, execution_id, resource_type, asset
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(
@@ -756,14 +740,16 @@ class BaseVectorFileHandler(BaseHandler):
         new_alternate: str,
         **kwargs,
     ):
-        resource = self.create_geonode_resource(
+
+        new_resource = self.create_geonode_resource(
             layer_name=data_to_update.get("title"),
             alternate=new_alternate,
             execution_id=str(_exec.exec_id),
-            files=resource.files,
+            asset=get_default_asset(resource),
         )
-        resource.refresh_from_db()
-        return resource
+        copy_assets_and_links(resource, target=new_resource)
+        new_resource.refresh_from_db()
+        return new_resource
 
     def get_ogr2ogr_task_group(
         self,
@@ -795,43 +781,6 @@ class BaseVectorFileHandler(BaseHandler):
         Used to get the standard field type in the dynamic_model_field definition
         """
         return STANDARD_TYPE_MAPPING.get(ogr.FieldDefn.GetTypeName(_type))
-
-    def rollback(
-        self, exec_id, rollback_from_step, action_to_rollback, *args, **kwargs
-    ):
-        steps = self.ACTIONS.get(action_to_rollback)
-        if rollback_from_step not in steps:
-            logger.info(f"Step not found {rollback_from_step}, skipping")
-            return
-        step_index = steps.index(rollback_from_step)
-        # the start_import, start_copy etc.. dont do anything as step, is just the start
-        # so there is nothing to rollback
-        steps_to_rollback = steps[1 : step_index + 1]  # noqa
-        if not steps_to_rollback:
-            return
-        # reversing the tuple to going backwards with the rollback
-        reversed_steps = steps_to_rollback[::-1]
-        instance_name = None
-        try:
-            instance_name = (
-                find_key_recursively(kwargs, "new_dataset_alternate") or args[3]
-            )
-        except Exception:
-            pass
-
-        logger.warning(
-            f"Starting rollback for execid: {exec_id} resource published was: {instance_name}"
-        )
-
-        for step in reversed_steps:
-            normalized_step_name = step.split(".")[-1]
-            if getattr(self, f"_{normalized_step_name}_rollback", None):
-                function = getattr(self, f"_{normalized_step_name}_rollback")
-                function(exec_id, instance_name, *args, **kwargs)
-
-        logger.warning(
-            f"Rollback for execid: {exec_id} resource published was: {instance_name} completed"
-        )
 
     def _import_resource_rollback(self, exec_id, instance_name=None, *args, **kwargs):
         """
@@ -876,29 +825,6 @@ class BaseVectorFileHandler(BaseHandler):
         handler_module_path = exec_object.input_params.get("handler_module_path")
         publisher = DataPublisher(handler_module_path=handler_module_path)
         publisher.delete_resource(instance_name)
-
-    def _create_geonode_resource_rollback(
-        self, exec_id, instance_name=None, *args, **kwargs
-    ):
-        """
-        The handler will remove the resource from geonode
-        """
-        logger.info(
-            f"Rollback geonode step in progress for execid: {exec_id} resource created was: {instance_name}"
-        )
-        resource = ResourceBase.objects.filter(alternate__icontains=instance_name)
-        if resource.exists():
-            resource.delete()
-
-    def _copy_dynamic_model_rollback(
-        self, exec_id, instance_name=None, *args, **kwargs
-    ):
-        self._import_resource_rollback(exec_id, instance_name=instance_name)
-
-    def _copy_geonode_resource_rollback(
-        self, exec_id, instance_name=None, *args, **kwargs
-    ):
-        self._create_geonode_resource_rollback(exec_id, instance_name=instance_name)
 
 
 @importer_app.task(

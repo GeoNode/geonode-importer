@@ -13,6 +13,26 @@ class XMLFileHandler(MetadataFileHandler):
     Handler to import XML files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
+    @property
+    def supported_file_extension_config(self):
+        return {
+            "id": "xml",
+            "label": "XML Metadata File",
+            "format": "metadata",
+            "ext": ["xml"],
+            "mimeType": ["application/json"],
+            "needsFiles": [
+                "shp",
+                "prj",
+                "dbf",
+                "shx",
+                "csv",
+                "tiff",
+                "zip",
+                "sld",
+                "geojson",
+            ],
+        }
 
     @staticmethod
     def can_handle(_data) -> bool:
@@ -35,7 +55,6 @@ class XMLFileHandler(MetadataFileHandler):
         Define basic validation steps
         """
         # calling base validation checks
-
         try:
             with open(files.get("base_file")) as _xml:
                 dlxml.fromstring(_xml.read().encode())

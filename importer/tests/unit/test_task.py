@@ -24,9 +24,11 @@ from geonode.layers.models import Dataset
 from geonode.resource.enumerator import ExecutionRequestAction
 from geonode.base.models import ResourceBase
 from geonode.base.populate_test_data import create_single_dataset
+from geonode.assets.handlers import asset_handler_registry
 from dynamic_models.models import ModelSchema, FieldSchema
 from dynamic_models.exceptions import DynamicModelError, InvalidFieldNameError
 from importer.models import ResourceHandlerInfo
+from importer import project_dir
 
 from importer.tests.utils import (
     ImporterBaseTestSupport,
@@ -39,14 +41,28 @@ from importer.tests.utils import (
 class TestCeleryTasks(ImporterBaseTestSupport):
     def setUp(self):
         self.user = get_user_model().objects.first()
+        self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
+        self.asset_handler = asset_handler_registry.get_default_handler()
+
+        self.asset = self.asset_handler.create(
+            title="Original",
+            owner=self.user,
+            description=None,
+            type="gpkg",
+            files=[self.existing_file],
+            clone_files=False,
+        )
+
         self.exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
             input_params={
-                "files": {"base_file": "/filepath"},
+                "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
+                "asset_id": self.asset.id,
+                "asset_module_path": f"{self.asset.__module__}.{self.asset.__class__.__name__}",
             },
         )
 
@@ -80,7 +96,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             user=get_user_model().objects.get(username=user),
             func_name="dummy_func",
             step="dummy_step",
-            input_params={"files": "/filepath", "store_spatial_files": True},
+            input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
         is_valid.side_effect = Exception("Invalid format type")
@@ -113,7 +129,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
             user=get_user_model().objects.get(username=user),
             func_name="dummy_func",
             step="dummy_step",
-            input_params={"files": "/filepath", "store_spatial_files": True},
+            input_params={"files": self.existing_file, "store_spatial_files": True},
         )
 
         import_resource(
@@ -185,7 +201,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                 func_name="dummy_func",
                 step="dummy_step",
                 input_params={
-                    "files": {"base_file": "/filepath"},
+                    "files": {"base_file": self.existing_file},
                     "overwrite_existing_layer": True,
                     "store_spatial_files": True,
                 },
@@ -239,7 +255,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     func_name="dummy_func",
                     step="dummy_step",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": self.existing_file},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                     },
@@ -383,7 +399,7 @@ class TestCeleryTasks(ImporterBaseTestSupport):
                     step=conf[0],  # step name
                     action="import",
                     input_params={
-                        "files": {"base_file": "/filepath"},
+                        "files": {"base_file": self.existing_file},
                         "overwrite_existing_layer": True,
                         "store_spatial_files": True,
                         "handler_module_path": "importer.handlers.gpkg.handler.GPKGFileHandler",
@@ -472,9 +488,10 @@ class TestCeleryTasks(ImporterBaseTestSupport):
         # later will be removed
         valid_xml = f"{settings.PROJECT_ROOT}/base/fixtures/test_xml.xml"
         shutil.copy(valid_xml, "/tmp")
+        xml_in_tmp = "/tmp/test_xml.xml"
 
         user, _ = get_user_model().objects.get_or_create(username="admin")
-        valid_files = {"base_file": valid_xml, "xml_file": valid_xml}
+        valid_files = {"base_file": xml_in_tmp, "xml_file": xml_in_tmp}
 
         layer = create_single_dataset("test_dataset_importer")
         exec_id = orchestrator.create_execution_request(
@@ -504,12 +521,13 @@ class TestDynamicModelSchema(TransactionImporterBaseTestSupport):
 
     def setUp(self):
         self.user = get_user_model().objects.first()
+        self.existing_file = f"{project_dir}/tests/fixture/valid.gpkg"
         self.exec_id = orchestrator.create_execution_request(
             user=get_user_model().objects.get(username=self.user),
             func_name="dummy_func",
             step="dummy_step",
             input_params={
-                "files": {"base_file": "/filepath"},
+                "files": {"base_file": self.existing_file},
                 # "overwrite_existing_layer": True,
                 "store_spatial_files": True,
             },

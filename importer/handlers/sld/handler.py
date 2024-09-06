@@ -13,6 +13,26 @@ class SLDFileHandler(MetadataFileHandler):
     Handler to import SLD files into GeoNode data db
     It must provide the task_lists required to comple the upload
     """
+    @property
+    def supported_file_extension_config(self):
+        return {
+            "id": "sld",
+            "label": "Styled Layer Descriptor (SLD)",
+            "format": "metadata",
+            "ext": ["sld"],
+            "mimeType": ["application/json"],
+            "needsFiles": [
+                "shp",
+                "prj",
+                "dbf",
+                "shx",
+                "csv",
+                "tiff",
+                "zip",
+                "xml",
+                "geojson",
+            ],
+        }
 
     @staticmethod
     def can_handle(_data) -> bool:
