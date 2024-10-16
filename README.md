@@ -1,6 +1,9 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/geonode-importer) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/GeoNode/geonode-importer/runtests.yml) ![GitHub top language](https://img.shields.io/github/languages/top/GeoNode/geonode-importer)
 
+# NOTE:
+GeoNode 5 (master branch) includes the importer in its core. This repository and the `geonode-importer` package will be maintained for GeoNode <= 4.4.x
 
+For more information https://github.com/GeoNode/geonode/issues/12368.
 
 # geonode-importer
 
