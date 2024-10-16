@@ -1,6 +1,7 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/geonode-importer) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/GeoNode/geonode-importer/runtests.yml) ![GitHub top language](https://img.shields.io/github/languages/top/GeoNode/geonode-importer)
 
-
+# NOTE:
+The app works with geonode <=4.4.x, in **GeoNode 5** (master branch) the importer is into the main project, so this app is no longer used https://github.com/GeoNode/geonode/issues/12368.
 
 # geonode-importer
 
