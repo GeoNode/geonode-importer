@@ -220,7 +220,7 @@ class BaseVectorFileHandler(BaseHandler):
         that the execution is completed
         """
         _exec = BaseHandler.perform_last_step(execution_id=execution_id)
-        if _exec and not _exec.input_params.get("store_spatial_file", False):
+        if _exec and not _exec.input_params.get("store_spatial_file", True):
             resources = ResourceHandlerInfo.objects.filter(execution_request=_exec)
             # getting all assets list
             assets = filter(None, [get_default_asset(x.resource) for x in resources])
