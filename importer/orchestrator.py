@@ -332,6 +332,11 @@ class ImportOrchestrator:
                 task_args=celery_task_request.args
             )
 
+    def update_execution_request_obj(self, _exec_obj, payload):
+        ExecutionRequest.objects.filter(pk=_exec_obj.pk).update(**payload)
+        _exec_obj.refresh_from_db()
+        return _exec_obj
+
     def _last_step(self, execution_id, handler_module_path):
         """
         Last hookable step for each handler before mark the execution as completed
