@@ -367,6 +367,9 @@ def create_geonode_resource(
                 handler_module_path, resource, _exec, **kwargs
             )
 
+        # assign geonode resource to ExectionRequest
+        orchestrator.update_execution_request_obj(_exec, {"geonode_resource": resource})
+
         # at the end recall the import_orchestrator for the next step
         import_orchestrator.apply_async(
             (
