@@ -140,6 +140,7 @@ class TestTiles3DFileHandler(TestCase):
     def test_validate_should_raise_exception_for_invalid_root_boundingVolume(self):
         _json = {
             "asset": {"version": "1.1"},
+            "geometricError": 1.0,            
             "root": {"foo": {"box": []}, "geometricError": 0.0},
         }
         _path = "/tmp/tileset.json"
@@ -158,7 +159,6 @@ class TestTiles3DFileHandler(TestCase):
     def test_validate_should_raise_exception_for_invalid_root_geometricError(self):
         _json = {
             "asset": {"version": "1.1"},
-            "geometricError": 1.0,
             "root": {"boundingVolume": {"box": []}, "foo": 0.0},
         }
         _path = "/tmp/tileset.json"
