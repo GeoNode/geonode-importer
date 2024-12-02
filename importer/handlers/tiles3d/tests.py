@@ -169,7 +169,7 @@ class TestTiles3DFileHandler(TestCase):
 
         self.assertIsNotNone(_exc)
         self.assertTrue(
-            "The mandatory 'geometricError' for the key 'root' is missing"
+            "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
             in str(_exc.exception.detail)
         )
         os.remove(_path)
