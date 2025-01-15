@@ -55,7 +55,7 @@
 | importer/handlers/sld/handler.py                                                            |       29 |        2 |     93% |     72-75 |
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
-| importer/handlers/tiles3d/handler.py                                                        |      135 |       23 |     83% |129, 143, 153-204, 228, 256-259, 302 |
+| importer/handlers/tiles3d/handler.py                                                        |      138 |       23 |     83% |132, 146, 156-207, 231, 259-262, 305 |
 | importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  140, 221 |
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
@@ -81,7 +81,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2698** |  **344** | **87%** |           |
+|                                                                                   **TOTAL** | **2701** |  **344** | **87%** |           |
 
 
 ## Setup coverage badge
