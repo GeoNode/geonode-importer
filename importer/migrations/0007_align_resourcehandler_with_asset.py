@@ -25,18 +25,23 @@ def dataset_migration(apps, _):
                     if _file.split(".")[-1] in base_file_choices:
                         output_files.update({"base_file": _file})
                         break
-
-                handler = orchestrator.get_handler(output_files)
-                if handler is None:
-                    logger.error(f"Handler not found for resource: {old_resource}")
-                    continue
-                handler.create_resourcehandlerinfo(
-                    handler_module_path=str(handler),
-                    resource=old_resource,
-                    execution_id=None
-                )   
             else:
-                logger.error(f"Was not possible to generare resource_handler_info for resource: {old_resource}")  
+                if old_resource.is_vector():
+                    output_files = {"base_file": "placeholder.shp"}
+                else:
+                    output_files = {"base_file": "placeholder.tiff"}
+
+            handler = orchestrator.get_handler(output_files)
+            if handler is None:
+                logger.error(f"Handler not found for resource: {old_resource}")
+                continue
+            handler.create_resourcehandlerinfo(
+                handler_module_path=str(handler),
+                resource=old_resource,
+                execution_id=None
+            )   
+        else:
+            logger.debug(f"resourcehandler info already exists for the resource")  
 
 
 class Migration(migrations.Migration):
