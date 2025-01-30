@@ -55,7 +55,7 @@
 | importer/handlers/sld/handler.py                                                            |       29 |        2 |     93% |     72-75 |
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
-| importer/handlers/tiles3d/handler.py                                                        |      138 |       23 |     83% |132, 146, 156-207, 231, 259-262, 305 |
+| importer/handlers/tiles3d/handler.py                                                        |      141 |       25 |     82% |66-67, 135, 149, 159-210, 234, 262-265, 308 |
 | importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  140, 221 |
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
@@ -68,6 +68,7 @@
 | importer/migrations/0004\_rename\_execution\_id\_resourcehandlerinfo\_execution\_request.py |        4 |        0 |    100% |           |
 | importer/migrations/0005\_fixup\_dynamic\_shema\_table\_names.py                            |       19 |        7 |     63% |     19-25 |
 | importer/migrations/0006\_dataset\_migration.py                                             |       21 |       12 |     43% |     14-29 |
+| importer/migrations/0007\_align\_resourcehandler\_with\_asset.py                            |       32 |       19 |     41% |     18-44 |
 | importer/migrations/\_\_init\_\_.py                                                         |        0 |        0 |    100% |           |
 | importer/models.py                                                                          |       23 |        2 |     91% |     28-29 |
 | importer/orchestrator.py                                                                    |      143 |       16 |     89% |62-63, 94, 151-153, 183, 249-258, 262-263, 274, 282-285 |
@@ -81,7 +82,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2701** |  **344** | **87%** |           |
+|                                                                                   **TOTAL** | **2736** |  **365** | **87%** |           |
 
 
 ## Setup coverage badge

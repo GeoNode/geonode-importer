@@ -62,10 +62,10 @@
         <p class="text">
             <a id="prevFileLink" class="nav" href="z_1542c82bf7c7f661_0005_fixup_dynamic_shema_table_names_py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a id="nextFileLink" class="nav" href="z_c446ce6418a1ac0f_models_py.html">&#xbb; next</a>
+            <a id="nextFileLink" class="nav" href="z_1542c82bf7c7f661_0007_align_resourcehandler_with_asset_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.4">coverage.py v7.6.4</a>,
-            created at 2025-01-15 17:32 +0000
+            created at 2025-01-30 10:20 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -93,7 +93,7 @@
     <p class="pln"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t">        <span class="nam">pk__in</span><span class="op">=</span><span class="nam">NewResources</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">values_list</span><span class="op">(</span><span class="str">"resource_id"</span><span class="op">,</span> <span class="nam">flat</span><span class="op">=</span><span class="key">True</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t">    <span class="op">)</span><span class="op">.</span><span class="nam">exclude</span><span class="op">(</span><span class="nam">subtype__in</span><span class="op">=</span><span class="op">[</span><span class="str">"remote"</span><span class="op">,</span> <span class="key">None</span><span class="op">]</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t">        <span class="com"># generating orchestrator expected data file</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">old_resource</span><span class="op">.</span><span class="nam">files</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">old_resource</span><span class="op">,</span> <span class="str">"files"</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t">            <span class="key">if</span> <span class="nam">old_resource</span><span class="op">.</span><span class="nam">is_vector</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t">                <span class="nam">converted_files</span> <span class="op">=</span> <span class="op">[</span><span class="op">{</span><span class="str">"base_file"</span><span class="op">:</span> <span class="str">"placeholder.shp"</span><span class="op">}</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -130,10 +130,10 @@
         <p>
             <a class="nav" href="z_1542c82bf7c7f661_0005_fixup_dynamic_shema_table_names_py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a class="nav" href="z_c446ce6418a1ac0f_models_py.html">&#xbb; next</a>
+            <a class="nav" href="z_1542c82bf7c7f661_0007_align_resourcehandler_with_asset_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.4">coverage.py v7.6.4</a>,
-            created at 2025-01-15 17:32 +0000
+            created at 2025-01-30 10:20 +0000
         </p>
     </div>
 </footer>
