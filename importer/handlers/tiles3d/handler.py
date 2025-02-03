@@ -56,13 +56,15 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         This endpoint will return True or False if with the info provided
         the handler is able to handle the file or not
         """
-        base = _data.get("base_file")
-        if not base:
+        try:
+            base = _data.get("base_file")
+            if not base:
+                return False
+            ext = base.split(".")[-1] if isinstance(base, str) else base.name.split(".")[-1]
+            if ext in ["json"] and Tiles3DFileHandler.is_3dtiles_json(base):
+                return True
+        except Exception:
             return False
-        ext = base.split(".")[-1] if isinstance(base, str) else base.name.split(".")[-1]
-        input_filename = os.path.basename(base if isinstance(base, str) else base.name)
-        if ext in ["json"] and "tileset.json" in input_filename:
-            return True
         return False
 
     @staticmethod
@@ -90,18 +92,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
             )
 
         try:
-            with open(_file, "r") as _readed_file:
-                _file = json.loads(_readed_file.read())
-            # required key described in the specification of 3dtiles
-            # https://docs.ogc.org/cs/22-025r4/22-025r4.html#toc92
-            is_valid = all(
-                key in _file.keys() for key in ("asset", "geometricError", "root")
-            )
-
-            if not is_valid:
-                raise Invalid3DTilesException(
-                    "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
-                )
+            _file = Tiles3DFileHandler.is_3dtiles_json(_file)
 
             Tiles3DFileHandler.validate_3dtile_payload(payload=_file)
 
@@ -109,6 +100,21 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
             raise Invalid3DTilesException(e)
 
         return True
+        
+    @staticmethod
+    def is_3dtiles_json(_file):
+        with open(_file, "r") as _readed_file:
+            _file = json.loads(_readed_file.read())
+            # required key described in the specification of 3dtiles
+            # https://docs.ogc.org/cs/22-025r4/22-025r4.html#toc92
+        is_valid = all(key in _file.keys() for key in ("asset", "geometricError", "root"))
+
+        if not is_valid:
+            raise Invalid3DTilesException(
+                "The provided 3DTiles is not valid, some of the mandatory keys are missing. Mandatory keys are: 'asset', 'geometricError', 'root'"
+            )
+
+        return _file
 
     @staticmethod
     def validate_3dtile_payload(payload):
@@ -212,7 +218,7 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         asset=None,
     ):
         # we want just the tileset.json as location of the asset
-        asset.location = [path for path in asset.location if "tileset.json" in path]
+        asset.location = [path for path in asset.location if path.endswith(".json")]
         asset.save()
 
         resource = super().create_geonode_resource(
