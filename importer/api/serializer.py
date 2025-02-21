@@ -16,6 +16,7 @@ class ImporterSerializer(DynamicModelSerializer):
             "overwrite_existing_layer",
             "skip_existing_layers",
             "source",
+            "custom",
         )
 
     base_file = serializers.FileField()
@@ -25,3 +26,4 @@ class ImporterSerializer(DynamicModelSerializer):
     overwrite_existing_layer = serializers.BooleanField(required=False, default=False)
     skip_existing_layers = serializers.BooleanField(required=False, default=False)
     source = serializers.CharField(required=False, default="upload")
+    custom = serializers.JSONField(required=False, default={})

@@ -312,6 +312,7 @@ class BaseRasterFileHandler(BaseHandler):
         execution_id: str,
         resource_type: Dataset = Dataset,
         asset=None,
+        custom={},
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -348,6 +349,7 @@ class BaseRasterFileHandler(BaseHandler):
                 owner=_exec.user,
                 asset=asset,
             ),
+            custom=custom,
         )
 
         saved_dataset.refresh_from_db()
@@ -369,6 +371,7 @@ class BaseRasterFileHandler(BaseHandler):
         execution_id: str,
         resource_type: Dataset = Dataset,
         asset=None,
+        custom={},        
     ):
         
         _exec = self._get_execution_request_object(execution_id)
@@ -397,7 +400,7 @@ class BaseRasterFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, asset
+                layer_name, alternate, execution_id, resource_type, asset, custom
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(

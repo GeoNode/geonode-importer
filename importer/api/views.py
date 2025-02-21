@@ -136,6 +136,7 @@ class ImporterViewSet(DynamicModelViewSet):
             try:
                 # cloning data into a local folder
                 extracted_params, _data = handler.extract_params_from_data(_data)
+                extracted_params.update({"custom": _data.pop("custom", {})})
                 if _file:
                     storage_manager, asset, files = self._handle_asset(
                         request, asset_dir, storage_manager, _data, handler
