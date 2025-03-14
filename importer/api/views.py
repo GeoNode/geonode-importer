@@ -17,7 +17,7 @@
 #
 #########################################################################
 import logging
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from django.conf import settings
 from django.urls import reverse
 from pathlib import Path
@@ -48,6 +48,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from geonode.assets.handlers import asset_handler_registry
 from geonode.assets.local import LocalAssetHandler
+from geonode.proxy.utils import proxy_urls_registry
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,10 @@ class ImporterViewSet(DynamicModelViewSet):
                     self.validate_upload(request, storage_manager)
 
                 action = ExecutionRequestAction.IMPORT.value
+
+                if "url" in extracted_params:
+                    # we should register the hosts for the proxy
+                    proxy_urls_registry.register_host(urlsplit(extracted_params["url"]).hostname)
 
                 input_params = {
                     **{"files": files, "handler_module_path": str(handler)},
