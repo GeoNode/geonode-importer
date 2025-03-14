@@ -179,6 +179,7 @@ class BaseRemoteResourceHandler(BaseHandler):
         execution_id: str,
         resource_type: ResourceBase = ResourceBase,
         asset=None,
+        custom={},
     ):
         """
         Creating geonode base resource
@@ -195,6 +196,7 @@ class BaseRemoteResourceHandler(BaseHandler):
             defaults=self.generate_resource_payload(
                 layer_name, alternate, asset, _exec, None, **params
             ),
+            custom=custom,
         )
         resource_manager.set_thumbnail(None, instance=resource)
 
@@ -252,6 +254,7 @@ class BaseRemoteResourceHandler(BaseHandler):
         execution_id: str,
         resource_type: Dataset = ResourceBase,
         asset=None,
+        custom={},
     ):
         _exec = self._get_execution_request_object(execution_id)
         resource = resource_type.objects.filter(alternate__icontains=alternate, owner=_exec.user)
@@ -275,7 +278,7 @@ class BaseRemoteResourceHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, asset
+                layer_name, alternate, execution_id, resource_type, asset, custom=custom,
             )
         elif not resource.exists() and not _overwrite:
             logger.warning(

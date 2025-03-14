@@ -568,6 +568,7 @@ class BaseVectorFileHandler(BaseHandler):
         execution_id: str,
         resource_type: Dataset = Dataset,
         asset=None,
+        custom={},
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
@@ -597,6 +598,7 @@ class BaseVectorFileHandler(BaseHandler):
             defaults=self.generate_resource_payload(
                 layer_name, alternate, asset, _exec, workspace
             ),
+            custom=custom,
         )
 
         saved_dataset.refresh_from_db()
@@ -631,6 +633,7 @@ class BaseVectorFileHandler(BaseHandler):
         execution_id: str,
         resource_type: Dataset = Dataset,
         asset=None,
+        custom={},
     ):
         _exec = self._get_execution_request_object(execution_id)
 
@@ -662,7 +665,7 @@ class BaseVectorFileHandler(BaseHandler):
                 f"The dataset required {alternate} does not exists, but an overwrite is required, the resource will be created"
             )
             return self.create_geonode_resource(
-                layer_name, alternate, execution_id, resource_type, asset
+                layer_name, alternate, execution_id, resource_type, asset, custom=custom,
             )
         elif not dataset.exists() and not _overwrite:
             logger.warning(

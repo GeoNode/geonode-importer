@@ -236,7 +236,7 @@ class BaseHandler(ABC):
         return NotImplementedError
 
     def create_geonode_resource(
-        self, layer_name, alternate, execution_id, resource_type: Dataset = Dataset
+        self, layer_name, alternate, execution_id, resource_type: Dataset = Dataset, custom={}
     ):
         """
         Base function to create the resource into geonode. Each handler can specify
