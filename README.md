@@ -7,12 +7,12 @@
 | importer/\_\_init\_\_.py                                                                    |        8 |        0 |    100% |           |
 | importer/api/\_\_init\_\_.py                                                                |        0 |        0 |    100% |           |
 | importer/api/exception.py                                                                   |       37 |        0 |    100% |           |
-| importer/api/serializer.py                                                                  |       16 |        0 |    100% |           |
+| importer/api/serializer.py                                                                  |       17 |        0 |    100% |           |
 | importer/api/urls.py                                                                        |        5 |        0 |    100% |           |
-| importer/api/views.py                                                                       |      124 |        3 |     98% |184-185, 273 |
+| importer/api/views.py                                                                       |      125 |        3 |     98% |185-186, 274 |
 | importer/apps.py                                                                            |       13 |        0 |    100% |           |
 | importer/celery\_app.py                                                                     |        4 |        0 |    100% |           |
-| importer/celery\_tasks.py                                                                   |      230 |       23 |     90% |55, 150, 246-249, 387-397, 558-568, 607, 653-663, 723-733, 781-786 |
+| importer/celery\_tasks.py                                                                   |      231 |       23 |     90% |55, 150, 246-249, 390-400, 561-571, 610, 656-666, 726-736, 784-789 |
 | importer/datastore.py                                                                       |       20 |        1 |     95% |        34 |
 | importer/db\_router.py                                                                      |       18 |        0 |    100% |           |
 | importer/handlers/\_\_init\_\_.py                                                           |        0 |        0 |    100% |           |
@@ -20,10 +20,10 @@
 | importer/handlers/base.py                                                                   |      140 |       31 |     78% |43, 56, 61, 67, 107, 115, 125, 133, 199, 206, 228, 236, 245, 248, 256, 278-286, 295-296, 302, 330-340, 343, 348 |
 | importer/handlers/common/\_\_init\_\_.py                                                    |        0 |        0 |    100% |           |
 | importer/handlers/common/metadata.py                                                        |       43 |        4 |     91% |35, 44, 62, 90 |
-| importer/handlers/common/raster.py                                                          |      224 |       76 |     66% |40, 44, 64, 73, 89, 106-107, 132-138, 145-147, 150-162, 165-176, 193, 210, 227-239, 303-305, 334, 395-406, 458-464, 478-487, 497, 504, 510-516, 534-569 |
-| importer/handlers/common/remote.py                                                          |      107 |       14 |     87% |52, 74, 86-87, 151-153, 172, 273-284 |
+| importer/handlers/common/raster.py                                                          |      224 |       76 |     66% |40, 44, 64, 73, 89, 106-107, 132-138, 145-147, 150-162, 165-176, 193, 210, 227-239, 303-305, 335, 398-409, 461-467, 481-490, 500, 507, 513-519, 537-572 |
+| importer/handlers/common/remote.py                                                          |      107 |       14 |     87% |52, 74, 86-87, 151-153, 172, 276-287 |
 | importer/handlers/common/serializer.py                                                      |       14 |        0 |    100% |           |
-| importer/handlers/common/vector.py                                                          |      351 |       46 |     87% |55, 74, 83, 143-144, 211-212, 224-230, 269, 275-278, 386-390, 452-456, 486, 590, 660-671, 795, 797-801, 810-815, 821-827, 867-868, 929-930, 945 |
+| importer/handlers/common/vector.py                                                          |      351 |       46 |     87% |55, 74, 83, 143-144, 211-212, 224-230, 269, 275-278, 386-390, 452-456, 486, 591, 663-674, 798, 800-804, 813-818, 824-830, 870-871, 932-933, 948 |
 | importer/handlers/csv/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
 | importer/handlers/csv/exceptions.py                                                         |        7 |        0 |    100% |           |
 | importer/handlers/csv/handler.py                                                            |       94 |       21 |     78% |99, 158-223, 229, 242, 255 |
@@ -44,7 +44,7 @@
 | importer/handlers/remote/serializers/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
 | importer/handlers/remote/serializers/wms.py                                                 |       10 |        0 |    100% |           |
 | importer/handlers/remote/tests/\_\_init\_\_.py                                              |        0 |        0 |    100% |           |
-| importer/handlers/remote/tiles3d.py                                                         |       51 |        6 |     88% |46, 52-53, 75, 78, 80 |
+| importer/handlers/remote/tiles3d.py                                                         |       51 |        6 |     88% |46, 52-53, 76, 79, 81 |
 | importer/handlers/remote/wms.py                                                             |       63 |        3 |     95% |     82-86 |
 | importer/handlers/shapefile/\_\_init\_\_.py                                                 |        0 |        0 |    100% |           |
 | importer/handlers/shapefile/exceptions.py                                                   |        7 |        0 |    100% |           |
@@ -55,7 +55,7 @@
 | importer/handlers/sld/handler.py                                                            |       29 |        2 |     93% |     72-75 |
 | importer/handlers/tiles3d/\_\_init\_\_.py                                                   |        0 |        0 |    100% |           |
 | importer/handlers/tiles3d/exceptions.py                                                     |        7 |        0 |    100% |           |
-| importer/handlers/tiles3d/handler.py                                                        |      141 |       25 |     82% |66-67, 135, 149, 159-210, 234, 262-265, 308 |
+| importer/handlers/tiles3d/handler.py                                                        |      141 |       25 |     82% |66-67, 135, 149, 159-210, 235, 263-266, 309 |
 | importer/handlers/tiles3d/utils.py                                                          |      107 |        2 |     98% |  140, 221 |
 | importer/handlers/utils.py                                                                  |       58 |        8 |     86% |97-98, 111-112, 122-125 |
 | importer/handlers/xml/\_\_init\_\_.py                                                       |        0 |        0 |    100% |           |
@@ -82,7 +82,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2736** |  **365** | **87%** |           |
+|                                                                                   **TOTAL** | **2739** |  **365** | **87%** |           |
 
 
 ## Setup coverage badge
