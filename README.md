@@ -9,7 +9,7 @@
 | importer/api/exception.py                                                                   |       37 |        0 |    100% |           |
 | importer/api/serializer.py                                                                  |       17 |        0 |    100% |           |
 | importer/api/urls.py                                                                        |        5 |        0 |    100% |           |
-| importer/api/views.py                                                                       |      125 |        3 |     98% |185-186, 274 |
+| importer/api/views.py                                                                       |      128 |        3 |     98% |190-191, 279 |
 | importer/apps.py                                                                            |       13 |        0 |    100% |           |
 | importer/celery\_app.py                                                                     |        4 |        0 |    100% |           |
 | importer/celery\_tasks.py                                                                   |      231 |       23 |     90% |55, 150, 246-249, 390-400, 561-571, 610, 656-666, 726-736, 784-789 |
@@ -82,7 +82,7 @@
 | importer/utils.py                                                                           |       27 |        2 |     93% |    24, 27 |
 | importer/views.py                                                                           |        0 |        0 |    100% |           |
 | setup.py                                                                                    |        7 |        7 |      0% |      1-15 |
-|                                                                                   **TOTAL** | **2739** |  **365** | **87%** |           |
+|                                                                                   **TOTAL** | **2742** |  **365** | **87%** |           |
 
 
 ## Setup coverage badge
