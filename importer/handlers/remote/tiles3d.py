@@ -61,9 +61,10 @@ class RemoteTiles3DResourceHandler(BaseRemoteResourceHandler, Tiles3DFileHandler
         execution_id: str,
         resource_type: Dataset = ResourceBase,
         asset=None,
+        custom={},
     ):
         resource = super().create_geonode_resource(
-            layer_name, alternate, execution_id, resource_type, asset
+            layer_name, alternate, execution_id, resource_type, asset, custom=custom
         )
         _exec = orchestrator.get_execution_object(exec_id=execution_id)
         try:
