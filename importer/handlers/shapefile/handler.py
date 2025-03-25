@@ -164,7 +164,7 @@ class ShapeFileHandler(BaseVectorFileHandler):
         ):
             additional_options.append("-nlt PROMOTE_TO_MULTI")
         if encoding:
-            additional_options.append(f"-lco ENCODING={encoding}")
+            additional_options.append(f"--config SHAPE_ENCODING {encoding}")
 
         return (
             f"{base_command } -lco precision=no -lco GEOMETRY_NAME={BaseVectorFileHandler().default_geometry_column_name} "
