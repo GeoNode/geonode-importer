@@ -216,13 +216,14 @@ class Tiles3DFileHandler(BaseVectorFileHandler):
         execution_id: str,
         resource_type: Dataset = ...,
         asset=None,
+        custom={},
     ):
         # we want just the tileset.json as location of the asset
         asset.location = [path for path in asset.location if path.endswith(".json")]
         asset.save()
 
         resource = super().create_geonode_resource(
-            layer_name, alternate, execution_id, ResourceBase, asset
+            layer_name, alternate, execution_id, ResourceBase, asset, custom=custom,
         )
 
         # fixing-up bbox for the 3dtile object
