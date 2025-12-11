@@ -25,6 +25,7 @@ from importer.celery_app import importer_app
 from geonode.storage.manager import storage_manager
 from geonode.assets.handlers import asset_handler_registry
 from geonode.assets.models import Asset
+from geonode.assets.utils import create_link
 
 logger = logging.getLogger(__name__)
 
@@ -502,7 +503,6 @@ class BaseRasterFileHandler(BaseHandler):
             execution_id=str(_exec.exec_id),
             asset=cloned_asset,
         )
-        from geonode.assets.utils import create_link
         [create_link(new_resource, asset) for asset in assets_to_link]
 
         new_resource.refresh_from_db()
