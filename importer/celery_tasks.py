@@ -35,6 +35,7 @@ from importer.settings import (
     IMPORTER_RESOURCE_CREATION_RATE_LIMIT,
 )
 from importer.utils import call_rollback_function, error_handler, find_key_recursively
+from importer.handlers.base import BaseHandler
 
 logger = logging.getLogger(__name__)
 
@@ -610,8 +611,8 @@ def copy_dynamic_model(
             raise Exception("The resource requested does not exists")
 
         resource = resource.first()
-
-        new_dataset_alternate = create_alternate(resource.title, exec_id).lower()
+        sanitized_title = BaseHandler().fixup_name(resource.title)
+        new_dataset_alternate = create_alternate(sanitized_title, exec_id).lower()
 
         if os.getenv("IMPORTER_ENABLE_DYN_MODELS", False):
             dynamic_schema = ModelSchema.objects.filter(name=alternate.split(":")[1])
