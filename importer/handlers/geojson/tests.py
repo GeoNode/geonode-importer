@@ -1,11 +1,13 @@
 import uuid
 import os
+import shutil
 from django.test import TestCase
 from mock import MagicMock, patch
 from importer.handlers.common.vector import import_with_ogr2ogr
 from importer.handlers.geojson.exceptions import InvalidGeoJsonException
 from importer.handlers.geojson.handler import GeoJsonFileHandler
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from importer import project_dir
 from geonode.upload.models import UploadParallelismLimit
 from geonode.upload.api.exceptions import UploadParallelismLimitException
@@ -130,13 +132,23 @@ class TestGeoJsonFileHandler(TestCase):
         self.assertEqual(str(_uuid), execution_id)
 
         _open.assert_called_once()
+        
+        _datastore = settings.DATABASES["datastore"]
+        
+        expected_cmd_list = [
+            shutil.which("ogr2ogr") or "/usr/bin/ogr2ogr",
+            "--config", "PG_USE_COPY", "YES",
+            "-f", "PostgreSQL",
+            f"PG: dbname='{_datastore['NAME']}' host={os.getenv('DATABASE_HOST', 'db')} port=5432 user='{_datastore['USER']}' password='{_datastore['PASSWORD']}' ",
+            self.valid_files.get("base_file"),
+            "-nln", "alternate",
+            "dataset",
+            "-lco", "GEOMETRY_NAME=geometry"
+        ]
+
         _open.assert_called_with(
-            "/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
-            + os.getenv("DATABASE_HOST", "localhost")
-            + " port=5432 user='geonode_data' password='geonode_data' \" \""
-            + self.valid_files.get("base_file")
-            + '" -nln alternate "dataset" -lco GEOMETRY_NAME=geometry',
+            expected_cmd_list,
             stdout=-1,
             stderr=-1,
-            shell=True,  # noqa
+            shell=False
         )

@@ -1,4 +1,6 @@
 import ast
+import shlex
+import shutil
 from django.db import connections
 from importer.publisher import DataPublisher
 from importer.utils import call_rollback_function
@@ -160,6 +162,8 @@ class BaseVectorFileHandler(BaseHandler):
         This is a default command that is needed to import a vector file
         """
         _datastore = settings.DATABASES["datastore"]
+        layers = ogr.Open(files.get("base_file"))
+        layer = layers.GetLayer(original_name)
 
         options = "--config PG_USE_COPY YES"
         copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
@@ -169,19 +173,24 @@ class BaseVectorFileHandler(BaseHandler):
             options += " -f PGDump /vsistdout/ "
         else:
             # default option with postgres copy
-            options += (
-                " -f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" "
-                % (
-                    _datastore["NAME"],
-                    _datastore["HOST"],
-                    _datastore.get("PORT", 5432),
-                    _datastore["USER"],
-                    _datastore["PASSWORD"],
-                )
+            options += " -f PostgreSQL PG:\" dbname='%s' host=%s port=%s user='%s' password='%s' \" " % (
+                _datastore["NAME"],
+                _datastore["HOST"],
+                _datastore.get("PORT", 5432),
+                _datastore["USER"],
+                _datastore["PASSWORD"],
             )
-        options += f'"{files.get("base_file")}"' + " "
 
-        options += f'-nln {alternate} "{original_name}"'
+        # vrt file fallback logic
+        input_file = files.get("temp_vrt_file") or files.get("base_file")
+
+        # Securely quote the input file and layer names
+        options += f" {shlex.quote(input_file)} "
+        options += f" -nln {shlex.quote(alternate)} {shlex.quote(original_name)}"
+
+        # Geometry promotion logic
+        if layer is not None and "Point" not in ogr.GeometryTypeToName(layer.GetGeomType()):
+            options += " -nlt PROMOTE_TO_MULTI"
 
         if ovverwrite_layer:
             options += " -overwrite"
@@ -904,28 +913,48 @@ def import_with_ogr2ogr(
     If the layer should be overwritten, the option is appended dynamically
     """
     try:
-        ogr_exe = "/usr/bin/ogr2ogr"
+        # Use shutil to find the binary path safely
+        ogr_exe = shutil.which("ogr2ogr") or "ogr2ogr"
 
-        options = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
+        # Load the command string from the handler
+        options_str = orchestrator.load_handler(handler_module_path).create_ogr2ogr_command(
             files, original_name, ovverwrite_layer, alternate
         )
-        _datastore = settings.DATABASES["datastore"]
+
+        # Split the string into a list for Popen
+        cmd_list = [ogr_exe] + shlex.split(options_str)
 
         copy_with_dump = ast.literal_eval(os.getenv("OGR2OGR_COPY_WITH_DUMP", "False"))
 
         if copy_with_dump:
-            options += f" | PGPASSWORD={_datastore['PASSWORD']} psql -d {_datastore['NAME']} -h {_datastore['HOST']} -p {_datastore.get('PORT', 5432)} -U {_datastore['USER']} -f -"
+            _datastore = settings.DATABASES["datastore"]
+            psql_cmd = [
+                "psql", "-d", _datastore["NAME"], "-h", _datastore["HOST"], 
+                "-p", str(_datastore.get("PORT", 5432)), "-U", _datastore["USER"], "-f", "-"
+            ]
 
-        commands = [ogr_exe] + options.split(" ")
+            env = os.environ.copy()
+            env["PGPASSWORD"] = _datastore["PASSWORD"]
 
-        process = Popen(" ".join(commands), stdout=PIPE, stderr=PIPE, shell=True)
-        stdout, stderr = process.communicate()
+            p1 = Popen(cmd_list, stdout=PIPE, stderr=PIPE)
+            p2 = Popen(psql_cmd, stdin=p1.stdout, stdout=PIPE, stderr=PIPE, env=env)
+
+            p1.stdout.close()
+            stdout, stderr = p2.communicate()
+        else:
+            # Standard execution with shell=False
+            process = Popen(cmd_list, stdout=PIPE, stderr=PIPE, shell=False)
+            stdout, stderr = process.communicate()
+
+        # Cleanup temporary files
+        if files.get("temp_vrt_file") and os.path.exists(files["temp_vrt_file"]):
+            os.remove(files["temp_vrt_file"])
+
+        # OGR error handling
         if (
             stderr is not None
             and stderr != b""
-            and b"ERROR" in stderr
-            and b"error" in stderr
-            or b"Syntax error" in stderr
+            and (b"ERROR" in stderr or b"error" in stderr or b"Syntax error" in stderr)
         ):
             try:
                 err = stderr.decode()
@@ -934,8 +963,14 @@ def import_with_ogr2ogr(
             logger.error(f"Original error returned: {err}")
             message = normalize_ogr2ogr_error(err, original_name)
             raise Exception(f"{message} for layer {alternate}")
+            
         return "ogr2ogr", alternate, execution_id
+
     except Exception as e:
+        # Cleanup on failure
+        if files.get("temp_vrt_file") and os.path.exists(files.get("temp_vrt_file")):
+            os.remove(files["temp_vrt_file"])
+            
         call_rollback_function(
             execution_id,
             handlers_module_path=handler_module_path,
