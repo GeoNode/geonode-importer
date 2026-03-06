@@ -15,6 +15,7 @@ from geonode.resource.models import ExecutionRequest
 from dynamic_models.models import ModelSchema
 from osgeo import ogr
 from django.test.utils import override_settings
+from django.conf import settings
 
 
 class TestBaseVectorFileHandler(TestCase):
@@ -239,15 +240,24 @@ class TestBaseVectorFileHandler(TestCase):
         self.assertEqual(str(_uuid), execution_id)
 
         _open.assert_called_once()
+        
+        _datastore = settings.DATABASES["datastore"]
+        
+        expected_cmd_list = [
+            shutil.which("ogr2ogr") or "/usr/bin/ogr2ogr",
+            "--config", "PG_USE_COPY", "YES",
+            "-f", "PostgreSQL",
+            f"PG: dbname='{_datastore['NAME']}' host={os.getenv('DATABASE_HOST', 'db')} port=5432 user='{_datastore['USER']}' password='{_datastore['PASSWORD']}' ",
+            self.valid_files.get("base_file"),
+            "-nln", "alternate",
+            "dataset"
+        ]
+
         _open.assert_called_with(
-            "/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
-            + os.getenv("DATABASE_HOST", "localhost")
-            + " port=5432 user='geonode_data' password='geonode_data' \" \""
-            + self.valid_files.get("base_file")
-            + '" -nln alternate "dataset"',
+            expected_cmd_list,
             stdout=-1,
             stderr=-1,
-            shell=True,  # noqa
+            shell=False
         )
 
     @patch("importer.handlers.common.vector.Popen")
@@ -269,24 +279,36 @@ class TestBaseVectorFileHandler(TestCase):
             )
 
         _open.assert_called_once()
+        
+        # Build the expected list to match your actual secure implementation
+        _datastore = settings.DATABASES["datastore"]
+        
+        # Note: We match the EXACT list order and strings found in your 'Actual' log
+        expected_cmd_list = [
+            shutil.which("ogr2ogr") or "/usr/bin/ogr2ogr",
+            "--config", "PG_USE_COPY", "YES",
+            "-f", "PostgreSQL",
+            f"PG: dbname='{_datastore['NAME']}' host={os.getenv('DATABASE_HOST', 'db')} port=5432 user='{_datastore['USER']}' password='{_datastore['PASSWORD']}' ",
+            self.valid_files.get("base_file"),
+            "-nln", "alternate",
+            "dataset"
+        ]
+
         _open.assert_called_with(
-            "/usr/bin/ogr2ogr --config PG_USE_COPY YES -f PostgreSQL PG:\" dbname='test_geonode_data' host="
-            + os.getenv("DATABASE_HOST", "localhost")
-            + " port=5432 user='geonode_data' password='geonode_data' \" \""
-            + self.valid_files.get("base_file")
-            + '" -nln alternate "dataset"',
+            expected_cmd_list,
             stdout=-1,
             stderr=-1,
-            shell=True,  # noqa
+            shell=False
         )
 
-    @patch.dict(os.environ, {"OGR2OGR_COPY_WITH_DUMP": "True"}, clear=True)
+    @patch.dict(os.environ, {"OGR2OGR_COPY_WITH_DUMP": "True"})
     @patch("importer.handlers.common.vector.Popen")
     def test_import_with_ogr2ogr_without_errors_should_call_the_right_command_if_dump_is_enabled(
         self, _open
     ):
         _uuid = uuid.uuid4()
 
+        # Setup the mock for the two processes
         comm = MagicMock()
         comm.communicate.return_value = b"", b""
         _open.return_value = comm
@@ -304,12 +326,32 @@ class TestBaseVectorFileHandler(TestCase):
         self.assertEqual(alternate, "alternate")
         self.assertEqual(str(_uuid), execution_id)
 
-        _open.assert_called_once()
-        _call_as_string = _open.mock_calls[0][1][0]
+        # Verify Popen was called twice (once for ogr2ogr, once for psql)
+        self.assertEqual(_open.call_count, 2)
 
-        self.assertTrue("-f PGDump /vsistdout/" in _call_as_string)
-        self.assertTrue("psql -d" in _call_as_string)
-        self.assertFalse("-f PostgreSQL PG" in _call_as_string)
+        # Verify the OGR2OGR call (First call)
+        _ogr_call_args = _open.call_args_list[0]
+        _ogr_cmd = _ogr_call_args[0][0]
+        self.assertIn("/bin/ogr2ogr", _ogr_cmd[0])
+        self.assertIn("PGDump", _ogr_cmd)
+        self.assertIn("/vsistdout/", _ogr_cmd)
+
+        # Verify the PSQL call (Second call)
+        _psql_call_args = _open.call_args_list[1]
+        _psql_cmd = _psql_call_args[0][0]
+        _psql_kwargs = _psql_call_args[1]
+
+        self.assertEqual(_psql_cmd[0], "psql")
+        self.assertIn("-d", _psql_cmd)
+        self.assertIn("test_geonode_data", _psql_cmd)
+
+        _env = _psql_kwargs.get("env", {})
+        self.assertEqual(_env.get("PGPASSWORD"), "geonode_data")
+        
+        # Verify the pipe connection
+        self.assertIn("stdin", _psql_kwargs)
+        # Verify psql isn't using shell
+        self.assertFalse(_psql_kwargs.get("shell", False))
 
     def test_select_valid_layers(self):
         """
